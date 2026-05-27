@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>에그팜 EGG FARM</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#FBF5E6;color:#2A2520;}
+input,button,textarea{font-family:inherit;}
+input:focus,textarea:focus{outline:none;}
+button{cursor:pointer;transition:opacity .12s,transform .12s;}
+button:active{opacity:.82;transform:scale(.97);}
+#root{max-width:480px;margin:0 auto;min-height:100vh;}
+@keyframes sUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fIn{from{opacity:0}to{opacity:1}}
+@keyframes sIn{from{transform:translateX(18px);opacity:0}to{transform:translateX(0);opacity:1}}
+.sUp{animation:sUp .34s cubic-bezier(.32,.72,0,1) both}
+.fIn{animation:fIn .28s ease both}
+.sIn{animation:sIn .26s ease both}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#D4B896;border-radius:4px}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+const SB_URL="https://fjvrzohojldzexowdzph.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqdnJ6b2hvamxkemV4b3dkenBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODc4NDMsImV4cCI6MjA5NTM2Mzg0M30.vt6NK52oXLX81Dxx2nSFnaVUKYxCKmw51bMYC4jG5A0";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+const B="#6B4C2A",BL="#8B6F47",GD="#D4A853",CR="#FBF5E6",CD="#F2E8D0",
+      OR="#E07B39",GR="#9C8E7E",BD="#E8DCCB",ER="#C0392B",OK="#2E7D32",W="#FFFFFF";
+const BANK={bank:"카카오뱅크",account:"3333-01-2024567",holder:"에그팜"};
+const DS={p1:{total:20,perPerson:2},p2:{total:30,perPerson:3},p3:{total:15,perPerson:2},p4:{total:10,perPerson:1}};
+const PD=[
+  {id:"p1",em:"🥚",bg:"인기",nm:"신선란 30구",pr:18000,dc:"매일 아침 수확 · 당일 배송",
+   dt:"목장에서 매일 아침 수확한 신선한 계란. 항생제 없이 자연방목 환경에서 생산합니다.",
+   bn:["수확 후 24시간 내 배송","영양가 풍부한 진한 노른자","항생제·성장촉진제 무사용"],
+   info:[["중량","1.8kg (60g×30구)"],["보관","냉장 30일"]]},
+  {id:"p2",em:"🌿",nm:"방목란 20구",pr:22000,dc:"자연방목 · 오메가3 2배",
+   dt:"넓은 초지에서 자유롭게 뛰어다닌 닭이 낳은 계란. 오메가3가 2배 높습니다.",
+   bn:["오메가3 일반란 대비 2배","호메인·비타민D 풍부","GMO 사료 미사용"],
+   info:[["중량","1.2kg (60g×20구)"],["보관","냉장 35일"]]},
+  {id:"p3",em:"🍞",bg:"새상품",nm:"구운 계란빵 5개",pr:12000,dc:"우리 계란으로 당일 구움",
+   dt:"에그팜 계란으로 매일 굽는 계란빵. 방부제 없이 신선한 재료만 사용합니다.",
+   bn:["당일 생산·당일 배송","무방부제","쫀득한 수제 식감"],
+   info:[["구성","계란빵 5개"],["보관","상온 3일"]]},
+  {id:"p4",em:"📦",bg:"구독",nm:"계란 정기구독 (월)",pr:54000,dc:"10% 할인 · 매월 자동배송",
+   dt:"매달 신선란 30구 정기 배송. 단품보다 10% 저렴하고 배송비도 무료입니다.",
+   bn:["단품 대비 10% 할인","배송비 무료","언제든 해지 가능"],
+   info:[["구성","신선란 30구 × 매월"],["결제","월 1회 자동 청구"]]},
+];
+const STEPS=["ordered","pending_payment","payment_confirmed","preparing","shipping","delivered"];
+const SLBL=["주문접수","입금대기","입금확인","배송준비","배송중","배송완료"];
+const CF=["payment_confirmed","preparing","shipping","delivered"];
+const SB_={ordered:{l:"주문접수",bg:"#F3F4F6",t:"#374151"},pending_payment:{l:"입금대기",bg:"#FEF3C7",t:"#92400E"},payment_confirmed:{l:"입금확인",bg:"#DBEAFE",t:"#1E40AF"},preparing:{l:"배송준비",bg:"#EDE9FE",t:"#4C1D95"},shipping:{l:"배송중",bg:"#FEF9C3",t:"#78350F"},delivered:{l:"배송완료",bg:"#DCFCE7",t:"#166534"},cancelled:{l:"취소됨",bg:"#FFE4E6",t:"#9F1239"},reserved:{l:"예약구매",bg:"#FEF9C3",t:"#713F12"}};
+
+function sh(s){let h=0,t="ef26"+s+"ef26";for(let i=0;i<t.length;i++){h=((h<<5)-h)+t.charCodeAt(i);h|=0;}return Math.abs(h).toString(36).padStart(10,"0");}
+function shP(s){let h=0,t="efpw"+s+"efpw";for(let i=0;i<t.length;i++){h=((h<<5)-h)+t.charCodeAt(i);h|=0;}return Math.abs(h).toString(36).padStart(16,"0");}
+function mp(p){const d=p.replace(/\D/g,"");return d.slice(0,3)+"-****-"+d.slice(-4);}
+function fp(v){const d=v.replace(/\D/g,"").slice(0,11);if(d.length<4)return d;if(d.length<8)return d.slice(0,3)+"-"+d.slice(3);return d.slice(0,3)+"-"+d.slice(3,7)+"-"+d.slice(7);}
+function fpr(n){return n.toLocaleString("ko-KR")+"원";}
+function fd(s){if(!s)return"-";const d=new Date(s);return(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");}
+function gid(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"-"+Math.floor(1000+Math.random()*9000);}
+function ps(p){let s=0;if(p.length>=6)s++;if(p.length>=10)s++;if(/[0-9]/.test(p))s++;if(/[!@#$%^&*]/.test(p))s++;return s;}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function ri(file,cb){const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const ratio=Math.min(1,800/img.width),w=Math.round(img.width*ratio),h=Math.round(img.height*ratio);const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);cb(null,c.toDataURL("image/jpeg",.75));};img.
