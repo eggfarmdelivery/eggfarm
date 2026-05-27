@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>에그팜 EGG FARM</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#FBF5E6;color:#2A2520;}
+input,button,textarea{font-family:inherit;}
+input:focus,textarea:focus{outline:none;}
+button{cursor:pointer;transition:opacity .12s,transform .12s;}
+button:active{opacity:.82;transform:scale(.97);}
+#root{max-width:480px;margin:0 auto;min-height:100vh;}
+@keyframes sUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fIn{from{opacity:0}to{opacity:1}}
+@keyframes sIn{from{transform:translateX(18px);opacity:0}to{transform:translateX(0);opacity:1}}
+.sUp{animation:sUp .34s cubic-bezier(.32,.72,0,1) both}
+.fIn{animation:fIn .28s ease both}
+.sIn{animation:sIn .26s ease both}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#D4B896;border-radius:4px}
+</style>
+</head>
+<body><div id="root"></div>
+<script>
+// 순수 자바스크립트로 변환된 안전한 코드 영역
+const { useState, useEffect, useRef } = React;
+const SB_URL = "https://fjvrzohojldzexowdzph.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqdnJ6b2hvamxkemV4b3dkenBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODc4NDMsImV4cCI6MjA5NTM2Mzg0M30.vt6NK52oXLX81Dxx2nSFnaVUKYxCKmw51bMYC4jG5A0";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+const B = "#6B4C2A", BL = "#8B6F47", GD = "#D4A853", CR = "#FBF5E6", CD = "#F2E8D0",
+      OR = "#E07B39", GR = "#9C8E7E", BD = "#E8DCCB", ER = "#C0392B", OK = "#2E7D32", W = "#FFFFFF";
+const BANK = { bank: "카카오뱅크", account: "3333-01-2024567", holder: "에그팜" };
+const DS = { p1: { total: 20, perPerson: 2 }, p2: { total: 30, perPerson: 3 }, p3: { total: 15, perPerson: 2 }, p4: { total: 10, perPerson: 1 } };
+const PD = [
+  { id: "p1", em: "🥚", bg: "인기", nm: "신선란 30구", pr: 18000, dc: "매일 아침 수확 · 당일 배송",
+   dt: "목장에서 매일 아침 수확한 신선한 계란. 항생제 없이 자연방목 환경에서 생산합니다.",
+   bn: ["수확 후 24시간 내 배송", "영양가 풍부한 진한 노른자", "항생제·성장촉진제 무사용"],
+   info: [["중량", "1.8kg (60g×30구)"], ["보관", "냉장 30일"]] },
+  { id: "p2", em: "🌿", nm: "방목란 20구", pr: 22000, dc: "자연방목 · 오메가3 2배",
+   dt: "넓은 초지에서 자유롭게 뛰어다닌 닭이 낳은 계란. 오메가3가 2배 높습니다.",
+   bn: ["오메가3 일반란 대비 2배", "호메인·비타민D 풍부", "GMO 사료 미사용"],
+   info: [["중량", "1.2kg (60g×20구)"], ["보관", "냉장 35일"]] },
+  { id: "p3", em: "🍞", bg: "새상품", nm: "구운 계란빵 5개", pr: 12000, dc: "우리 계란으로 당일 구움",
+   dt: "에그팜 계란으로 매일 굽는 계란빵. 방부제 없이 신선한 재료만 사용합니다.",
+   bn: ["당일 생산·당일 배송", "무방부제", "쫀득한 수제 식감"],
+   info: [["구성", "계란빵 5개"], ["보관", "상온 3일"]] },
+  { id: "p4", em: "📦", bg: "구독", nm: "계란 정기구독 (월)", pr: 54000, dc: "10% 할인 · 매월 자동배송",
+   dt: "매달 신선란 30구 정기 배송. 단품보다 10% 저렴하고 배송비도 무료입니다.",
+   bn: ["단품 대비 10% 할인", "배송비 무료", "언제든 해지 가능"],
+   info: [["구성", "신선란 30구 × 매월"], ["결제", "월 1회 자동 청구"]] }
+];
+const STEPS = ["ordered", "pending_payment", "payment_confirmed", "preparing", "shipping", "delivered"];
+const SLBL = ["주문접수", "입금대기", "입금확인", "배송준비", "배송중", "배송완료"];
+const CF = ["payment_confirmed", "preparing", "shipping", "delivered"];
+const SB_ = { ordered: { l: "주문접수", bg: "#F3F4F6", t: "#374151" }, pending_payment: { l: "입금대기", bg: "#FEF3C7", t: "#92400E" }, payment_confirmed: { l: "입금확인", bg: "#DBEAFE", t: "#1E40AF" }, preparing: { l: "배송준비", bg: "#EDE9FE", t: "#4C1D95" }, shipping: { l: "배송중", bg: "#FEF9C3", t: "#78350F" }, delivered: { l: "배송완료", bg: "#DCFCE7", t: "#166534" }, cancelled: { l: "취소됨", bg: "#FFE4E6", t: "#9F1239" }, reserved: { l: "예약구매", bg: "#FEF9C3", t: "#713F12" } };
+
+function sh(s) { let h = 0, t = "ef26" + s + "ef26"; for (let i = 0; i < t.length; i++) { h = ((h << 5) - h) + t.charCodeAt(i); h |= 0; } return Math.abs(h).toString(36).padStart(10, "0"); }
+function shP(s) { let h = 0, t = "efpw" + s + "efpw"; for (let i = 0; i < t.length; i++) { h = ((h << 5) - h) + t.charCodeAt(i); h |= 0; } return Math.abs(h).toString(36).padStart(16, "0"); }
+function mp(p) { const d = p.replace(/\D/g, ""); return d.slice(0, 3) + "-****-" + d.slice(-4); }
+function fp(v) { const d = v.replace(/\D/g, "").slice(0, 11); if (d.length < 4) return d; if (d.length < 8) return d.slice(0, 3) + "-" + d.slice(3); return d.slice(0, 3) + "-" + d.slice(3, 7) + "-" + d.slice(7); }
+function fpr(n) { return n.toLocaleString("ko-KR") + "원"; }
+function fd(s) { if (!s) return "-"; const d = new Date(s); return (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function gid() { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + "-" + Math.floor(1000 + Math.random() * 9000); }
+function ps(p) { let s = 0; if (p.length >= 6) s++; if (p.length >= 10) s++; if (/[0-9]/.test(p)) s++; if (/[!@#$%^&*]/.test(p)) s++; return s; }
+function today() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+async function getMember(hash) { try { const { data } = await sb.from("members").select("*").eq("phone_hash", hash).maybeSingle(); return data ? { phoneHash: data.phone_hash, phoneMasked: data.phone_masked, name: data.name, password_hash: data.password_hash, createdAt: data.created_at } : null; } catch (e) { return null; } }
+async function saveMember(m) { await sb.from("members").upsert({ phone_hash: m.phoneHash, phone_masked: m.phoneMasked, name: m.name, password_hash: m.passwordHash, created_at: m.createdAt }); }
+async function getMyOrders(hash) { const { data } = await sb.from("orders").select("*").eq("phone_hash", hash).order("created_at", { ascending: false }); return (data || []).map(mo); }
+async function insertOrder(o) { await sb.from("orders").insert({ order_id: o.orderId, phone_hash: o.phoneHash, phone_masked: o.phoneMasked, items: o.items, total: o.total, depositor: o.depositor, shipping: o.shipping, status: o.status, created_at: o.createdAt, ordered_at: o.orderedAt, cs: [] }); }
+function mo(r) { return { orderId: r.order_id, phoneHash: r.phone_hash, phoneMasked: r.phone_masked, items: r.items || [], total: r.total, depositor: r.depositor, shipping: r.shipping || {}, status: r.status, createdAt: r.created_at, orderedAt: r.ordered_at, paidAt: r.paid_at, preparingAt: r.preparing_at, shippingAt: r.shipping_at, deliveredAt: r.delivered_at, cancelledAt: r.cancelled_at, deliveryPhoto: r.delivery_photo, cs: r.cs || [] }; }
+async function getStockCfg() { const { data } = await sb.from("stock_settings").select("*"); if (!data || !data.length) return DS; const r = {}; data.forEach(x => { r[x.product_id] = { total: x.total, perPerson: x.per_person }; }); return r; }
+
+async function calcStk(pid, myHash) {
+  const [cfg_all, { data: ords }] = await Promise.all([getStockCfg(), sb.from("orders").select("phone_hash,items,status,ordered_at").in("status", CF)]);
+  const cfg = cfg_all[pid] || { total: 20, perPerson: 2 };
+  const todayStr = today();
+  let ut = 0, mu = 0;
+  for (const o of (ords || [])) {
+    if (!o.items) continue;
+    for (const it of o.items) {
+      if (it.id !== pid) continue;
+      ut += it.qty;
+      if (o.phone_hash === myHash) {
+        const orderDate = (o.ordered_at || "").slice(0, 10);
+        if (orderDate === todayStr) mu += it.qty;
+      }
+    }
+  }
+  const rt = Math.max(0, cfg.total - ut), rm = Math.max(0, cfg.perPerson - mu);
+  return { total: cfg.total, perPerson: cfg.perPerson, usedTotal: ut, remainTotal: rt, myUsed: mu, remainMy: rm, canBuy: Math.min(rt, rm) };
+}
+
+function Sheet(props) {
+  return React.createElement("div", {
+    style: { position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "flex-end", justifyC: "center", background: "rgba(0,0,0,.45)" },
+    onClick: function(e) { if (e.target === e.currentTarget) props.onClose(); }
+  }, React.createElement("div", {
+    className: "sUp",
+    style: { width: "100%", maxWidth: 480, background: CR, borderRadius: "24px 24px 0 0", maxHeight: "92vh", overflowY: "auto" }
+  }, React.createElement("div", {
+    style: { position: "sticky", top: 0, background: "rgba(251,245,230,.97)", padding: "15px 18px 13px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + BD }
+  }, React.createElement("span", { style: { fontWeight: 700, fontSize: 15 } }, props.title || ""), React.createElement("button", {
+    onClick: props.onClose,
+    style: { background: CD, border: "none", borderRadius: 18, padding: "5px 14px", fontSize: 13, color: GR }
+  }, props.close || "닫기")), React.createElement("div", { style: { padding: "18px 18px 48px" } }, props.children)));
+}
+
+function Inp(props) {
+  const [f, setF] = useState(false);
+  return React.createElement("div", null,
+    props.label && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: BL, marginBottom: 6, marginLeft: 2 } }, props.label),
+    React.createElement("div", {
+      style: { display: "flex", alignItems: "center", background: props.disabled ? "#F5F3EF" : W, borderRadius: 13, border: "1.5px solid " + (f ? B : BD), padding: "0 13px", boxShadow: f ? "0 0 0 3px rgba(107,76,42,.1)" : "none" }
+    },
+    React.createElement("input", {
+      type: props.type || "text",
+      value: props.value,
+      onChange: function(e) { if (props.onChange) props.onChange(e.target.value); },
+      onFocus: function() { setF(true); },
+      onBlur: function() { setF(false); },
+      placeholder: props.placeholder,
+      disabled: props.disabled,
+      style: { flex: 1, border: "none", background: "transparent", fontSize: 15, color: "#3A2A1A", padding: "13px 0", fontFamily: "inherit" }
+    }),
+    props.right && React.createElement("div", { style: { marginLeft: 7, display: "flex", alignItems: "center" } }, props.right))
+  );
+}
+
+function Btn(props) {
+  return React.createElement("button", {
+    onClick: props.onClick,
+    disabled: props.loading || props.disabled,
+    style: { width: "100%", padding: "15px 0", borderRadius: 15, background: (props.loading || props.disabled) ? GR : "linear-gradient(135deg," + B + "," + BL + ")", color: W, fontWeight: 700, fontSize: 15, border: "none", boxShadow: (props.loading || props.disabled) ? "none" : "0 4px 16px rgba(107,76,42,.28)", opacity: (props.loading || props.disabled) ? .7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }
+  }, props.loading ? "처리 중…" : props.children);
+}
+
+function IC(props) {
+  return React.createElement("div", { style: { background: W, borderRadius: 15, border: "1.5px solid " + BD, padding: "15px 16px", marginBottom: 12 } },
+    React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: BL, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 11 } }, props.title),
+    props.children
+  );
+}
+
+function EMsg(props) { return props.t ? React.createElement("div", { style: { background: "#FFF0EE", border: "1px solid #F5C6C0", borderRadius: 10, padding: "10px 13px", color: ER, fontSize: 13 } }, "⚠️ " + props.t) : null; }
+function Spin() { return React.createElement("div", { style: { textAlign: "center", padding: "60px 0", color: GR, fontSize: 14 } }, "불러오는 중…"); }
+
+function TL(props) {
+  const ci = STEPS.indexOf(props.status);
+  const tm = { ordered: props.order.orderedAt || props.order.createdAt, pending_payment: props.order.orderedAt || props.order.createdAt, payment_confirmed: props.order.paidAt, preparing: props.order.preparingAt || props.order.paidAt, shipping: props.order
