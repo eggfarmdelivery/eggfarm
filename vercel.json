@@ -1,9 +1,10 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/admin/:path*", "destination": "/api/admin.js" },
-    { "source": "/api/orders",       "destination": "/api/orders.js" },
-    { "source": "/api/settings",     "destination": "/api/settings.js" },
-    { "source": "/(.*)",             "destination": "/index.html" }
+    { "source": "/api/admin",    "destination": "/api/admin.js" },
+    { "source": "/api/orders",   "destination": "/api/orders.js" },
+    { "source": "/api/settings", "destination": "/api/settings.js" },
+    { "source": "/(.*)",         "destination": "/index.html" }
   ]
 }
+
