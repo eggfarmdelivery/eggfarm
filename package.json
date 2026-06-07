@@ -1,0 +1,8 @@
+{
+  "name": "egfarm-delivery",
+  "version": "1.0.0",
+  "description": "에그팜 문앞배송 서비스",
+  "dependencies": {
+    "googleapis": "^140.0.0"
+  }
+}
