@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>에그팜 문앞배송</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f5f6fa; --white:#fff; --border:#e4e6f0;
+  --accent:#4f7cff; --green:#2ecc87; --red:#ff5470;
+  --yellow:#ffbe4f; --orange:#ff8c42;
+  --text:#1a1d2e; --text2:#6b7090; --text3:#b0b5cc;
+  --radius:14px;
+  --d-bg:#0c0e14; --d-surface:#13151f; --d-surface2:#1c1f2e;
+  --d-border:#272b40; --d-text:#e2e4f0; --d-text2:#7c82a0;
+  --purple:#a78bfa;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;padding-bottom:72px}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:68px;background:var(--white);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);z-index:300;padding-bottom:env(safe-area-inset-bottom)}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--text3);background:transparent;border:none;font-family:'Noto Sans KR',sans-serif;transition:.15s;padding:6px 2px}
+.bnav-btn.active{color:var(--accent)}
+.bnav-btn.admin-tab.active{color:var(--purple)}
+.bicon{font-size:20px;line-height:1}
+.blabel{font-size:10px;font-weight:700}
+.page{display:none;max-width:480px;margin:0 auto;min-height:100vh}
+.page.active{display:block;animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+#page-admin{background:var(--d-bg);color:var(--d-text)}
+.date-header{background:linear-gradient(135deg,var(--accent),#7c5cfc);padding:20px 20px 60px;color:#fff;position:relative;overflow:hidden}
+.date-header::before{content:'🥚';position:absolute;right:-10px;top:-10px;font-size:100px;opacity:.12}
+.date-header-date{font-size:12px;opacity:.8;margin-bottom:6px}
+.date-header-title{font-size:22px;font-weight:900;letter-spacing:-.5px}
+.date-header-sub{font-size:13px;opacity:.8;margin-top:4px}
+.floating-card{margin:-40px 14px 14px;background:var(--white);border-radius:var(--radius);padding:14px;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.card{background:var(--white);border-radius:var(--radius);padding:16px;margin:0 14px 12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.flabel{font-size:11px;color:var(--text2);font-weight:600}
+.finput,.fselect{background:var(--bg);border:1.5px solid var(--border);color:var(--text);border-radius:10px;padding:11px 13px;font-size:14px;font-family:'Noto Sans KR',sans-serif;width:100%;outline:none;transition:.15s}
+.finput:focus,.fselect:focus{border-color:var(--accent);background:var(--white)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.product-option{background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.15s;text-align:center}
+.product-option.selected{border-color:var(--accent);background:#f0f4ff}
+.product-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.prod-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.prod-price{font-size:13px;color:var(--accent);font-weight:700;font-family:'JetBrains Mono',monospace}
+.qty-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}
+.qty-btn{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--white);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);flex-shrink:0}
+.qty-val{font-size:15px;font-weight:700;min-width:24px;text-align:center;font-family:'JetBrains Mono',monospace}
+.price-summary{background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-radius:12px;padding:14px;margin-bottom:14px}
+.ps-row{display:flex;justify-content:space-between;padding:4px 0}
+.ps-label{font-size:12px;color:var(--text2)}
+.ps-val{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.ps-total{border-top:1px solid rgba(79,124,255,.2);margin-top:6px;padding-top:10px}
+.ps-total .ps-label{font-size:14px;font-weight:700;color:var(--text)}
+.ps-total .ps-val{font-size:18px;color:var(--accent)}
+.btn-primary{width:100%;padding:15px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:.15s}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{width:100%;padding:13px;background:var(--bg);border:1.5px solid var(--border);color:var(--text2);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+.badge.WAITING{background:rgba(255,190,79,.15);color:var(--orange)}
+.badge.PAID_PENDING{background:rgba(255,190,79,.2);color:var(--yellow)}
+.badge.PAID{background:rgba(79,124,255,.15);color:var(--accent)}
+.badge.DELIVERING{background:rgba(255,140,66,.15);color:var(--orange)}
+.badge.DONE{background:rgba(46,204,135,.15);color:var(--green)}
+.badge.CANCELLED,.badge.AUTO_CANCEL,.badge.STOCK_CANCEL{background:rgba(180,180,180,.15);color:var(--text3)}
+.track-step{display:flex;align-items:flex-start;gap:10px;padding:8px 0}
+.track-dot{width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0;margin-top:3px}
+.track-dot.done{background:var(--green)}
+.track-dot.current{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.track-line{width:2px;height:20px;margin-left:4px;background:var(--border)}
+.track-line.done{background:var(--green)}
+/* 관리자 */
+.admin-header{background:var(--d-surface);border-bottom:1px solid var(--d-border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.admin-logo{font-size:14px;font-weight:900;color:var(--d-text)}
+.admin-tabs{display:flex;gap:0;background:var(--d-surface2);border-radius:10px;padding:3px;margin:12px 14px}
+.admin-tab{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;color:var(--d-text2);transition:.15s}
+.admin-tab.active{background:var(--d-surface);color:var(--purple)}
+.admin-section{display:none;padding-bottom:20px}
+.admin-section.active{display:block}
+.admin-card{background:var(--d-surface);border:1px solid var(--d-border);border-radius:var(--radius);padding:14px;margin:0 14px 10px}
+.admin-card-title{font-size:12px;font-weight:700;color:var(--d-text2);margin-bottom:10px}
+.d-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.d-label{font-size:11px;color:var(--d-text2);font-weight:600}
+.d-input,.d-select{background:var(--d-surface2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:10px 12px;font-size:14px;font-family:'Noto Sans KR',sans-serif;width:100%;outline:none}
+.d-input:focus{border-color:var(--purple)}
+.d-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.d-btn{padding:11px 16px;border-radius:10px;background:var(--purple);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;width:100%}
+.ops-stat{display:flex;gap:8px;margin-bottom:12px}
+.ops-stat-item{flex:1;background:var(--d-surface2);border-radius:10px;padding:10px;text-align:center}
+.ops-stat-num{font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--purple)}
+.ops-stat-label{font-size:10px;color:var(--d-text2);margin-top:2px}
+.ops-btn{width:100%;padding:12px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px}
+.ops-btn.orange{background:rgba(255,140,66,.2);color:var(--orange);border:1px solid rgba(255,140,66,.3)}
+.ops-btn.green{background:rgba(46,204,135,.2);color:var(--green);border:1px solid rgba(46,204,135,.3)}
+.ops-btn.red{background:rgba(255,84,112,.15);color:var(--red);border:1px solid rgba(255,84,112,.2)}
+.aoc{background:var(--d-surface2);border:1px solid var(--d-border);border-radius:12px;padding:12px;margin-bottom:8px}
+.aoc-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.aoc-id{font-size:10px;color:var(--d-text2);font-family:'JetBrains Mono',monospace}
+.aoc-body{font-size:12px;color:var(--d-text2);line-height:1.8;margin-bottom:8px}
+.aoc-body b{color:var(--d-text)}
+.aoc-actions{display:flex;gap:6px;flex-wrap:wrap}
+.aoc-btn{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.aoc-btn.green{background:rgba(46,204,135,.2);color:var(--green)}
+.aoc-btn.red{background:rgba(255,84,112,.15);color:var(--red)}
+.aoc-btn.blue{background:rgba(167,139,250,.15);color:var(--purple)}
+.aoc-btn.done{background:rgba(46,204,135,.1);color:var(--green);border:1px solid rgba(46,204,135,.2)}
+.admin-login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 68px);padding:32px 24px;gap:20px}
+.al-card{width:100%;max-width:320px;background:var(--d-surface);border:1px solid var(--d-border);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:12px}
+/* 지도 */
+.map-container{margin:0 14px 12px;background:var(--d-surface);border:1px solid var(--d-border);border-radius:var(--radius);padding:14px}
+.map-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.map-select{background:var(--d-surface2);border:1px solid var(--d-border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:'Noto Sans KR',sans-serif;color:var(--d-text)}
+.map-btn{padding:7px 14px;border-radius:8px;background:var(--purple);color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.svg-wrap{border:1px solid var(--d-border);border-radius:10px;overflow:hidden;background:#0a0c12}
+.map-legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--d-text2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+/* 주문완료 */
+.order-success{display:flex;flex-direction:column;align-items:center;padding:40px 24px;text-align:center;gap:16px}
+.success-icon{font-size:64px;animation:bounceIn .4s ease}
+@keyframes bounceIn{0%{transform:scale(.5)}80%{transform:scale(1.1)}100%{transform:scale(1)}}
+.success-orderno{font-size:24px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent);background:#f0f4ff;padding:14px 24px;border-radius:12px;word-break:break-all}
+.account-box{background:var(--bg);border-radius:12px;padding:16px;width:100%;text-align:left}
+.copy-btn{background:rgba(79,124,255,.1);border:none;color:var(--accent);font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:8px}
+/* 설정 */
+.si-item{background:var(--d-surface2);border-radius:10px;padding:11px 13px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.si-left .si-label{font-size:12px;color:var(--d-text)}
+.si-left .si-val{font-size:11px;color:var(--d-text2);margin-top:2px;font-family:'JetBrains Mono',monospace}
+/* 팝업 */
+.popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.popup-overlay.open{display:flex}
+.popup{background:var(--white);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;position:relative}
+.popup-title{font-size:17px;font-weight:900;margin-bottom:14px}
+.popup-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3)}
+.photo-area{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;color:var(--text2);font-size:13px}
+.photo-area input{display:none}
+.photo-preview{width:100%;border-radius:10px;margin-top:10px;display:none}
+/* 마감화면 */
+.closed-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:12px}
+/* 공통 */
+.empty{text-align:center;padding:32px;color:var(--text3);font-size:13px}
+.loading-wrap{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--text2)}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;z-index:999;pointer-events:none;opacity:0;transition:.2s;white-space:nowrap;background:var(--text);color:#fff}
+#toast.show{opacity:1}
+#toast.success{background:var(--green)}
+#toast.error{background:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- ══ 주문 페이지 ══ -->
+<div id="page-order" class="page active">
+  <div class="date-header">
+    <div class="date-header-date" id="order-date-text"></div>
+    <div class="date-header-title">에그팜 문앞배송 🥚</div>
+    <div class="date-header-sub">신선한 계란을 문 앞까지</div>
+  </div>
+  <div id="order-body">
+    <div class="loading-wrap"><div class="spinner"></div>로딩 중...</div>
+  </div>
+</div>
+
+<!-- ══ 배송조회 페이지 ══ -->
+<div id="page-track" class="page">
+  <div class="date-header" style="padding-bottom:40px">
+    <div class="date-header-date">배송 조회</div>
+    <div class="date-header-title">내 주문 확인하기</div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">주문번호로 조회</div>
+    <div class="fg"><input class="finput" type="text" id="track-id" placeholder="ORD-20260607-001"></div>
+    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 10px">— 또는 —</div>
+    <div class="row2">
+      <div class="fg"><div class="flabel">이름</div><input class="finput" type="text" id="track-name" placeholder="홍길동"></div>
+      <div class="fg"><div class="flabel">연락처 뒤 4자리</div><input class="finput" type="tel" id="track-phone4" placeholder="1234" maxlength="4"></div>
+    </div>
+    <button class="btn-primary" onclick="trackOrder()">조회</button>
+  </div>
+  <div id="track-result"></div>
+</div>
+
+<!-- ══ 관리자 페이지 ══ -->
+<div id="page-admin" class="page">
+  <div id="admin-login-screen" class="admin-login">
+    <div style="font-size:48px">🔐</div>
+    <div style="font-size:20px;font-weight:900;color:var(--d-text)">관리자 로그인</div>
+    <div class="al-card">
+      <div class="d-fg">
+        <div class="d-label">비밀번호</div>
+        <input class="d-input" type="password" id="admin-pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter')adminLogin()">
+      </div>
+      <button class="d-btn" onclick="adminLogin()">로그인</button>
+    </div>
+  </div>
+
+  <div id="admin-main" style="display:none">
+    <div class="admin-header">
+      <div class="admin-logo">🥚 에그팜 관리자</div>
+      <button onclick="adminLogout()" style="background:none;border:none;color:var(--d-text2);font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">로그아웃</button>
+    </div>
+    <div class="admin-tabs">
+      <div class="admin-tab active" onclick="switchAdminTab('today',this)">오늘주문</div>
+      <div class="admin-tab" onclick="switchAdminTab('map',this)">배송지도</div>
+      <div class="admin-tab" onclick="switchAdminTab('stats',this)">통계</div>
+      <div class="admin-tab" onclick="switchAdminTab('settings',this)">설정</div>
+    </div>
+
+    <!-- 오늘 주문 -->
+    <div id="admin-today" class="admin-section active">
+      <div class="admin-card">
+        <div class="ops-stat" id="ops-stat"></div>
+        <div id="ops-info" style="font-size:12px;color:var(--d-text2);margin-bottom:10px"></div>
+        <button class="ops-btn orange" onclick="changeDeadline()">⏰ 마감시간 변경</button>
+        <button class="ops-btn red" onclick="forceClose()">🚫 지금 마감</button>
+        <button class="ops-btn green" onclick="startAllDelivery()">🛵 전체 배달 출발</button>
+      </div>
+      <div id="today-orders"></div>
+    </div>
+
+    <!-- 배송지도 -->
+    <div id="admin-map" class="admin-section">
+      <div class="map-container">
+        <div class="admin-card-title">배송 동선</div>
+        <div class="map-controls">
+          <select class="map-select" id="map-apt" onchange="onMapAptChange()"><option value="">단지 선택</option></select>
+          <select class="map-select" id="map-start"><option value="">출발 동</option></select>
+          <select class="map-select" id="map-dir"><option value="asc">↻ 순서</option><option value="desc">↺ 역순</option></select>
+          <button class="map-btn" onclick="buildRoute()">동선 생성</button>
+        </div>
+        <div class="svg-wrap" id="svg-wrap"><div style="padding:40px;text-align:center;color:var(--d-text2);font-size:13px">단지 선택 후 동선 생성을 눌러주세요</div></div>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4f7cff"></div>배송대기</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#2ecc87"></div>배송완료</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#272b40"></div>주문없음</div>
+        </div>
+      </div>
+      <div id="map-detail"></div>
+    </div>
+
+    <!-- 통계 -->
+    <div id="admin-stats" class="admin-section">
+      <div class="admin-card">
+        <div class="d-fg"><div class="d-label">날짜 선택</div><input class="d-input" type="date" id="stats-date" onchange="loadStats()"></div>
+      </div>
+      <div id="stats-content"></div>
+    </div>
+
+    <!-- 설정 -->
+    <div id="admin-settings" class="admin-section">
+      <div class="admin-card">
+        <div class="admin-card-title">운영일 추가</div>
+        <div class="d-row2">
+          <div class="d-fg"><div class="d-label">주문 날짜</div><input class="d-input" type="date" id="set-odate"></div>
+          <div class="d-fg"><div class="d-label">마감시간</div><input class="d-input" type="time" id="set-deadline"></div>
+        </div>
+        <div class="d-row2">
+          <div class="d-fg"><div class="d-label">배송 날짜</div><input class="d-input" type="date" id="set-ddate"></div>
+          <div class="d-fg"><div class="d-label">배송 예정시간</div><input class="d-input" type="time" id="set-dtime"></div>
+        </div>
+        <div class="d-row2">
+          <div class="d-fg"><div class="d-label">1판 배송비</div><input class="d-input" type="number" id="set-fee1" placeholder="0"></div>
+          <div class="d-fg"><div class="d-label">2판이상 배송비</div><input class="d-input" type="number" id="set-fee2" placeholder="0"></div>
+        </div>
+        <div class="d-fg"><div class="d-label">판매 상품</div><div id="set-prod-check" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div></div>
+        <button class="d-btn" onclick="addSchedule()">운영일 추가</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-title">등록된 운영일</div>
+        <div id="schedule-list"></div>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-title">상품 관리</div>
+        <div id="product-list"></div>
+        <div class="d-row2" style="margin-top:10px">
+          <input class="d-input" id="new-prod-name" placeholder="상품명">
+          <input class="d-input" type="number" id="new-prod-price" placeholder="가격">
+        </div>
+        <button class="d-btn" onclick="addProduct()" style="margin-top:8px">상품 추가</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-title">배송 단지 관리</div>
+        <div id="apt-list"></div>
+        <div class="d-row2" style="margin-top:10px">
+          <input class="d-input" id="new-apt-name" placeholder="단지명">
+          <input class="d-input" id="new-apt-addr" placeholder="주소">
+        </div>
+        <button class="d-btn" onclick="addApt()" style="margin-top:8px">단지 추가</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-title">무통장 계좌</div>
+        <div class="d-fg"><div class="d-label">계좌번호</div><input class="d-input" id="set-account" placeholder="은행 계좌번호"></div>
+        <div class="d-fg"><div class="d-label">예금주</div><input class="d-input" id="set-account-name" placeholder="예금주명"></div>
+        <button class="d-btn" onclick="saveSetting('account',document.getElementById('set-account').value);saveSetting('accountName',document.getElementById('set-account-name').value)">저장</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-title">카카오 오픈채팅</div>
+        <div class="d-fg"><input class="d-input" id="set-kakao" placeholder="https://open.kakao.com/..."></div>
+        <button class="d-btn" onclick="saveSetting('kakao',document.getElementById('set-kakao').value)">저장</button>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="bnav-btn active" onclick="switchPage('order',this)"><div class="bicon">🛍</div><div class="blabel">주문</div></button>
+  <button class="bnav-btn" onclick="switchPage('track',this)"><div class="bicon">📦</div><div class="blabel">배송조회</div></button>
+  <button class="bnav-btn admin-tab" onclick="switchPage('admin',this)"><div class="bicon">🔐</div><div class="blabel">관리자</div></button>
+</nav>
+
+<!-- 배달완료 팝업 -->
+<div class="popup-overlay" id="done-popup">
+  <div class="popup">
+    <button class="popup-close" onclick="closeDonePopup()">✕</button>
+    <div class="popup-title">배달 완료 처리</div>
+    <div id="done-popup-info" style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.7"></div>
+    <label class="photo-area" for="done-photo">
+      📷 완료 사진 첨부 (선택)<br><small>클릭하여 사진 선택</small>
+      <input type="file" id="done-photo" accept="image/*" onchange="onPhotoChange(this)">
+    </label>
+    <img class="photo-preview" id="done-preview" alt="">
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-secondary" style="flex:1" onclick="closeDonePopup()">취소</button>
+      <button class="btn-primary" style="flex:1;background:var(--green)" onclick="confirmDone()">✅ 배달 완료</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════ 설정 ══════ */
+// Vercel 배포 시 자동으로 /api/... 경로 사용
+// 로컬 테스트 시에는 샘플 데이터 사용
+const API = '';  // Vercel 배포 후 비워두면 됨 (상대경로)
+
+const APT_LAYOUTS = {
+  'SK2차': { viewBox:'0 0 340 170', buildings:[
+    {dong:101,x:27,y:40},{dong:102,x:83,y:40},{dong:103,x:139,y:40},
+    {dong:104,x:195,y:40},{dong:105,x:251,y:40},{dong:106,x:307,y:40},
+    {dong:109,x:27,y:110},{dong:108,x:83,y:110},{dong:107,x:139,y:110}
+  ]},
+  '대성2차': { viewBox:'0 0 240 180', buildings:[
+    {dong:206,x:40,y:40},{dong:201,x:200,y:40},
+    {dong:205,x:40,y:90},{dong:202,x:200,y:90},
+    {dong:204,x:40,y:140},{dong:203,x:200,y:140}
+  ]}
+};
+
+const STATUS_LABEL = {WAITING:'주문확정',PAID_PENDING:'입금확인(대기)',PAID:'입금확인',DELIVERING:'배송출발',DONE:'배송완료',CANCELLED:'취소',AUTO_CANCEL:'자동취소',STOCK_CANCEL:'재고취소'};
+const CANCEL_STATUSES = ['CANCELLED','AUTO_CANCEL','STOCK_CANCEL'];
+
+/* ══════ 전역 상태 ══════ */
+let adminToken = null;
+let DB = { products:[], apts:[], schedules:[], account:'', accountName:'', kakao:'' };
+let currentSchedule = null;
+let selectedQty = {};   // productId -> qty
+let doneOrderId = null;
+let donePhotoFile = null;
+let todayOrders = [];
+
+/* ══════ API 호출 ══════ */
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+  const r = await fetch(API + path, { ...options, headers: { ...headers, ...options.headers } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+/* ══════ 초기 로딩 ══════ */
+async function init() {
+  const now = new Date();
+  document.getElementById('order-date-text').textContent = now.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  document.getElementById('stats-date').value = now.toISOString().slice(0,10);
+
+  try {
+    const data = await api('/api/settings');
+    DB.products = data.products || [];
+    DB.apts = data.apts || [];
+    DB.schedules = data.schedules || [];
+    DB.account = data.account || '';
+    DB.accountName = data.accountName || '';
+    DB.kakao = data.kakao || '';
+  } catch(e) {
+    // API 없으면 샘플 데이터 (로컬 테스트용)
+    DB.products = [{id:'P1',name:'대왕란',price:8900},{id:'P2',name:'왕란',price:7900},{id:'P3',name:'특란',price:6900},{id:'P4',name:'대란',price:5900}];
+    DB.apts = [{id:'A1',name:'SK2차',address:''},{id:'A2',name:'대성2차',address:''}];
+    const today = new Date().toISOString().slice(0,10);
+    DB.schedules = [{id:'S0',orderDate:today,deadline:'23:59',deliveryDate:today,deliveryTime:'17:00',fee1:2000,fee2:0,products:[],active:true}];
+    DB.account = '신한 110-000-000000';
+    DB.accountName = '에그팜';
+  }
+  updateCurrentSchedule();
+  renderOrderPage();
+}
+
+function updateCurrentSchedule() {
+  const today = new Date().toISOString().slice(0,10);
+  currentSchedule = DB.schedules.find(s => s.orderDate === today && s.active !== false) || null;
+}
+
+/* ══════ 주문 페이지 ══════ */
+function renderOrderPage() {
+  const now = new Date();
+  const nowStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const body = document.getElementById('order-body');
+
+  if (!currentSchedule || nowStr >= currentSchedule.deadline) {
+    const next = DB.schedules.filter(s=>s.orderDate > now.toISOString().slice(0,10) && s.active!==false).sort((a,b)=>a.orderDate.localeCompare(b.orderDate))[0];
+    const nextText = next ? `다음 주문: ${next.orderDate} 마감 ${next.deadline} · 배송 ${next.deliveryDate} ${next.deliveryTime}` : '다음 주문 일정을 확인해 주세요.';
+    body.innerHTML = `<div class="closed-screen">
+      <div style="font-size:56px">${!currentSchedule?'📅':'🚫'}</div>
+      <div style="font-size:18px;font-weight:900">${!currentSchedule?'오늘은 주문을 받지 않습니다':'오늘 주문이 마감되었습니다'}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7">${nextText}</div>
+      ${DB.kakao?`<a href="${DB.kakao}" style="color:var(--accent);font-size:13px">💬 카카오 문의</a>`:''}
+    </div>`;
+    return;
+  }
+
+  const mins30 = deadline30(currentSchedule.deadline);
+  const activeProds = currentSchedule.products.length > 0
+    ? DB.products.filter(p => currentSchedule.products.includes(p.id))
+    : DB.products;
+
+  body.innerHTML = `
+    <div class="floating-card">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:3px">오늘 마감: <b style="color:${nowStr>=mins30?'var(--red)':'var(--text)'}">${currentSchedule.deadline}${nowStr>=mins30?' ⚠️ 마감 30분 전!':''}</b></div>
+      <div style="font-size:14px;font-weight:700">배송 예정: ${currentSchedule.deliveryDate} ${currentSchedule.deliveryTime}</div>
+    </div>
+    <div class="card">
+      <div class="card-title">상품 선택</div>
+      <div class="product-grid" id="prod-grid">
+        ${activeProds.map(p=>`
+          <div class="product-option" id="po-${p.id}" onclick="toggleProd('${p.id}')">
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-price">${fmt(p.price)}원</div>
+            <div class="qty-row">
+              <button class="qty-btn" onclick="event.stopPropagation();chgQty('${p.id}',-1)">−</button>
+              <div class="qty-val" id="qv-${p.id}">0</div>
+              <button class="qty-btn" onclick="event.stopPropagation();chgQty('${p.id}',1)">+</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">배송 정보</div>
+      ${DB.apts.length > 1 ? `<div class="fg"><div class="flabel">아파트 단지 *</div><select class="fselect" id="inp-apt">${DB.apts.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('')}</select></div>` : `<input type="hidden" id="inp-apt" value="${DB.apts[0]?.id||''}">`}
+      <div class="row2">
+        <div class="fg"><div class="flabel">동 *</div><input class="finput" type="number" id="inp-dong" placeholder="예) 101"></div>
+        <div class="fg"><div class="flabel">호수 *</div><input class="finput" type="number" id="inp-ho" placeholder="예) 1504"></div>
+      </div>
+      <div class="fg"><div class="flabel">공동현관 비밀번호</div><input class="finput" type="text" id="inp-pw" placeholder="없으면 비워두세요"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">주문자 정보</div>
+      <div class="row2">
+        <div class="fg"><div class="flabel">이름 *</div><input class="finput" type="text" id="inp-name" placeholder="홍길동"></div>
+        <div class="fg"><div class="flabel">연락처 *</div><input class="finput" type="tel" id="inp-phone" placeholder="01000000000"></div>
+      </div>
+      <div class="fg"><div class="flabel">요청사항</div><input class="finput" type="text" id="inp-req" placeholder="선택사항"></div>
+    </div>
+    <div class="card price-summary">
+      <div class="ps-row"><div class="ps-label">상품 금액</div><div class="ps-val" id="ps-prod">0원</div></div>
+      <div class="ps-row"><div class="ps-label">배송비</div><div class="ps-val" id="ps-fee">0원</div></div>
+      <div class="ps-row ps-total"><div class="ps-label">최종 결제금액</div><div class="ps-val" id="ps-total">0원</div></div>
+    </div>
+    <div style="padding:0 14px 20px">
+      <button class="btn-primary" id="btn-order" onclick="submitOrder()">주문 완료하기</button>
+    </div>
+  `;
+  selectedQty = {};
+  updatePriceSummary();
+}
+
+function toggleProd(id) {
+  selectedQty[id] = (selectedQty[id] || 0) === 0 ? 1 : 0;
+  document.getElementById('qv-'+id).textContent = selectedQty[id];
+  document.getElementById('po-'+id).classList.toggle('selected', selectedQty[id] > 0);
+  updatePriceSummary();
+}
+function chgQty(id, d) {
+  selectedQty[id] = Math.max(0, (selectedQty[id]||0) + d);
+  document.getElementById('qv-'+id).textContent = selectedQty[id];
+  document.getElementById('po-'+id).classList.toggle('selected', selectedQty[id] > 0);
+  updatePriceSummary();
+}
+function updatePriceSummary() {
+  if (!currentSchedule) return;
+  let prod = 0, qty = 0;
+  Object.entries(selectedQty).forEach(([id, q]) => {
+    if (q > 0) { const p = DB.products.find(x=>x.id===id); if(p){prod+=p.price*q;qty+=q;} }
+  });
+  const fee = qty===0?0:qty===1?currentSchedule.fee1:currentSchedule.fee2;
+  const feeEl=document.getElementById('ps-fee');
+  const prodEl=document.getElementById('ps-prod');
+  const totEl=document.getElementById('ps-total');
+  if(prodEl)prodEl.textContent=fmt(prod)+'원';
+  if(feeEl)feeEl.textContent=fee===0?'무료':fmt(fee)+'원';
+  if(totEl)totEl.textContent=fmt(prod+fee)+'원';
+}
+
+async function submitOrder() {
+  const name=(document.getElementById('inp-name')?.value||'').trim();
+  const phone=(document.getElementById('inp-phone')?.value||'').trim();
+  const dong=(document.getElementById('inp-dong')?.value||'').trim();
+  const ho=(document.getElementById('inp-ho')?.value||'').trim();
+  if(!name){showToast('이름을 입력하세요','error');return;}
+  if(!phone){showToast('연락처를 입력하세요','error');return;}
+  if(!dong||!ho){showToast('동/호수를 입력하세요','error');return;}
+  const items=Object.entries(selectedQty).filter(([,q])=>q>0);
+  if(items.length===0){showToast('상품을 선택하세요','error');return;}
+
+  const btn=document.getElementById('btn-order');
+  btn.disabled=true;btn.textContent='주문 중...';
+  try {
+    const aptEl=document.getElementById('inp-apt');
+    const aptId=aptEl?.value||'';
+    const aptName=aptEl?.selectedOptions?.[0]?.dataset?.name||DB.apts.find(a=>a.id===aptId)?.name||'';
+    let prodTotal=0,totalQty=0;
+    const prodStr=items.map(([id,q])=>{const p=DB.products.find(x=>x.id===id);if(p){prodTotal+=p.price*q;totalQty+=q;}return p?`${p.name}×${q}`:''}).join(', ');
+    const fee=totalQty===0?0:totalQty===1?currentSchedule.fee1:currentSchedule.fee2;
+    const body={name,phone,aptId,aptName,dong,ho,doorPw:document.getElementById('inp-pw')?.value||'',products:prodStr,amount:prodTotal+fee,deliveryFee:fee,orderDate:new Date().toISOString().slice(0,10),request:document.getElementById('inp-req')?.value||''};
+    const result=await api('/api/orders',{method:'POST',body:JSON.stringify(body)});
+    showOrderSuccess(result.orderId,name);
+  } catch(e){showToast('주문 실패: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='주문 완료하기';
+}
+
+function showOrderSuccess(orderId, name) {
+  document.getElementById('order-body').innerHTML=`
+    <div class="order-success">
+      <div class="success-icon">✅</div>
+      <div style="font-size:22px;font-weight:900">주문 완료!</div>
+      <div style="font-size:13px;color:var(--text2)">주문번호를 캡처해두세요</div>
+      <div class="success-orderno">${orderId}</div>
+      <div class="account-box">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">입금 계좌</div>
+        <div style="font-size:15px;font-weight:700;font-family:monospace">${DB.account||'관리자 문의'} <button class="copy-btn" onclick="navigator.clipboard.writeText('${DB.account}').then(()=>showToast('복사됨','success'))">복사</button></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:6px">입금자명: <b>${name}</b></div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg);border-radius:10px;padding:12px;width:100%;text-align:left">
+        ⚠️ 마감 전까지 입금하시면 배송됩니다.<br>
+        입금 후 취소 문의: ${DB.kakao?`<a href="${DB.kakao}" style="color:var(--accent)">카카오 오픈채팅</a>`:'카카오 문의'}
+      </div>
+      <button class="btn-secondary" onclick="init()">처음으로</button>
+    </div>`;
+}
+
+/* ══════ 배송조회 ══════ */
+async function trackOrder() {
+  const oid=document.getElementById('track-id').value.trim();
+  const name=document.getElementById('track-name').value.trim();
+  const phone4=document.getElementById('track-phone4').value.trim();
+  const el=document.getElementById('track-result');
+  el.innerHTML='<div class="loading-wrap"><div class="spinner"></div>조회 중...</div>';
+  try {
+    let order;
+    if(oid) order=await api(`/api/orders?orderId=${encodeURIComponent(oid)}`);
+    else if(name&&phone4) order=await api(`/api/orders?name=${encodeURIComponent(name)}&phone4=${phone4}`);
+    else{el.innerHTML='<div class="card" style="margin-top:14px"><div class="empty">주문번호 또는 이름+연락처를 입력하세요</div></div>';return;}
+
+    const steps=[
+      {key:'WAITING',label:'주문확정',time:order.orderTime},
+      {key:'PAID',label:'입금확인',time:order.paidTime},
+      {key:'DELIVERING',label:'배송출발',time:order.deliveryTime},
+      {key:'DONE',label:'배송완료',time:order.doneTime},
+    ];
+    const statusOrder=['WAITING','PAID','DELIVERING','DONE'];
+    const cur=statusOrder.indexOf(order.status);
+    const canCancel=['WAITING','PAID_PENDING','PAID'].includes(order.status);
+
+    el.innerHTML=`<div class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--text3);font-family:monospace">${order.id}</div>
+          <div style="font-size:15px;font-weight:700;margin-top:2px">${order.name} · ${order.aptName} ${order.dong}동 ${order.ho}호</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${order.products}</div>
+        </div>
+        <span class="badge ${order.status}">${STATUS_LABEL[order.status]||order.status}</span>
+      </div>
+      ${steps.map((s,i)=>`<div class="track-step">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div class="track-dot ${i<cur?'done':i===cur?'current':''}"></div>
+          ${i<steps.length-1?`<div class="track-line ${i<cur?'done':''}"></div>`:''}
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:${i===cur?'var(--accent)':i<cur?'var(--green)':'var(--text3)'}">${s.label}</div>
+          ${s.time?`<div style="font-size:11px;color:var(--text3)">${new Date(s.time).toLocaleString('ko-KR')}</div>`:''}
+        </div>
+      </div>`).join('')}
+      ${order.photoUrl?`<img src="${order.photoUrl}" style="width:100%;border-radius:10px;margin-top:8px" alt="배달완료사진">`:''}
+      ${canCancel?`<button class="btn-secondary" style="margin-top:12px" onclick="cancelOrder('${order.id}')">주문 취소</button>`:''}
+    </div>`;
+  } catch(e){el.innerHTML=`<div class="card" style="margin-top:14px"><div class="empty">${e.message||'주문을 찾을 수 없습니다'}</div></div>`;}
+}
+
+async function cancelOrder(id) {
+  if(!confirm('주문을 취소하시겠습니까?'))return;
+  try{await api('/api/admin',{method:'POST',body:JSON.stringify({action:'update-order',orderId:id,status:'CANCELLED'})});showToast('취소되었습니다','success');trackOrder();}
+  catch(e){showToast('취소 실패: '+e.message,'error');}
+}
+
+/* ══════ 관리자 로그인 ══════ */
+async function adminLogin() {
+  const pw=document.getElementById('admin-pw').value;
+  try{
+    const r=await api('/api/admin',{method:'POST',body:JSON.stringify({action:'login',password:pw})});
+    adminToken=r.token;
+    sessionStorage.setItem('egfarm_token',adminToken);
+    document.getElementById('admin-login-screen').style.display='none';
+    document.getElementById('admin-main').style.display='block';
+    await loadAdminData();
+  }catch(e){showToast('비밀번호가 틀렸습니다','error');}
+}
+
+function adminLogout(){
+  adminToken=null;sessionStorage.removeItem('egfarm_token');
+  document.getElementById('admin-login-screen').style.display='flex';
+  document.getElementById('admin-main').style.display='none';
+  document.getElementById('admin-pw').value='';
+}
+
+async function loadAdminData() {
+  const today=new Date().toISOString().slice(0,10);
+  try{todayOrders=await api(`/api/orders?date=${today}`);}catch(e){todayOrders=[];}
+  renderAdminToday();
+  populateMapApts();
+  renderScheduleList();
+  renderProductList();
+  renderAptList();
+  loadSettingsToForm();
+}
+
+/* ══════ 관리자 - 오늘 주문 ══════ */
+function renderAdminToday(){
+  const active=todayOrders.filter(o=>!CANCEL_STATUSES.includes(o.status));
+  document.getElementById('ops-stat').innerHTML=`
+    <div class="ops-stat-item"><div class="ops-stat-num">${active.length}</div><div class="ops-stat-label">전체</div></div>
+    <div class="ops-stat-item"><div class="ops-stat-num">${active.filter(o=>o.status==='PAID').length}</div><div class="ops-stat-label">입금확인</div></div>
+    <div class="ops-stat-item"><div class="ops-stat-num">${active.filter(o=>o.status==='DELIVERING').length}</div><div class="ops-stat-label">배송중</div></div>
+    <div class="ops-stat-item"><div class="ops-stat-num">${active.filter(o=>o.status==='DONE').length}</div><div class="ops-stat-label">완료</div></div>
+  `;
+  document.getElementById('ops-info').textContent=currentSchedule?`마감: ${currentSchedule.deadline} · 배송: ${currentSchedule.deliveryDate} ${currentSchedule.deliveryTime}`:'오늘 운영일 없음';
+  const el=document.getElementById('today-orders');
+  if(active.length===0){el.innerHTML='<div class="admin-card"><div class="empty" style="color:var(--d-text2)">오늘 주문이 없습니다</div></div>';return;}
+  el.innerHTML=active.map(o=>`
+    <div class="aoc" id="aoc-${o.id}">
+      <div class="aoc-hd"><div class="aoc-id">${o.id}</div><span class="badge ${o.status}">${STATUS_LABEL[o.status]||o.status}</span></div>
+      <div class="aoc-body">
+        <b>${o.name}</b> · ${o.phone}<br>
+        ${o.aptName} <b>${o.dong}동 ${o.ho}호</b>${o.doorPw?' · 🔑'+o.doorPw:''}<br>
+        ${o.products}<br>
+        <b style="color:var(--purple)">${fmt(o.amount)}원</b>${o.request?' · '+o.request:''}
+      </div>
+      <div class="aoc-actions">${adminActions(o)}</div>
+    </div>`).join('');
+}
+
+function adminActions(o){
+  if(o.status==='WAITING')return`<button class="aoc-btn green" onclick="changeStatus('${o.id}','PAID')">✓ 입금확인</button><button class="aoc-btn red" onclick="changeStatus('${o.id}','STOCK_CANCEL')">🥚 재고부족</button>`;
+  if(o.status==='PAID_PENDING')return`<button class="aoc-btn green" onclick="changeStatus('${o.id}','PAID')">✓ 입금확인</button><button class="aoc-btn red" onclick="changeStatus('${o.id}','CANCELLED')">✗ 미입금취소</button>`;
+  if(o.status==='PAID')return`<div style="font-size:11px;color:var(--d-text2)">배송출발 대기 중</div>`;
+  if(o.status==='DELIVERING')return`<button class="aoc-btn done" onclick="showDonePopup('${o.id}')">✅ 배달완료</button>`;
+  return'';
+}
+
+async function changeStatus(id,status){
+  try{
+    await api('/api/admin',{method:'POST',body:JSON.stringify({action:'update-order',orderId:id,status})});
+    const o=todayOrders.find(x=>x.id===id);if(o)o.status=status;
+    renderAdminToday();showToast(STATUS_LABEL[status]+' 처리됨','success');
+  }catch(e){showToast('처리 실패: '+e.message,'error');}
+}
+
+async function startAllDelivery(){
+  const pending=todayOrders.filter(o=>o.status==='PAID_PENDING');
+  const confirmed=todayOrders.filter(o=>o.status==='PAID');
+  if(pending.length>0&&!confirm(`입금확인(대기) ${pending.length}건을 자동취소하고 배송출발 하시겠습니까?`))return;
+  for(const o of pending)await changeStatus(o.id,'AUTO_CANCEL');
+  for(const o of confirmed)await changeStatus(o.id,'DELIVERING');
+  showToast(`${confirmed.length}건 배송출발`,'success');
+  switchAdminTab('map',document.querySelector('.admin-tab:nth-child(2)'));
+}
+
+function changeDeadline(){
+  const t=prompt('새 마감시간 (HH:MM)',currentSchedule?.deadline||'15:00');
+  if(t&&currentSchedule){currentSchedule.deadline=t;renderAdminToday();renderOrderPage();showToast('마감시간 변경됨','success');}
+}
+function forceClose(){
+  if(!confirm('지금 마감하시겠습니까?'))return;
+  if(currentSchedule)currentSchedule.deadline='00:00';
+  renderOrderPage();showToast('마감됨','success');
+}
+
+/* ══════ 배달완료 팝업 ══════ */
+function showDonePopup(id){
+  doneOrderId=id;donePhotoFile=null;
+  const o=todayOrders.find(x=>x.id===id);
+  document.getElementById('done-popup-info').innerHTML=o?`<b>${o.name}</b> · ${o.aptName} ${o.dong}동 ${o.ho}호<br>${o.products}`:'';
+  document.getElementById('done-preview').style.display='none';
+  document.getElementById('done-photo').value='';
+  document.getElementById('done-popup').classList.add('open');
+}
+function closeDonePopup(){document.getElementById('done-popup').classList.remove('open');doneOrderId=null;}
+function onPhotoChange(input){
+  donePhotoFile=input.files[0];
+  if(!donePhotoFile)return;
+  const r=new FileReader();r.onload=e=>{const img=document.getElementById('done-preview');img.src=e.target.result;img.style.display='block';};r.readAsDataURL(donePhotoFile);
+}
+async function confirmDone(){
+  if(!doneOrderId)return;
+  let photoUrl='';
+  if(donePhotoFile){
+    try{
+      const b64=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.readAsDataURL(donePhotoFile);});
+      const r=await api('/api/admin',{method:'POST',body:JSON.stringify({action:'photo',base64:b64,mimeType:donePhotoFile.type,orderId:doneOrderId})});
+      photoUrl=r.url||'';
+    }catch(e){showToast('사진 업로드 실패: '+e.message,'error');}
+  }
+  await api('/api/admin',{method:'POST',body:JSON.stringify({action:'update-order',orderId:doneOrderId,status:'DONE',photoUrl})});
+  const o=todayOrders.find(x=>x.id===doneOrderId);if(o){o.status='DONE';o.photoUrl=photoUrl;}
+  closeDonePopup();renderAdminToday();buildRoute();showToast('배달완료 처리됨','success');
+}
+
+/* ══════ 배송지도 ══════ */
+function populateMapApts(){
+  const sel=document.getElementById('map-apt');
+  const names=[...new Set([...DB.apts.map(a=>a.name),...Object.keys(APT_LAYOUTS)])];
+  sel.innerHTML='<option value="">단지 선택</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join('');
+}
+function onMapAptChange(){
+  const name=document.getElementById('map-apt').value;
+  const layout=APT_LAYOUTS[name];
+  const sel=document.getElementById('map-start');
+  sel.innerHTML='<option value="">출발 동</option>'+(layout?layout.buildings.map(b=>`<option value="${b.dong}">${b.dong}동</option>`).join(''):'');
+}
+function buildRoute(){
+  const aptName=document.getElementById('map-apt').value;
+  const startDong=parseInt(document.getElementById('map-start').value)||0;
+  const dir=document.getElementById('map-dir').value;
+  const layout=APT_LAYOUTS[aptName];
+  const el=document.getElementById('svg-wrap');
+  if(!layout){el.innerHTML='<div style="padding:40px;text-align:center;color:var(--d-text2)">지원되지 않는 단지입니다</div>';return;}
+
+  const today=new Date().toISOString().slice(0,10);
+  const byDong={};
+  todayOrders.filter(o=>o.aptName===aptName&&!CANCEL_STATUSES.includes(o.status))
+    .forEach(o=>{const d=parseInt(o.dong);if(!byDong[d])byDong[d]=[];byDong[d].push(o);});
+
+  let sorted=[...layout.buildings];
+  if(startDong){const i=sorted.findIndex(b=>b.dong===startDong);if(i>=0)sorted=[...sorted.slice(i),...sorted.slice(0,i)];}
+  if(dir==='desc')sorted=[sorted[0],...sorted.slice(1).reverse()];
+
+  const lines=sorted.slice(0,-1).map((b,i)=>{const nx=sorted[i+1];return`<line x1="${b.x}" y1="${b.y}" x2="${nx.x}" y2="${nx.y}" stroke="rgba(167,139,250,0.25)" stroke-width="2" stroke-dasharray="4,3"/>`;}).join('');
+  const pins=layout.buildings.map(b=>{
+    const orders=byDong[b.dong]||[];
+    const done=orders.length>0&&orders.every(o=>o.status==='DONE');
+    const color=orders.length===0?'#272b40':done?'#2ecc87':'#4f7cff';
+    const rn=sorted.findIndex(s=>s.dong===b.dong);
+    return`<g style="cursor:pointer" onclick="showMapDetail(${b.dong},'${aptName}')">
+      <circle cx="${b.x}" cy="${b.y}" r="22" fill="${color}" opacity="0.15"/>
+      <circle cx="${b.x}" cy="${b.y}" r="18" fill="${color}"/>
+      <text x="${b.x}" y="${b.y-2}" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="'Noto Sans KR',sans-serif">${b.dong}동</text>
+      <text x="${b.x}" y="${b.y+10}" text-anchor="middle" fill="white" font-size="8" font-family="monospace">${orders.length>0?orders.length+'건':'-'}</text>
+      ${rn>=0&&orders.length>0?`<circle cx="${b.x+16}" cy="${b.y-16}" r="9" fill="#a78bfa"/><text x="${b.x+16}" y="${b.y-12}" text-anchor="middle" fill="white" font-size="9" font-weight="900" font-family="monospace">${rn+1}</text>`:''}
+    </g>`;
+  }).join('');
+  el.innerHTML=`<svg viewBox="${layout.viewBox}" width="100%" xmlns="http://www.w3.org/2000/svg" style="min-height:160px">${lines}${pins}</svg>`;
+}
+
+function showMapDetail(dong,aptName){
+  const today=new Date().toISOString().slice(0,10);
+  const orders=todayOrders.filter(o=>o.aptName===aptName&&parseInt(o.dong)===dong&&!CANCEL_STATUSES.includes(o.status))
+    .sort((a,b)=>parseInt(a.ho)-parseInt(b.ho));
+  const el=document.getElementById('map-detail');
+  if(orders.length===0){el.innerHTML='';return;}
+  el.innerHTML=`<div class="admin-card"><div class="admin-card-title">${dong}동 (${orders.length}건)</div>`+
+    orders.map(o=>`<div class="aoc" style="margin-bottom:6px">
+      <div class="aoc-hd"><div style="font-size:13px;font-weight:700">${o.ho}호 · ${o.name}</div><span class="badge ${o.status}">${STATUS_LABEL[o.status]}</span></div>
+      <div class="aoc-body">${o.doorPw?'🔑 '+o.doorPw+'<br>':''}${o.products}${o.request?'<br>📝 '+o.request:''}</div>
+      <div class="aoc-actions">${o.status==='DELIVERING'?`<button class="aoc-btn done" onclick="showDonePopup('${o.id}')">✅ 배달완료</button>`:o.status==='DONE'?`<span style="font-size:11px;color:var(--d-text2)">✅ 완료</span>`:''}</div>
+    </div>`).join('')+'</div>';
+}
+
+/* ══════ 통계 ══════ */
+async function loadStats(){
+  const date=document.getElementById('stats-date').value;if(!date)return;
+  const el=document.getElementById('stats-content');
+  el.innerHTML='<div class="loading-wrap"><div class="spinner"></div></div>';
+  try{
+    const orders=await api(`/api/orders?date=${date}`);
+    const total=orders.reduce((s,o)=>s+o.amount,0);
+    const done=orders.filter(o=>o.status==='DONE').length;
+    el.innerHTML=`<div class="admin-card">
+      <div class="ops-stat">
+        <div class="ops-stat-item"><div class="ops-stat-num">${orders.length}</div><div class="ops-stat-label">전체주문</div></div>
+        <div class="ops-stat-item"><div class="ops-stat-num">${done}</div><div class="ops-stat-label">배송완료</div></div>
+        <div class="ops-stat-item"><div class="ops-stat-num" style="font-size:15px">${fmt(total)}</div><div class="ops-stat-label">총매출(원)</div></div>
+      </div>
+      ${orders.map(o=>`<div class="aoc" style="margin-bottom:6px"><div class="aoc-hd"><div class="aoc-id">${o.id}</div><span class="badge ${o.status}">${STATUS_LABEL[o.status]||o.status}</span></div><div class="aoc-body"><b>${o.name}</b> · ${o.aptName} ${o.dong}동 ${o.ho}호<br>${o.products}<br><b style="color:var(--purple)">${fmt(o.amount)}원</b></div></div>`).join('')}
+    </div>`;
+  }catch(e){el.innerHTML=`<div class="admin-card"><div class="empty" style="color:var(--d-text2)">${e.message}</div></div>`;}
+}
+
+/* ══════ 관리자 설정 ══════ */
+async function addSchedule(){
+  const odate=document.getElementById('set-odate').value;
+  const deadline=document.getElementById('set-deadline').value;
+  const ddate=document.getElementById('set-ddate').value;
+  if(!odate||!deadline||!ddate){showToast('날짜와 마감시간을 입력하세요','error');return;}
+  const prods=[...document.querySelectorAll('#set-prod-check input:checked')].map(e=>e.value);
+  const id='SCH-'+Date.now();
+  const data={id,orderDate:odate,deadline,deliveryDate:ddate,deliveryTime:document.getElementById('set-dtime').value||'',fee1:+document.getElementById('set-fee1').value||0,fee2:+document.getElementById('set-fee2').value||0,products:prods,active:true};
+  try{await api('/api/settings',{method:'POST',body:JSON.stringify({type:'schedule',data})});DB.schedules.push(data);updateCurrentSchedule();renderScheduleList();renderOrderPage();showToast('운영일 추가됨','success');}
+  catch(e){showToast('저장 실패: '+e.message,'error');}
+}
+
+function renderScheduleList(){
+  document.getElementById('set-prod-check').innerHTML=DB.products.map(p=>`<label style="display:flex;align-items:center;gap:8px;color:var(--d-text);font-size:13px"><input type="checkbox" value="${p.id}" checked style="width:16px;height:16px"> ${p.name} (${fmt(p.price)}원)</label>`).join('');
+  const el=document.getElementById('schedule-list');
+  const sorted=[...DB.schedules].sort((a,b)=>b.orderDate.localeCompare(a.orderDate)).slice(0,10);
+  el.innerHTML=sorted.length===0?'<div class="empty" style="color:var(--d-text2)">등록된 운영일이 없습니다</div>':sorted.map(s=>`<div class="si-item"><div class="si-left"><div class="si-label">주문: ${s.orderDate} 마감 ${s.deadline}</div><div class="si-val">배송: ${s.deliveryDate} ${s.deliveryTime}</div></div></div>`).join('');
+}
+
+async function addProduct(){
+  const name=document.getElementById('new-prod-name').value.trim();
+  const price=+document.getElementById('new-prod-price').value||0;
+  if(!name||!price){showToast('상품명과 가격을 입력하세요','error');return;}
+  const id='PRD-'+Date.now();
+  try{await api('/api/settings',{method:'POST',body:JSON.stringify({type:'product',data:{id,name,price}})});DB.products.push({id,name,price});document.getElementById('new-prod-name').value='';document.getElementById('new-prod-price').value='';renderProductList();showToast('상품 추가됨','success');}
+  catch(e){showToast('저장 실패: '+e.message,'error');}
+}
+
+function renderProductList(){
+  document.getElementById('product-list').innerHTML=DB.products.map(p=>`<div class="si-item"><div class="si-left"><div class="si-label">${p.name}</div><div class="si-val">${fmt(p.price)}원</div></div></div>`).join('');
+}
+
+async function addApt(){
+  const name=document.getElementById('new-apt-name').value.trim();
+  const address=document.getElementById('new-apt-addr').value.trim();
+  if(!name){showToast('단지명을 입력하세요','error');return;}
+  const id='APT-'+Date.now();
+  try{await api('/api/settings',{method:'POST',body:JSON.stringify({type:'apt',data:{id,name,address}})});DB.apts.push({id,name,address});document.getElementById('new-apt-name').value='';document.getElementById('new-apt-addr').value='';renderAptList();populateMapApts();showToast('단지 추가됨','success');}
+  catch(e){showToast('저장 실패: '+e.message,'error');}
+}
+
+function renderAptList(){
+  document.getElementById('apt-list').innerHTML=DB.apts.map(a=>`<div class="si-item"><div class="si-left"><div class="si-label">${a.name}</div><div class="si-val">${a.address||'-'}</div></div></div>`).join('');
+}
+
+async function saveSetting(key,value){
+  try{await api('/api/settings',{method:'POST',body:JSON.stringify({type:'setting',data:{key,value}})});DB[key.replace('N','n')]=value;showToast('저장됨','success');}
+  catch(e){showToast('저장 실패: '+e.message,'error');}
+}
+
+function loadSettingsToForm(){
+  document.getElementById('set-account').value=DB.account||'';
+  document.getElementById('set-account-name').value=DB.accountName||'';
+  document.getElementById('set-kakao').value=DB.kakao||'';
+  renderScheduleList();renderProductList();renderAptList();
+}
+
+/* ══════ 탭 전환 ══════ */
+function switchPage(p,el){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');el.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(p==='track')document.getElementById('track-result').innerHTML='';
+}
+function switchAdminTab(t,el){
+  document.querySelectorAll('.admin-section').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.admin-tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('admin-'+t).classList.add('active');if(el)el.classList.add('active');
+}
+
+/* ══════ 유틸 ══════ */
+function fmt(n){return Number(n||0).toLocaleString('ko-KR');}
+function deadline30(t){const[h,m]=t.split(':').map(Number);const tot=h*60+m-30;return`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}
+let toastTimer;
+function showToast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='show '+(type||'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2500);}
+
+// 세션 토큰 복원 (새로고침 시)
+const saved=sessionStorage.getItem('egfarm_token');
+if(saved){adminToken=saved;}
+
+init();
+</script>
+</body>
+</html>
