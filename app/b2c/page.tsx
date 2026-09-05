@@ -1,13 +1,12 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { getOrCreateDemoAccount } from "@/lib/demoAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
-// TODO: 카카오 로그인 붙으면 현재 로그인 계정 id로 교체
-const DEMO_ACCOUNT_ID = null;
-
-async function getCreditBalance(accountId: string | null) {
-  if (!accountId) return 0;
+async function getCreditBalance(accountId: string) {
   const { data, error } = await supabase
     .from("credit_ledger")
     .select("delta")
@@ -16,8 +15,7 @@ async function getCreditBalance(accountId: string | null) {
   return data.reduce((sum, row) => sum + row.delta, 0);
 }
 
-async function getRecentOrders(accountId: string | null) {
-  if (!accountId) return [];
+async function getRecentOrders(accountId: string) {
   const { data, error } = await supabase
     .from("b2c_order")
     .select("id, order_type, status, total_amount, created_at")
@@ -29,8 +27,9 @@ async function getRecentOrders(accountId: string | null) {
 }
 
 export default async function B2CHome() {
-  const credit = await getCreditBalance(DEMO_ACCOUNT_ID);
-  const orders = await getRecentOrders(DEMO_ACCOUNT_ID);
+  const accountId = await getOrCreateDemoAccount("b2c");
+  const credit = await getCreditBalance(accountId);
+  const orders = await getRecentOrders(accountId);
 
   return (
     <div className="pb-20">
