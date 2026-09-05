@@ -5,10 +5,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#E8940C",   // A1 진한 앰버
+        primary: "#E8940C",      // A1 진한 앰버
         "primary-bg": "#FFEBC2",
         "primary-dark": "#3D2E1A",
       },
     },
   },
+  plugins: [],
 } satisfies Config;
