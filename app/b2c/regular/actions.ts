@@ -50,7 +50,7 @@ export async function createRegularOrder(formData: FormData) {
     .insert({
       account_id: accountId,
       order_type: "정기",
-      status: "배송위임",
+      status: "입금대기",
       is_overflow: anyOverflow,
       total_amount: 0,
     })
