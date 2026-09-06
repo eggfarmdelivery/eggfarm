@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { uploadDeliveryPhoto } from "@/lib/supabase";
 import {
   approveOverflow,
   rejectOverflow,
@@ -37,6 +38,12 @@ export default function ConsoleClient({
   b2bOrders: B2BOrder[];
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingActionRef = useRef<{
+    orderId: string;
+    action: (photoUrl: string) => Promise<void>;
+  } | null>(null);
   const router = useRouter();
 
   async function run(id: string, fn: () => Promise<void>) {
@@ -51,12 +58,46 @@ export default function ConsoleClient({
     }
   }
 
-  function askPhotoUrl() {
-    return prompt("배송완료 사진 URL을 입력하세요 (테스트용, 실제로는 업로드 기능으로 대체 예정)") ?? "";
+  async function handlePhotoUpload(
+    orderId: string,
+    action: (photoUrl: string) => Promise<void>
+  ) {
+    pendingActionRef.current = { orderId, action };
+    fileInputRef.current?.click();
+  }
+
+  async function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !pendingActionRef.current) return;
+
+    const { orderId, action } = pendingActionRef.current;
+    setUploading(true);
+    setBusy(orderId);
+
+    try {
+      const photoUrl = await uploadDeliveryPhoto(file);
+      await action(photoUrl);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "처리 중 오류가 발생했어요");
+    } finally {
+      setUploading(false);
+      setBusy(null);
+      pendingActionRef.current = null;
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   return (
-    <div className="px-5 space-y-6">
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={onFileSelected}
+        hidden
+      />
+      <div className="px-5 space-y-6">
       <section>
         <h2 className="text-sm font-medium mb-2">B2C 주문 ({b2cOrders.length})</h2>
         <div className="space-y-2">
@@ -104,13 +145,15 @@ export default function ConsoleClient({
                 )}
                 {(o.status === "입금확인완료" || o.status === "배송위임") && (
                   <button
-                    disabled={busy === o.id}
+                    disabled={busy === o.id || uploading}
                     onClick={() =>
-                      run(o.id, () => markB2CDelivered(o.id, askPhotoUrl()))
+                      handlePhotoUpload(o.id, (photoUrl) =>
+                        markB2CDelivered(o.id, photoUrl)
+                      )
                     }
-                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
                   >
-                    배송완료 처리
+                    {uploading ? "업로드 중..." : "배송완료 처리"}
                   </button>
                 )}
               </div>
@@ -145,13 +188,15 @@ export default function ConsoleClient({
                 )}
                 {o.status === "배송중" && (
                   <button
-                    disabled={busy === o.id}
+                    disabled={busy === o.id || uploading}
                     onClick={() =>
-                      run(o.id, () => markB2BDelivered(o.id, askPhotoUrl()))
+                      handlePhotoUpload(o.id, (photoUrl) =>
+                        markB2BDelivered(o.id, photoUrl)
+                      )
                     }
-                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
                   >
-                    배송완료 (입금요청 알림)
+                    {uploading ? "업로드 중..." : "배송완료 (입금요청 알림)"}
                   </button>
                 )}
                 {o.status === "입금대기" && (
@@ -168,6 +213,7 @@ export default function ConsoleClient({
           ))}
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }
