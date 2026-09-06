@@ -10,15 +10,20 @@ export default function HomeLoginButton() {
   async function handleKakaoLogin() {
     setPending(true);
     setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "kakao",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (error) {
-      setError(error.message);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "kakao",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) {
+        setError(error.message);
+        setPending(false);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "알 수 없는 오류로 로그인을 시작하지 못했어요");
       setPending(false);
     }
   }

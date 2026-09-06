@@ -8,7 +8,7 @@ export default async function OnboardingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/");
+  if (!user) redirect("/?error=no_session&detail=onboarding_could_not_read_cookie");
 
   const { data: zones } = await supabase
     .from("delivery_zone")

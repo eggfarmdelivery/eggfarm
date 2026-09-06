@@ -7,7 +7,7 @@ export async function getAccountId(role: "b2c" | "b2b"): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/");
+  if (!user) redirect("/?error=no_session&detail=getAccountId_could_not_read_cookie");
 
   const { data: account } = await supabase
     .from("account")
