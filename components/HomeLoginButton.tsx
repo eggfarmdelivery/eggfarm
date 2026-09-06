@@ -15,7 +15,6 @@ export default function HomeLoginButton() {
       provider: "kakao",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: "profile_nickname profile_image",
       },
     });
     if (error) {
@@ -31,7 +30,7 @@ export default function HomeLoginButton() {
         disabled={pending}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FEE500] py-3 text-sm font-medium text-[#191600] disabled:opacity-50"
       >
-        카카오로 시작하기
+        카카오로 회원가입
       </button>
       {error && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
