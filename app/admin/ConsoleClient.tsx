@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   approveOverflow,
@@ -29,6 +29,63 @@ type B2BOrder = {
   account: { business_name: string | null } | null;
 };
 
+function PhotoUploadButton({
+  orderId,
+  label,
+  onSubmit,
+}: {
+  orderId: string;
+  label: string;
+  onSubmit: (formData: FormData) => Promise<void>;
+}) {
+  const [pending, setPending] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setPending(true);
+    try {
+      const formData = new FormData();
+      formData.set("order_id", orderId);
+      formData.set("photo", file);
+      await onSubmit(formData);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "처리 중 오류가 발생했어요");
+      setPending(false);
+      setFileName(null);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => fileRef.current?.click()}
+        className="text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
+      >
+        {pending ? "업로드 중..." : label}
+      </button>
+      {fileName && !pending && (
+        <span className="text-xs text-neutral-400">{fileName}</span>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
+
 export default function ConsoleClient({
   b2cOrders,
   b2bOrders,
@@ -51,10 +108,6 @@ export default function ConsoleClient({
     }
   }
 
-  function askPhotoUrl() {
-    return prompt("배송완료 사진 URL을 입력하세요 (테스트용, 실제로는 업로드 기능으로 대체 예정)") ?? "";
-  }
-
   return (
     <div className="px-5 space-y-6">
       <section>
@@ -74,7 +127,7 @@ export default function ConsoleClient({
               {o.is_overflow && (
                 <p className="text-xs text-orange-600 mb-2">⚠ 재고 초과분 - 승인 필요</p>
               )}
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
                 {o.is_overflow && (
                   <>
                     <button
@@ -103,15 +156,11 @@ export default function ConsoleClient({
                   </button>
                 )}
                 {(o.status === "입금확인완료" || o.status === "배송위임") && (
-                  <button
-                    disabled={busy === o.id}
-                    onClick={() =>
-                      run(o.id, () => markB2CDelivered(o.id, askPhotoUrl()))
-                    }
-                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
-                  >
-                    배송완료 처리
-                  </button>
+                  <PhotoUploadButton
+                    orderId={o.id}
+                    label="배송완료 사진 촬영/업로드"
+                    onSubmit={markB2CDelivered}
+                  />
                 )}
               </div>
             </div>
@@ -133,7 +182,7 @@ export default function ConsoleClient({
                 </span>
                 <span className="text-xs text-neutral-500">{o.status}</span>
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
                 {o.status === "발주요청" && (
                   <button
                     disabled={busy === o.id}
@@ -144,15 +193,11 @@ export default function ConsoleClient({
                   </button>
                 )}
                 {o.status === "배송중" && (
-                  <button
-                    disabled={busy === o.id}
-                    onClick={() =>
-                      run(o.id, () => markB2BDelivered(o.id, askPhotoUrl()))
-                    }
-                    className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
-                  >
-                    배송완료 (입금요청 알림)
-                  </button>
+                  <PhotoUploadButton
+                    orderId={o.id}
+                    label="배송완료 사진 촬영/업로드 (입금요청 알림)"
+                    onSubmit={markB2BDelivered}
+                  />
                 )}
                 {o.status === "입금대기" && (
                   <button

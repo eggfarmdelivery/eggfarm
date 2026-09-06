@@ -16,9 +16,6 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6">
       <img src="/logo.png" alt="에그팜" className="mb-8 h-14" />
-      <p className="mb-2 text-sm text-neutral-500">
-        {safeIntent === "signup" ? "회원가입" : "로그인"}
-      </p>
       {error && errorMessage[error] && (
         <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
           {errorMessage[error]}
