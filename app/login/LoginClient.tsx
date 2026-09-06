@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginClient({ role }: { role: "b2c" | "b2b" }) {
+export default function LoginClient({
+  role,
+  intent,
+}: {
+  role: "b2c" | "b2b";
+  intent: "signup" | "login";
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +20,7 @@ export default function LoginClient({ role }: { role: "b2c" | "b2b" }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+        redirectTo: `${window.location.origin}/auth/callback?role=${role}&intent=${intent}`,
       },
     });
     if (error) {
@@ -31,7 +37,7 @@ export default function LoginClient({ role }: { role: "b2c" | "b2b" }) {
         disabled={pending}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FEE500] py-3 text-sm font-medium text-[#191600] disabled:opacity-50"
       >
-        카카오로 시작하기
+        카카오로 {intent === "signup" ? "회원가입" : "로그인"}
       </button>
       {error && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
