@@ -7,7 +7,7 @@ export async function getAccountId(role: "b2c" | "b2b"): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect(`/login?role=${role}&intent=login`);
+  if (!user) redirect(`/login?intent=login`);
 
   const { data: account } = await supabase
     .from("account")
@@ -17,9 +17,7 @@ export async function getAccountId(role: "b2c" | "b2b"): Promise<string> {
     .maybeSingle();
 
   if (!account) {
-    redirect(
-      role === "b2c" ? "/onboarding" : "/onboarding/b2b"
-    );
+    redirect("/onboarding");
   }
 
   return account.id as string;

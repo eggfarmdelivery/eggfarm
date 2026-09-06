@@ -9,7 +9,7 @@ export default function LogoutButton() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login?role=b2c");
+    router.push("/login?intent=login");
     router.refresh();
   }
 

@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginClient({
-  role,
-  intent,
-}: {
-  role: "b2c" | "b2b";
-  intent: "signup" | "login";
-}) {
+export default function LoginClient({ intent }: { intent: "signup" | "login" }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +14,7 @@ export default function LoginClient({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?role=${role}&intent=${intent}`,
+        redirectTo: `${window.location.origin}/auth/callback?intent=${intent}`,
       },
     });
     if (error) {
