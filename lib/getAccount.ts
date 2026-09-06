@@ -7,7 +7,7 @@ export async function getAccountId(role: "b2c" | "b2b"): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect(`/login?intent=login`);
+  if (!user) redirect("/");
 
   const { data: account } = await supabase
     .from("account")

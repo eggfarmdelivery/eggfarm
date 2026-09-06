@@ -8,7 +8,7 @@ export default async function OnboardingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login?intent=signup");
+  if (!user) redirect("/");
 
   const { data: zones } = await supabase
     .from("delivery_zone")
