@@ -1,0 +1,28 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import OnboardingClient from "./OnboardingClient";
+
+export default async function OnboardingPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login?role=b2c");
+
+  const { data: zones } = await supabase
+    .from("delivery_zone")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name");
+
+  return (
+    <div className="px-5 py-8">
+      <h1 className="mb-1 text-lg font-medium">회원정보 입력</h1>
+      <p className="mb-6 text-sm text-neutral-500">
+        배송에 필요한 정보를 입력해주세요
+      </p>
+      <OnboardingClient zones={zones ?? []} />
+    </div>
+  );
+}

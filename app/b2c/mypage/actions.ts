@@ -1,11 +1,12 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { createClient } from "@/lib/supabase/server";
+import { getAccountId } from "@/lib/getAccount";
 
 export async function updateZone(formData: FormData) {
-  const accountId = await getOrCreateDemoAccount("b2c");
+  const accountId = await getAccountId("b2c");
   const zoneId = formData.get("zone_id") as string;
+  const supabase = await createClient();
   const { error } = await supabase
     .from("account")
     .update({ delivery_zone_id: zoneId })

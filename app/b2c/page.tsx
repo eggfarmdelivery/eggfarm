@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
@@ -27,7 +27,7 @@ async function getRecentOrders(accountId: string) {
 }
 
 export default async function B2CHome() {
-  const accountId = await getOrCreateDemoAccount("b2c");
+  const accountId = await getAccountId("b2c");
   const credit = await getCreditBalance(accountId);
   const orders = await getRecentOrders(accountId);
 
@@ -42,7 +42,7 @@ export default async function B2CHome() {
         <section className="rounded-xl bg-primary-bg p-4 mb-4">
           <p className="text-xs text-primary-dark mb-1">정기배송 잔여 크레딧</p>
           <p className="text-2xl font-medium text-primary-dark">
-            {credit}회 남음
+            {credit.toLocaleString()}원
           </p>
         </section>
 

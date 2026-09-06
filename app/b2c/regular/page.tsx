@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import RegularClient from "./RegularClient";
 
 export default async function RegularOrderPage() {
-  const accountId = await getOrCreateDemoAccount("b2c");
+  const accountId = await getAccountId("b2c");
 
   const { data: ledger } = await supabase
     .from("credit_ledger")

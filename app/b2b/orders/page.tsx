@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 
 export default async function B2BOrdersPage() {
-  const accountId = await getOrCreateDemoAccount("b2b");
+  const accountId = await getAccountId("b2b");
 
   const { data: orders } = await supabase
     .from("b2b_order")

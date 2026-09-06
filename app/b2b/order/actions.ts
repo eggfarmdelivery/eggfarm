@@ -1,7 +1,7 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import { getOrderWindowStatus } from "@/lib/b2bDeadline";
 
 export async function createB2BOrder(formData: FormData) {
@@ -10,7 +10,7 @@ export async function createB2BOrder(formData: FormData) {
     throw new Error("지금은 발주 접수 시간이 아니에요");
   }
 
-  const accountId = await getOrCreateDemoAccount("b2b");
+  const accountId = await getAccountId("b2b");
 
   const { data: products } = await supabase
     .from("product")

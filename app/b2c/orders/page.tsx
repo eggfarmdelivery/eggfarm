@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
 export default async function B2COrdersPage() {
-  const accountId = await getOrCreateDemoAccount("b2c");
+  const accountId = await getAccountId("b2c");
 
   const { data: orders } = await supabase
     .from("b2c_order")

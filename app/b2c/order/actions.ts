@@ -1,11 +1,11 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { getOrCreateDemoAccount } from "@/lib/demoAccount";
+import { getAccountId } from "@/lib/getAccount";
 import { checkLimit } from "@/lib/limits";
 
 export async function createGeneralOrder(formData: FormData) {
-  const accountId = await getOrCreateDemoAccount("b2c");
+  const accountId = await getAccountId("b2c");
 
   const { data: products } = await supabase
     .from("product")
