@@ -64,16 +64,21 @@ export default function PaymentInfoModal({
           </p>
         )}
 
-        <div className="mb-4 flex items-baseline justify-between border-t border-neutral-200 pt-3">
-          <span className="text-sm text-neutral-500">입금 금액</span>
-          <span className="text-lg font-medium">{amount.toLocaleString()}원</span>
+        <div className="mb-4 flex items-baseline justify-between rounded-lg bg-primary-bg px-3 py-2.5">
+          <span className="text-sm font-medium text-primary-dark">입금 금액</span>
+          <span className="text-2xl font-bold text-primary-dark">{amount.toLocaleString()}원</span>
         </div>
 
         {depositorName && (
-          <p className="mb-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
-            입금자명에 <span className="font-medium text-neutral-700">{depositorName}</span>를
-            그대로 넣어주세요
-          </p>
+          <div className="mb-4 rounded-md bg-neutral-50 px-3 py-2">
+            <p className="text-xs text-neutral-500">
+              입금자명에 <span className="font-medium text-neutral-700">{depositorName}</span>를
+              그대로 넣어주세요
+            </p>
+            <p className="mt-0.5 text-[11px] text-neutral-400">
+              입금자명 = 닉네임 + 전화번호 뒷자리 4자리예요
+            </p>
+          </div>
         )}
 
         <button

@@ -121,15 +121,15 @@ function OrderDetail({ order }: { order: Order }) {
       <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
         <p className="mb-3 text-sm font-medium">정말 취소하시겠어요?</p>
         {canCancelWithRefund && (
-          <div className="mb-3 space-y-2">
-            <p className="whitespace-nowrap text-xs text-neutral-500">환불 방법을 선택해주세요</p>
+          <div className="mb-3 space-y-2 rounded-xl bg-neutral-50 p-3">
+            <p className="whitespace-nowrap text-xs font-medium text-neutral-600">환불 방법을 선택해주세요</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setRefundMethod("credit")}
                 className={`rounded-lg border py-2.5 text-xs ${
                   refundMethod === "credit"
-                    ? "border-primary bg-primary-bg text-primary"
-                    : "border-neutral-200 text-neutral-600"
+                    ? "border-primary bg-primary text-white"
+                    : "border-neutral-200 bg-white text-neutral-600"
                 }`}
               >
                 적립금(크레딧)으로 받기
@@ -138,8 +138,8 @@ function OrderDetail({ order }: { order: Order }) {
                 onClick={() => setRefundMethod("bank")}
                 className={`rounded-lg border py-2.5 text-xs ${
                   refundMethod === "bank"
-                    ? "border-primary bg-primary-bg text-primary"
-                    : "border-neutral-200 text-neutral-600"
+                    ? "border-primary bg-primary text-white"
+                    : "border-neutral-200 bg-white text-neutral-600"
                 }`}
               >
                 계좌로 환불받기

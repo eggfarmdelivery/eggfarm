@@ -132,14 +132,13 @@ export default function EditProfileClient({
         <p className="text-xs text-neutral-500 mb-1">전화번호</p>
         <p className="text-sm mb-3">{phone || "-"}</p>
         <p className="text-xs text-neutral-500 mb-1">닉네임 (입금자명)</p>
-        <p className="text-sm mb-3">
-          {nickname ? nickname : "-"}
-          {depositorPreview && (
-            <span className="ml-2 text-xs text-neutral-400">
-              입금 시 &quot;{depositorPreview}&quot;로 표시돼요
-            </span>
-          )}
-        </p>
+        <p className={`text-sm ${depositorPreview ? "mb-1" : "mb-3"}`}>{nickname ? nickname : "-"}</p>
+        {depositorPreview && (
+          <div className="mb-3 rounded-lg bg-primary-bg px-3 py-2">
+            <p className="text-xs text-primary-dark/70">입금자명</p>
+            <p className="text-sm font-semibold text-primary-dark">{depositorPreview}</p>
+          </div>
+        )}
         <p className="text-xs text-neutral-500 mb-1">주소</p>
         <p className="text-sm mb-3">
           {baseAddress ? `${baseAddress} ${dong}동 ${ho}호` : "-"}
@@ -192,10 +191,10 @@ export default function EditProfileClient({
           </p>
         )}
         {depositorPreview && (
-          <p className="mt-1 text-xs text-neutral-400">
-            입금자명: <span className="font-medium text-neutral-600">{depositorPreview}</span>{" "}
-            (닉네임+전화번호 뒷4자리)
-          </p>
+          <div className="mt-2 rounded-lg bg-primary-bg px-3 py-2">
+            <p className="text-xs text-primary-dark/70">입금자명</p>
+            <p className="text-sm font-semibold text-primary-dark">{depositorPreview}</p>
+          </div>
         )}
       </div>
 

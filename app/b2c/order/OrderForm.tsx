@@ -187,18 +187,26 @@ export default function OrderForm({
               className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
             />
           )}
-          {creditMode !== "none" && total > 0 && (
-            <p className="mt-1.5 text-xs text-neutral-400">
-              크레딧 {creditToUse.toLocaleString()}원 사용 · 입금할 금액{" "}
-              {remainingCash.toLocaleString()}원
-            </p>
-          )}
         </div>
       )}
 
-      <div className="flex items-baseline justify-between mb-4">
-        <span className="text-sm text-neutral-500">결제 예정 금액</span>
-        <span className="text-xl font-medium">{total.toLocaleString()}원</span>
+      <div className="mb-4 space-y-1 rounded-lg bg-neutral-50 p-3">
+        <div className="flex items-baseline justify-between text-sm text-neutral-500">
+          <span>상품 금액</span>
+          <span>{total.toLocaleString()}원</span>
+        </div>
+        {creditToUse > 0 && (
+          <div className="flex items-baseline justify-between text-sm text-neutral-500">
+            <span>크레딧 사용</span>
+            <span>-{creditToUse.toLocaleString()}원</span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between border-t border-neutral-200 pt-1.5">
+          <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
+          <span className="text-xl font-semibold text-primary">
+            {remainingCash.toLocaleString()}원
+          </span>
+        </div>
       </div>
 
       {error && (
