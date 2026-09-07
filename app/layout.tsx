@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,6 +22,10 @@ export default function RootLayout({
         <div className="mx-auto max-w-md min-h-screen bg-white shadow-sm">
           {children}
         </div>
+        <Script
+          src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

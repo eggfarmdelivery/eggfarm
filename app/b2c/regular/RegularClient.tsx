@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buyCreditPackage, createRegularOrder } from "./actions";
+import Spinner from "@/components/Spinner";
 
 type Product = { id: string; name: string; base_price: number };
 
@@ -72,8 +73,9 @@ export default function RegularClient({
             key={amount}
             disabled={pending}
             onClick={() => handleBuy(amount)}
-            className="rounded-lg border border-neutral-200 py-3 text-sm disabled:opacity-50"
+            className="flex items-center justify-center gap-1 rounded-lg border border-neutral-200 py-3 text-sm disabled:opacity-60"
           >
+            {pending && <Spinner className="h-3.5 w-3.5" />}
             {(amount / 10000).toLocaleString()}만원
           </button>
         ))}
@@ -126,11 +128,14 @@ export default function RegularClient({
         <button
           type="submit"
           disabled={pending || !canSubmit}
-          className="w-full rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-60"
         >
-          {total > 0
-            ? `${total.toLocaleString()}원 크레딧 사용해서 배송 신청`
-            : "상품을 선택해주세요"}
+          {pending && <Spinner />}
+          {pending
+            ? "처리 중..."
+            : total > 0
+              ? `${total.toLocaleString()}원 크레딧 사용해서 배송 신청`
+              : "상품을 선택해주세요"}
         </button>
       </form>
     </div>

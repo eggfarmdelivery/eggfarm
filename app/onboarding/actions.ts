@@ -21,9 +21,7 @@ export async function submitOnboarding(formData: FormData) {
   }
 
   if (role === "b2c") {
-    const deliveryZoneId = String(formData.get("delivery_zone_id") ?? "");
     const entrancePasswordRaw = String(formData.get("entrance_password") ?? "").trim();
-    if (!deliveryZoneId) throw new Error("배송 단지를 선택해주세요");
 
     const { error } = await supabase.from("account").insert({
       role: "b2c",
@@ -31,7 +29,6 @@ export async function submitOnboarding(formData: FormData) {
       kakao_user_id: kakaoUserId,
       name,
       phone,
-      delivery_zone_id: deliveryZoneId,
       address,
       entrance_password: entrancePasswordRaw ? encryptSensitive(entrancePasswordRaw) : null,
     });

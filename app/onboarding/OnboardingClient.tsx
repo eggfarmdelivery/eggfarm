@@ -3,17 +3,62 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitOnboarding } from "./actions";
+import Spinner from "@/components/Spinner";
 
-type Zone = { id: string; name: string };
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (options: {
+        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void;
+      }) => { open: () => void };
+    };
+  }
+}
 
-export default function OnboardingClient({ zones }: { zones: Zone[] }) {
-  const [role, setRole] = useState<"b2c" | "b2b">("b2c");
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+export default function OnboardingClient() {
+  const [role] = useState<"b2c" | "b2b">("b2c");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [baseAddress, setBaseAddress] = useState("");
+  const [dong, setDong] = useState("");
+  const [ho, setHo] = useState("");
   const router = useRouter();
+
+  function openAddressSearch() {
+    if (!window.daum) {
+      alert("주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해주세요");
+      return;
+    }
+    new window.daum.Postcode({
+      oncomplete: (data) => {
+        setBaseAddress(data.roadAddress || data.jibunAddress);
+      },
+    }).open();
+  }
+
+  function handleHoBlur() {
+    if (ho && /^\d+$/.test(ho)) {
+      setHo(ho.padStart(4, "0"));
+    }
+  }
 
   async function handleSubmit(formData: FormData) {
     formData.set("role", role);
+    formData.set("phone", phone);
+    const paddedHo = ho && /^\d+$/.test(ho) ? ho.padStart(4, "0") : ho;
+    formData.set("address", `${baseAddress} ${dong}동 ${paddedHo}호`.trim());
     setPending(true);
     setError(null);
     try {
@@ -25,6 +70,8 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
     }
   }
 
+  const canSubmit = baseAddress && dong && ho;
+
   return (
     <form action={handleSubmit} className="space-y-4">
       <div>
@@ -32,105 +79,104 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setRole("b2c")}
-            className={`rounded-lg border py-3 text-sm ${
-              role === "b2c" ? "border-primary bg-primary-bg font-medium" : "border-neutral-200"
-            }`}
+            className="rounded-lg border border-primary bg-primary-bg py-3 text-sm font-medium"
           >
             일반 회원(B2C)
           </button>
           <button
             type="button"
-            onClick={() => setRole("b2b")}
-            className={`rounded-lg border py-3 text-sm ${
-              role === "b2b" ? "border-primary bg-primary-bg font-medium" : "border-neutral-200"
-            }`}
+            disabled
+            title="준비중입니다"
+            className="rounded-lg border border-neutral-200 bg-neutral-50 py-3 text-sm text-neutral-400"
           >
-            거래처(B2B)
+            거래처(B2B) · 준비중
           </button>
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">
-          {role === "b2b" ? "업체명" : "이름"}
-        </label>
+        <label className="mb-1 block text-xs text-neutral-500">이름</label>
         <input
-          name={role === "b2b" ? "business_name" : "name"}
-          key={role === "b2b" ? "business_name" : "name"}
+          name="name"
           required
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
       </div>
 
-      {role === "b2b" && (
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">담당자명</label>
-          <input
-            name="name"
-            required
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-          />
-        </div>
-      )}
-
       <div>
         <label className="mb-1 block text-xs text-neutral-500">전화번호</label>
         <input
-          name="phone"
+          value={phone}
+          onChange={(e) => setPhone(formatPhone(e.target.value))}
           required
           type="tel"
+          inputMode="numeric"
           placeholder="010-0000-0000"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
       </div>
 
-      {role === "b2c" && (
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">배송 단지</label>
-          <select
-            name="delivery_zone_id"
-            required
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">주소</label>
+        <div className="flex gap-2 mb-2">
+          <input
+            value={baseAddress}
+            readOnly
+            placeholder="주소 검색을 눌러주세요"
+            className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
+          />
+          <button
+            type="button"
+            onClick={openAddressSearch}
+            className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
           >
-            <option value="">단지를 선택해주세요</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
-              </option>
-            ))}
-          </select>
-          {zones.length === 0 && (
-            <p className="mt-1 text-xs text-red-500">
-              현재 배송가능한 단지가 없어요. 관리자에게 문의해주세요
-            </p>
-          )}
+            주소 검색
+          </button>
         </div>
-      )}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="relative">
+            <input
+              value={dong}
+              onChange={(e) => setDong(digitsOnly(e.target.value).slice(0, 4))}
+              required
+              inputMode="numeric"
+              placeholder="0"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 pr-8 text-sm"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+              동
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              value={ho}
+              onChange={(e) => setHo(digitsOnly(e.target.value).slice(0, 4))}
+              onBlur={handleHoBlur}
+              required
+              inputMode="numeric"
+              placeholder="0000"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 pr-8 text-sm"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+              호
+            </span>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-neutral-400">
+          호수는 4자리로 자동 변환돼요 (예: 803 → 0803)
+        </p>
+      </div>
 
       <div>
         <label className="mb-1 block text-xs text-neutral-500">
-          {role === "b2b" ? "배송지 주소" : "상세주소"}
+          공동현관 비밀번호 <span className="text-neutral-400">(선택)</span>
         </label>
         <input
-          name="address"
-          required
-          placeholder={role === "b2c" ? "동/호수까지 정확히 입력해주세요" : undefined}
+          name="entrance_password"
+          placeholder="예: #0000#0000 처럼 상세히 입력해주세요"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
       </div>
-
-      {role === "b2c" && (
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">
-            공동현관 비밀번호 <span className="text-neutral-400">(선택)</span>
-          </label>
-          <input
-            name="entrance_password"
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-          />
-        </div>
-      )}
 
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
@@ -138,10 +184,11 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
 
       <button
         type="submit"
-        disabled={pending || (role === "b2c" && zones.length === 0)}
-        className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-white disabled:opacity-50"
+        disabled={pending || !canSubmit}
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-medium text-white disabled:opacity-60"
       >
-        저장하고 시작하기
+        {pending && <Spinner />}
+        {pending ? "저장 중..." : "저장하고 시작하기"}
       </button>
     </form>
   );

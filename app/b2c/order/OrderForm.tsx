@@ -3,15 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGeneralOrder } from "./actions";
+import Spinner from "@/components/Spinner";
 
 type Product = { id: string; name: string; base_price: number };
 
 export default function OrderForm({
   products,
-  zoneName,
+  address,
 }: {
   products: Product[];
-  zoneName: string | null;
+  address: string | null;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +38,9 @@ export default function OrderForm({
 
   return (
     <form action={handleSubmit} className="px-5">
-      <p className="text-xs text-neutral-500 mb-1">배송 단지</p>
+      <p className="text-xs text-neutral-500 mb-1">배송 주소</p>
       <div className="mb-4 rounded-md border border-neutral-200 px-3 py-2 text-sm text-neutral-600">
-        {zoneName ?? "등록된 배송단지가 없어요 (관리자에게 문의)"}
+        {address ?? "등록된 주소가 없어요 (마이페이지에서 입력해주세요)"}
       </div>
 
       <p className="text-xs text-neutral-500 mb-1">상품 선택</p>
@@ -83,8 +84,9 @@ export default function OrderForm({
       <button
         type="submit"
         disabled={pending || total === 0}
-        className="w-full rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-60"
       >
+        {pending && <Spinner />}
         {pending ? "처리 중..." : "주문하기"}
       </button>
     </form>

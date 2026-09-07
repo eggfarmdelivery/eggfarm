@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
+import BottomNav from "@/components/BottomNav";
 import RegularClient from "./RegularClient";
 
 export default async function RegularOrderPage() {
@@ -21,7 +22,7 @@ export default async function RegularOrderPage() {
     .order("base_price", { ascending: false });
 
   return (
-    <div className="pb-10">
+    <div className="pb-20">
       <header className="flex items-center gap-2 px-5 py-4">
         <Link href="/b2c" aria-label="뒤로가기">
           ←
@@ -29,6 +30,7 @@ export default async function RegularOrderPage() {
         <h1 className="text-base font-medium">정기배송</h1>
       </header>
       <RegularClient products={products ?? []} credit={credit} />
+      <BottomNav active="/b2c" />
     </div>
   );
 }
