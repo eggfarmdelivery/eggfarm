@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { decryptSensitive } from "@/lib/crypto";
 import BottomNav from "@/components/BottomNav";
-import ZoneSelect from "./ZoneSelect";
+import EditProfileClient from "./EditProfileClient";
 import LogoutButton from "./LogoutButton";
 
 export default async function MyPage() {
@@ -13,7 +13,7 @@ export default async function MyPage() {
 
   const { data: account } = await supabase
     .from("account")
-    .select("name, phone, address, entrance_password, delivery_zone_id")
+    .select("name, phone, base_address, address_dong, address_ho, entrance_password")
     .eq("id", accountId)
     .single();
 
@@ -23,13 +23,8 @@ export default async function MyPage() {
     .eq("account_id", accountId);
   const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
 
-  const { data: zones } = await supabase
-    .from("delivery_zone")
-    .select("id, name")
-    .eq("is_active", true);
-
   return (
-    <div className="pb-20">
+    <div className="pb-24">
       <header className="px-5 py-4">
         <h1 className="text-base font-medium">마이페이지</h1>
       </header>
@@ -40,25 +35,16 @@ export default async function MyPage() {
           <p className="text-2xl font-medium text-primary-dark">{credit.toLocaleString()}원</p>
         </section>
 
-        <section>
-          <p className="text-xs text-neutral-500 mb-1">이름</p>
-          <p className="text-sm mb-3">{account?.name ?? "-"}</p>
-          <p className="text-xs text-neutral-500 mb-1">전화번호</p>
-          <p className="text-sm mb-3">{account?.phone ?? "-"}</p>
-          <p className="text-xs text-neutral-500 mb-1">배송 단지</p>
-          <ZoneSelect
-            zones={zones ?? []}
-            currentZoneId={account?.delivery_zone_id ?? null}
-          />
-          <p className="text-xs text-neutral-500 mb-1 mt-3">상세주소</p>
-          <p className="text-sm mb-3">{account?.address ?? "-"}</p>
-          <p className="text-xs text-neutral-500 mb-1">공동현관 비밀번호</p>
-          <p className="text-sm mb-3">
-            {account?.entrance_password
-              ? decryptSensitive(account.entrance_password)
-              : "미등록"}
-          </p>
-        </section>
+        <EditProfileClient
+          name={account?.name ?? ""}
+          phone={account?.phone ?? ""}
+          baseAddress={account?.base_address ?? ""}
+          dong={account?.address_dong ?? ""}
+          ho={account?.address_ho ?? ""}
+          entrancePassword={
+            account?.entrance_password ? decryptSensitive(account.entrance_password) : ""
+          }
+        />
 
         <LogoutButton />
       </main>

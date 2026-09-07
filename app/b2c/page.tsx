@@ -32,7 +32,7 @@ export default async function B2CHome() {
   const orders = await getRecentOrders(accountId);
 
   return (
-    <div className="pb-20">
+    <div className="pb-24">
       <header className="flex items-center justify-between px-5 py-4">
         <img src="/logo.png" alt="에그팜" className="h-7 w-auto" />
         <button aria-label="알림">🔔</button>

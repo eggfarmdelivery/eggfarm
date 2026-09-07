@@ -21,6 +21,9 @@ export async function submitOnboarding(formData: FormData) {
   }
 
   if (role === "b2c") {
+    const baseAddress = String(formData.get("base_address") ?? "").trim();
+    const addressDong = String(formData.get("address_dong") ?? "").trim();
+    const addressHo = String(formData.get("address_ho") ?? "").trim();
     const entrancePasswordRaw = String(formData.get("entrance_password") ?? "").trim();
 
     const { error } = await supabase.from("account").insert({
@@ -30,6 +33,9 @@ export async function submitOnboarding(formData: FormData) {
       name,
       phone,
       address,
+      base_address: baseAddress || null,
+      address_dong: addressDong || null,
+      address_ho: addressHo || null,
       entrance_password: entrancePasswordRaw ? encryptSensitive(entrancePasswordRaw) : null,
     });
     if (error) throw new Error(error.message);

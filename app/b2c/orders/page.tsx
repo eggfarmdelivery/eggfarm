@@ -17,7 +17,7 @@ export default async function B2COrdersPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="pb-20">
+    <div className="pb-24">
       <header className="px-5 py-4">
         <h1 className="text-base font-medium">주문내역</h1>
       </header>
