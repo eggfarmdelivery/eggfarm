@@ -7,17 +7,19 @@ type Step = {
 const STEPS: Step[] = [
   { key: "입금대기", label: "입금대기", icon: "cash" },
   { key: "입금확인완료", label: "입금확인", icon: "cash" },
+  { key: "배송준비", label: "배송준비", icon: "box" },
   { key: "배송중", label: "배송중", icon: "truck" },
   { key: "배송완료", label: "배송완료", icon: "check" },
 ];
 
-// 정기배송은 입금 단계 없이 바로 배송위임으로 시작하므로 "배송중" 취급
+// 정기배송은 입금 단계 없이 바로 배송위임으로 시작하므로 "배송준비" 취급
 const STATUS_TO_STEP_INDEX: Record<string, number> = {
   입금대기: 0,
   입금확인완료: 1,
+  배송준비: 2,
   배송위임: 2,
-  배송중: 2,
-  배송완료: 3,
+  배송중: 3,
+  배송완료: 4,
 };
 
 function StepIcon({ icon, tone }: { icon: Step["icon"]; tone: "done" | "current" | "todo" }) {

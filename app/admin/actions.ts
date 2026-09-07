@@ -61,6 +61,20 @@ export async function confirmB2CPayment(orderId: string): Promise<Result> {
   }
 }
 
+export async function startB2CDelivery(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    const { error } = await supabase
+      .from("b2c_order")
+      .update({ status: "배송준비" })
+      .eq("id", orderId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}
+
 export async function markB2CDelivered(formData: FormData): Promise<Result> {
   try {
     await requireAdmin();

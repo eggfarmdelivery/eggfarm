@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   approveOverflow,
   rejectOverflow,
   confirmB2CPayment,
+  startB2CDelivery,
   markB2CDelivered,
   startB2BDelivery,
   markB2BDelivered,
@@ -118,6 +119,14 @@ function B2COrderCard({ order, onAction }: { order: B2COrder; onAction: () => vo
       <p className="text-xs text-neutral-500 mb-1">
         {order.order_type}배송 · {order.total_amount.toLocaleString()}원
       </p>
+      <p className="text-xs text-neutral-400 mb-1">
+        {new Date(order.created_at).toLocaleString("ko-KR", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </p>
       {order.is_overflow && (
         <p className="text-xs text-orange-600 mb-2">⚠ 재고 초과분 - 승인 필요</p>
       )}
@@ -149,7 +158,16 @@ function B2COrderCard({ order, onAction }: { order: B2COrder; onAction: () => vo
             입금확인
           </button>
         )}
-        {(order.status === "입금확인완료" || order.status === "배송위임") && (
+        {order.status === "입금확인완료" && (
+          <button
+            disabled={busy}
+            onClick={() => run(() => startB2CDelivery(order.id))}
+            className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+          >
+            배송준비 시작
+          </button>
+        )}
+        {(order.status === "배송준비" || order.status === "배송위임") && (
           <PhotoUploadButton
             orderId={order.id}
             label="배송완료 사진"
@@ -180,12 +198,20 @@ function B2BOrderCard({ order, onAction }: { order: B2BOrder; onAction: () => vo
   }
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <span className="text-sm">
           {order.account?.business_name ?? "거래처"} · {order.total_amount.toLocaleString()}원
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
+      <p className="text-xs text-neutral-400 mb-2">
+        {new Date(order.created_at).toLocaleString("ko-KR", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </p>
       <div className="flex gap-2 flex-wrap items-center">
         {order.status === "발주요청" && (
           <button
@@ -259,9 +285,15 @@ export default function ConsoleClient({
   const router = useRouter();
   const refresh = () => router.refresh();
 
+  // 30초마다 자동 새로고침(수동 새로고침 없이도 최신 주문 반영)
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(interval);
+  }, [router]);
+
   const b2cTabs = useMemo(() => {
     const overflowCount = b2cOrders.filter((o) => o.is_overflow).length;
-    const order = ["입금대기", "입금확인완료", "배송위임", "배송완료", "승인거절", "취소"];
+    const order = ["입금대기", "입금확인완료", "배송준비", "배송위임", "배송완료", "승인거절", "취소"];
     const counts: Record<string, number> = {};
     for (const o of b2cOrders) counts[o.status] = (counts[o.status] ?? 0) + 1;
     const tabs = [{ key: "전체", label: "전체", count: b2cOrders.length }];
