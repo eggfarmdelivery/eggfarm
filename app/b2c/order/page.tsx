@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
-import { isSoldOut, getCurrentLimit } from "@/lib/limits";
+import { isSoldOut, getCurrentLimit, getRemainingStock } from "@/lib/limits";
 import { getConfigs } from "@/lib/settings";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
@@ -15,7 +15,7 @@ export default async function GeneralOrderPage() {
 
   const { data: products } = await supabase
     .from("product")
-    .select("id, name, base_price")
+    .select("id, name, base_price, photo_url")
     .eq("is_active", true)
     .order("base_price", { ascending: false });
 
@@ -26,15 +26,27 @@ export default async function GeneralOrderPage() {
         ...p,
         soldOut: await isSoldOut(p.id),
         perPersonLimit: limit?.per_person_limit ?? null,
+        remainingStock: await getRemainingStock(p.id),
       };
     })
   );
 
   const { data: account } = await sessionSupabase
     .from("account")
-    .select("address")
+    .select("address, nickname, phone")
     .eq("id", accountId)
     .single();
+
+  const { data: ledger } = await supabase
+    .from("credit_ledger")
+    .select("delta")
+    .eq("account_id", accountId);
+  const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
+
+  const depositorName =
+    account?.nickname && account?.phone
+      ? `${account.nickname}${account.phone.replace(/\D/g, "").slice(-4)}`
+      : null;
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
@@ -51,6 +63,8 @@ export default async function GeneralOrderPage() {
         products={productsWithStock}
         address={account?.address ?? null}
         bankInfo={bankInfo}
+        credit={credit}
+        depositorName={depositorName}
       />
       <BottomNav active="/b2c" />
     </div>

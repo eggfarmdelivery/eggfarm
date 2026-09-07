@@ -52,7 +52,7 @@ function monthsAgo(months: number) {
 function OrderDetail({ order }: { order: Order }) {
   const [editing, setEditing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [refundMethod, setRefundMethod] = useState<"credit" | "bank" | null>(null);
+  const [refundMethod, setRefundMethod] = useState<"credit" | "bank" | null>("credit");
   const [qty, setQty] = useState<Record<string, number>>(
     Object.fromEntries((order.b2c_order_item ?? []).map((i) => [i.id, i.quantity]))
   );
@@ -122,7 +122,7 @@ function OrderDetail({ order }: { order: Order }) {
         <p className="mb-3 text-sm font-medium">정말 취소하시겠어요?</p>
         {canCancelWithRefund && (
           <div className="mb-3 space-y-2">
-            <p className="text-xs text-neutral-500">환불 방법을 선택해주세요</p>
+            <p className="whitespace-nowrap text-xs text-neutral-500">환불 방법을 선택해주세요</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setRefundMethod("credit")}
@@ -132,7 +132,7 @@ function OrderDetail({ order }: { order: Order }) {
                     : "border-neutral-200 text-neutral-600"
                 }`}
               >
-                적립금으로 받기
+                적립금(크레딧)으로 받기
               </button>
               <button
                 onClick={() => setRefundMethod("bank")}

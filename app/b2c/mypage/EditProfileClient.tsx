@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateProfile } from "./actions";
 import Spinner from "@/components/Spinner";
+import { byteLength, truncateToByteLimit, NICKNAME_MAX_BYTES } from "@/lib/nickname";
 
 declare global {
   interface Window {
@@ -29,6 +30,7 @@ function digitsOnly(value: string) {
 type Props = {
   name: string;
   phone: string;
+  nickname: string;
   baseAddress: string;
   dong: string;
   ho: string;
@@ -38,6 +40,7 @@ type Props = {
 export default function EditProfileClient({
   name: initialName,
   phone: initialPhone,
+  nickname: initialNickname,
   baseAddress: initialBaseAddress,
   dong: initialDong,
   ho: initialHo,
@@ -49,12 +52,26 @@ export default function EditProfileClient({
 
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  const [nickname, setNickname] = useState(initialNickname);
+  const [nicknameWarning, setNicknameWarning] = useState(false);
   const [baseAddress, setBaseAddress] = useState(initialBaseAddress);
   const [dong, setDong] = useState(initialDong);
   const [ho, setHo] = useState(initialHo);
   const [entrancePassword, setEntrancePassword] = useState(initialEntrancePassword);
 
   const router = useRouter();
+  const phoneTail = phone.replace(/\D/g, "").slice(-4);
+  const depositorPreview = nickname && phoneTail ? `${nickname}${phoneTail}` : null;
+
+  function handleNicknameChange(raw: string) {
+    if (byteLength(raw) > NICKNAME_MAX_BYTES) {
+      setNickname(truncateToByteLimit(raw));
+      setNicknameWarning(true);
+      return;
+    }
+    setNickname(raw);
+    setNicknameWarning(false);
+  }
 
   function openAddressSearch() {
     if (!window.daum) {
@@ -79,6 +96,7 @@ export default function EditProfileClient({
       const formData = new FormData();
       formData.set("name", name);
       formData.set("phone", phone);
+      formData.set("nickname", nickname);
       formData.set("base_address", baseAddress);
       formData.set("address_dong", dong);
       formData.set("address_ho", ho);
@@ -113,6 +131,15 @@ export default function EditProfileClient({
         <p className="text-sm mb-3">{name || "-"}</p>
         <p className="text-xs text-neutral-500 mb-1">전화번호</p>
         <p className="text-sm mb-3">{phone || "-"}</p>
+        <p className="text-xs text-neutral-500 mb-1">닉네임 (입금자명)</p>
+        <p className="text-sm mb-3">
+          {nickname ? nickname : "-"}
+          {depositorPreview && (
+            <span className="ml-2 text-xs text-neutral-400">
+              입금 시 &quot;{depositorPreview}&quot;로 표시돼요
+            </span>
+          )}
+        </p>
         <p className="text-xs text-neutral-500 mb-1">주소</p>
         <p className="text-sm mb-3">
           {baseAddress ? `${baseAddress} ${dong}동 ${ho}호` : "-"}
@@ -145,6 +172,31 @@ export default function EditProfileClient({
           inputMode="numeric"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">닉네임 (입금자명으로 사용돼요)</label>
+        <input
+          value={nickname}
+          onChange={(e) => handleNicknameChange(e.target.value)}
+          placeholder="예: 홍길동맘"
+          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+        />
+        {nicknameWarning ? (
+          <p className="mt-1 text-xs text-red-500">
+            닉네임이 너무 길어요. 한글 6자(영문은 12자) 이내로 입력해주세요
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-neutral-400">
+            닉네임은 한글 6자 또는 영문 12자까지 입력할 수 있어요 (섞어서 사용 가능)
+          </p>
+        )}
+        {depositorPreview && (
+          <p className="mt-1 text-xs text-neutral-400">
+            입금자명: <span className="font-medium text-neutral-600">{depositorPreview}</span>{" "}
+            (닉네임+전화번호 뒷4자리)
+          </p>
+        )}
       </div>
 
       <div>

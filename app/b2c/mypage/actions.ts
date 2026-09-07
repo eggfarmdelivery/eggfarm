@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { encryptSensitive } from "@/lib/crypto";
+import { byteLength, NICKNAME_MAX_BYTES } from "@/lib/nickname";
 
 type Result = { success: true } | { success: false; error: string };
 
@@ -13,6 +14,10 @@ export async function updateProfile(formData: FormData): Promise<Result> {
 
     const name = String(formData.get("name") ?? "").trim();
     const phone = String(formData.get("phone") ?? "").trim();
+    const nickname = String(formData.get("nickname") ?? "").trim();
+    if (nickname && byteLength(nickname) > NICKNAME_MAX_BYTES) {
+      throw new Error("닉네임이 너무 길어요. 한글 6자(영문은 12자) 이내로 입력해주세요");
+    }
     const baseAddress = String(formData.get("base_address") ?? "").trim();
     const dong = String(formData.get("address_dong") ?? "").trim();
     const ho = String(formData.get("address_ho") ?? "").trim();
@@ -27,6 +32,7 @@ export async function updateProfile(formData: FormData): Promise<Result> {
       .update({
         name,
         phone,
+        nickname: nickname || null,
         base_address: baseAddress,
         address_dong: dong,
         address_ho: ho,

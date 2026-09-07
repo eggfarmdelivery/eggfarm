@@ -42,6 +42,14 @@ async function getSoldSince(productId: string, sinceDate: string) {
   return sumB2c + sumB2b;
 }
 
+// 화면에 보여줄 잔여재고(기준재고 기준, 초과허용분은 표시에 포함 안 함) - null이면 한도 미설정(무제한)
+export async function getRemainingStock(productId: string): Promise<number | null> {
+  const limit = await getCurrentLimit(productId);
+  if (!limit) return null;
+  const sold = await getSoldSince(productId, limit.effective_date);
+  return Math.max(0, limit.stock_limit - sold);
+}
+
 // 완전 소진 여부(초과허용분까지 다 팔렸는지) - 화면에 "품절" 표시용
 export async function isSoldOut(productId: string): Promise<boolean> {
   const limit = await getCurrentLimit(productId);

@@ -44,13 +44,17 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
 
-    // 크레딧(선불잔액) 우선차감: 남은 금액만 계좌입금 대상
+    // 크레딧은 쿠폰처럼 사용자가 화면에서 직접 선택한 금액만큼만 사용(자동 전액차감 아님)
     const { data: ledger } = await supabase
       .from("credit_ledger")
       .select("delta")
       .eq("account_id", accountId);
     const balance = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
-    const creditUsed = Math.max(0, Math.min(balance, totalAmount));
+    const requestedCreditUse = Math.max(0, Number(formData.get("credit_to_use") ?? 0));
+    if (requestedCreditUse > balance) {
+      throw new Error("보유 크레딧보다 많은 금액을 사용할 수 없어요");
+    }
+    const creditUsed = Math.max(0, Math.min(requestedCreditUse, balance, totalAmount));
     const remainingAmount = totalAmount - creditUsed;
 
     const { data: order, error } = await supabase

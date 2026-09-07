@@ -11,10 +11,12 @@ export type BankInfo = {
 export default function PaymentInfoModal({
   bankInfo,
   amount,
+  depositorName,
   onClose,
 }: {
   bankInfo: BankInfo;
   amount: number;
+  depositorName?: string | null;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -66,6 +68,13 @@ export default function PaymentInfoModal({
           <span className="text-sm text-neutral-500">입금 금액</span>
           <span className="text-lg font-medium">{amount.toLocaleString()}원</span>
         </div>
+
+        {depositorName && (
+          <p className="mb-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+            입금자명에 <span className="font-medium text-neutral-700">{depositorName}</span>를
+            그대로 넣어주세요
+          </p>
+        )}
 
         <button
           type="button"

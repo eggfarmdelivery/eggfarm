@@ -14,7 +14,7 @@ export default async function AdminConsole() {
   const { data: b2cOrders } = await admin
     .from("b2c_order")
     .select(
-      "id, order_type, status, is_overflow, total_amount, created_at, account(name, phone)"
+      "id, order_type, status, is_overflow, total_amount, created_at, account(name, phone), b2c_order_item(quantity, product(name))"
     )
     .order("created_at", { ascending: false });
 

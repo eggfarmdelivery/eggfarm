@@ -13,7 +13,7 @@ export default async function MyPage() {
 
   const { data: account } = await supabase
     .from("account")
-    .select("name, phone, base_address, address_dong, address_ho, entrance_password")
+    .select("name, phone, nickname, base_address, address_dong, address_ho, entrance_password")
     .eq("id", accountId)
     .single();
 
@@ -38,6 +38,7 @@ export default async function MyPage() {
         <EditProfileClient
           name={account?.name ?? ""}
           phone={account?.phone ?? ""}
+          nickname={account?.nickname ?? ""}
           baseAddress={account?.base_address ?? ""}
           dong={account?.address_dong ?? ""}
           ho={account?.address_ho ?? ""}

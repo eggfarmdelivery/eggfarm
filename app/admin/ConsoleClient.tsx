@@ -25,6 +25,7 @@ type B2COrder = {
   total_amount: number;
   created_at: string;
   account: { name: string | null; phone: string | null } | null;
+  b2c_order_item: { quantity: number; product: { name: string } | null }[];
 };
 
 type B2BOrder = {
@@ -136,6 +137,13 @@ function B2COrderCard({ order }: { order: B2COrder }) {
       <p className="text-xs text-neutral-500 mb-1">
         {order.order_type}배송 · {order.total_amount.toLocaleString()}원
       </p>
+      {(order.b2c_order_item ?? []).length > 0 && (
+        <p className="text-xs text-neutral-400 mb-1">
+          {order.b2c_order_item
+            .map((i) => `${i.product?.name ?? "상품"} ${i.quantity}판`)
+            .join(" · ")}
+        </p>
+      )}
       <p className="text-xs text-neutral-400 mb-1">{formatTime(order.created_at)}</p>
       {order.is_overflow && (
         <p className="text-xs text-orange-600 mb-2">⚠ 재고 초과분 - 승인 필요</p>
