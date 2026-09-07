@@ -13,11 +13,16 @@ export default function LoginForm() {
     setPending(true);
     setError(null);
     try {
-      await adminLogin(formData);
+      const result = await adminLogin(formData);
+      if (!result.success) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
       router.push("/admin");
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "로그인 실패");
+    } catch {
+      setError("로그인 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }
