@@ -30,7 +30,7 @@ Supabase에 0001~0006 마이그레이션 순서대로 실행 후 테스트 가�
 - KAKAO_REST_API_KEY, KAKAO_CLIENT_SECRET → Supabase 대시보드에 입력(코드엔 불필요)
 
 ## 마이그레이션 순서
-0001_init → 0002_seed → 0003_auth → 0004_storage → 0005_address_fields → 0006_product_photo
+0001_init → 0002_seed → 0003_auth → 0004_storage → 0005_address_fields → 0006_product_photo → 0007_settings
 (0002는 재실행해도 중복 안 생기게 처리됨. 이미 중복 생겼다면 cleanup-duplicates.sql 1회 실행)
 
 ## 아직 안 된 것 (다음 순서)

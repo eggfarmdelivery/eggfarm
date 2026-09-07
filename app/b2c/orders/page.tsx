@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
+import OrderJourney from "@/components/OrderJourney";
 import BottomNav from "@/components/BottomNav";
 
 export default async function B2COrdersPage() {
@@ -46,6 +47,9 @@ export default async function B2COrdersPage() {
                 {o.order_type === "일반" && (
                   <span>{o.total_amount.toLocaleString()}원</span>
                 )}
+              </div>
+              <div className="mt-3 border-t border-neutral-100 pt-2">
+                <OrderJourney status={o.status} />
               </div>
               {o.delivery_photo_url && (
                 <img

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
-import { isSoldOut } from "@/lib/limits";
+import { isSoldOut, getCurrentLimit } from "@/lib/limits";
+import { getConfigs } from "@/lib/settings";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
 
@@ -19,7 +20,14 @@ export default async function GeneralOrderPage() {
     .order("base_price", { ascending: false });
 
   const productsWithStock = await Promise.all(
-    (products ?? []).map(async (p) => ({ ...p, soldOut: await isSoldOut(p.id) }))
+    (products ?? []).map(async (p) => {
+      const limit = await getCurrentLimit(p.id);
+      return {
+        ...p,
+        soldOut: await isSoldOut(p.id),
+        perPersonLimit: limit?.per_person_limit ?? null,
+      };
+    })
   );
 
   const { data: account } = await sessionSupabase
@@ -27,6 +35,8 @@ export default async function GeneralOrderPage() {
     .select("address")
     .eq("id", accountId)
     .single();
+
+  const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
   return (
     <div className="pb-28">
@@ -37,7 +47,11 @@ export default async function GeneralOrderPage() {
         <h1 className="text-base font-medium">일반배송 주문</h1>
       </header>
 
-      <OrderForm products={productsWithStock} address={account?.address ?? null} />
+      <OrderForm
+        products={productsWithStock}
+        address={account?.address ?? null}
+        bankInfo={bankInfo}
+      />
       <BottomNav active="/b2c" />
     </div>
   );

@@ -5,19 +5,29 @@ import { useRouter } from "next/navigation";
 import { createGeneralOrder } from "./actions";
 import Spinner from "@/components/Spinner";
 import QuantityStepper from "@/components/QuantityStepper";
+import PaymentInfoModal, { type BankInfo } from "@/components/PaymentInfoModal";
 
-type Product = { id: string; name: string; base_price: number; soldOut: boolean };
+type Product = {
+  id: string;
+  name: string;
+  base_price: number;
+  soldOut: boolean;
+  perPersonLimit: number | null;
+};
 
 export default function OrderForm({
   products,
   address,
+  bankInfo,
 }: {
   products: Product[];
   address: string | null;
+  bankInfo: Record<string, string>;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [paidTotal, setPaidTotal] = useState<number | null>(null);
   const router = useRouter();
 
   const total = products.reduce(
@@ -35,7 +45,7 @@ export default function OrderForm({
         setPending(false);
         return;
       }
-      router.push("/b2c/orders");
+      setPaidTotal(total);
     } catch {
       setError("주문 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
@@ -76,6 +86,7 @@ export default function OrderForm({
                 name={`qty_${p.id}`}
                 value={qty[p.id] ?? 0}
                 onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
+                max={p.perPersonLimit ?? undefined}
               />
             )}
           </div>
@@ -101,6 +112,14 @@ export default function OrderForm({
         {pending && <Spinner />}
         {pending ? "처리 중..." : "주문하기"}
       </button>
+
+      {paidTotal !== null && (
+        <PaymentInfoModal
+          bankInfo={bankInfo as BankInfo}
+          amount={paidTotal}
+          onClose={() => router.push("/b2c/orders")}
+        />
+      )}
     </form>
   );
 }

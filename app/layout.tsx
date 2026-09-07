@@ -9,6 +9,7 @@ export const metadata: Metadata = {
     icon: "/icon.png",
     apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.json",
 };
 
 // 핀치줌/확대축소 방지 + 항상 라이트모드로 고정(다크모드 대응 미비로 인한 테두리 안보임 등 방지)
@@ -18,6 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   colorScheme: "light",
+  themeColor: "#E8940C",
 };
 
 export default function RootLayout({

@@ -29,8 +29,7 @@ export default async function AdminConsole() {
         <h1 className="text-base font-medium">관리자 콘솔</h1>
         <nav className="flex gap-3 text-xs text-neutral-500">
           <Link href="/admin/products">상품관리</Link>
-          <Link href="/admin/settlement">정산</Link>
-          <Link href="/admin/quotes">견적문의</Link>
+          <Link href="/admin/settings">설정</Link>
         </nav>
       </header>
 
