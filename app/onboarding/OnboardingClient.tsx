@@ -78,26 +78,6 @@ export default function OnboardingClient() {
   return (
     <form action={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">회원 유형</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-primary bg-primary-bg py-3 text-sm font-medium"
-          >
-            일반 회원(B2C)
-          </button>
-          <button
-            type="button"
-            disabled
-            title="준비중입니다"
-            className="rounded-lg border border-neutral-200 bg-neutral-50 py-3 text-sm text-neutral-400"
-          >
-            거래처(B2B) · 준비중
-          </button>
-        </div>
-      </div>
-
-      <div>
         <label className="mb-1 block text-xs text-neutral-500">이름</label>
         <input
           name="name"

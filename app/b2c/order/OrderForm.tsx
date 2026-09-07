@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGeneralOrder } from "./actions";
 import Spinner from "@/components/Spinner";
+import QuantityStepper from "@/components/QuantityStepper";
 
 type Product = { id: string; name: string; base_price: number };
 
@@ -56,15 +57,10 @@ export default function OrderForm({
                 {p.base_price.toLocaleString()}원/판
               </p>
             </div>
-            <input
-              type="number"
+            <QuantityStepper
               name={`qty_${p.id}`}
-              min={0}
-              defaultValue={0}
-              onChange={(e) =>
-                setQty((prev) => ({ ...prev, [p.id]: Number(e.target.value) }))
-              }
-              className="w-16 rounded-md border border-neutral-200 px-2 py-1.5 text-center text-sm"
+              value={qty[p.id] ?? 0}
+              onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
             />
           </div>
         ))}

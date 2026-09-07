@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buyCreditPackage, createRegularOrder } from "./actions";
 import Spinner from "@/components/Spinner";
+import QuantityStepper from "@/components/QuantityStepper";
 
 type Product = { id: string; name: string; base_price: number };
 
@@ -95,15 +96,10 @@ export default function RegularClient({
                   {p.base_price.toLocaleString()}원/판
                 </span>
               </div>
-              <input
-                type="number"
+              <QuantityStepper
                 name={`qty_${p.id}`}
-                min={0}
-                defaultValue={0}
-                onChange={(e) =>
-                  setQuantities((q) => ({ ...q, [p.id]: Number(e.target.value) || 0 }))
-                }
-                className="w-16 rounded-md border border-neutral-200 px-2 py-1.5 text-center text-sm"
+                value={quantities[p.id] ?? 0}
+                onChange={(v) => setQuantities((q) => ({ ...q, [p.id]: v }))}
               />
             </div>
           ))}

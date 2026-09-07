@@ -9,14 +9,14 @@ const items = [
 export default function BottomNav({ active }: { active: string }) {
   return (
     <nav className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-      <ul className="flex justify-around">
+      <ul className="flex justify-around py-1.5">
         {items.map((item) => (
           <li key={item.href} className="flex-1">
             <Link
               href={item.href}
-              className={`flex flex-col items-center gap-1 py-3.5 text-sm ${
+              className={`mx-1.5 flex flex-col items-center gap-1 rounded-xl py-3 text-base transition-colors active:bg-primary-bg ${
                 active === item.href
-                  ? "text-primary font-semibold"
+                  ? "bg-primary-bg font-semibold text-primary"
                   : "text-neutral-400"
               }`}
             >

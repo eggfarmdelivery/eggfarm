@@ -6,15 +6,6 @@ import { getAccountId } from "@/lib/getAccount";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
-async function getCreditBalance(accountId: string) {
-  const { data, error } = await supabase
-    .from("credit_ledger")
-    .select("delta")
-    .eq("account_id", accountId);
-  if (error || !data) return 0;
-  return data.reduce((sum, row) => sum + row.delta, 0);
-}
-
 async function getRecentOrders(accountId: string) {
   const { data, error } = await supabase
     .from("b2c_order")
@@ -28,32 +19,17 @@ async function getRecentOrders(accountId: string) {
 
 export default async function B2CHome() {
   const accountId = await getAccountId("b2c");
-  const credit = await getCreditBalance(accountId);
   const orders = await getRecentOrders(accountId);
 
   return (
-    <div className="pb-24">
+    <div className="pb-28">
       <header className="flex items-center justify-between px-5 py-4">
         <img src="/logo.png" alt="에그팜" className="h-7 w-auto" />
         <button aria-label="알림">🔔</button>
       </header>
 
       <main className="px-5">
-        <section className="rounded-xl bg-primary-bg p-4 mb-4">
-          <p className="text-xs text-primary-dark mb-1">정기배송 잔여 크레딧</p>
-          <p className="text-2xl font-medium text-primary-dark">
-            {credit.toLocaleString()}원
-          </p>
-        </section>
-
-        <section className="grid grid-cols-2 gap-3 mb-6">
-          <Link
-            href="/b2c/regular"
-            className="flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
-          >
-            <span className="text-2xl">🥚</span>
-            <span className="text-sm">정기배송 신청</span>
-          </Link>
+        <section className="mb-6">
           <Link
             href="/b2c/order"
             className="flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
