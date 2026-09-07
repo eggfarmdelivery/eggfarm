@@ -20,10 +20,46 @@ type Product = {
   current: Limit;
 };
 
+function formatNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString();
+}
+
+function PriceInput({
+  name,
+  defaultValue,
+}: {
+  name: string;
+  defaultValue?: number;
+}) {
+  const [display, setDisplay] = useState(
+    defaultValue !== undefined ? defaultValue.toLocaleString() : ""
+  );
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={(e) => setDisplay(formatNumber(e.target.value))}
+        placeholder="0"
+        className="w-full rounded-md border border-neutral-200 px-3 py-2 pr-8 text-sm"
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+        원
+      </span>
+      {/* 실제 제출값은 콤마 뗀 순수 숫자로 */}
+      <input type="hidden" name={name} value={display.replace(/,/g, "")} />
+    </div>
+  );
+}
+
 function CreateProductForm() {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [justDone, setJustDone] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
@@ -35,10 +71,14 @@ function CreateProductForm() {
         setError(result.error);
         return;
       }
-      setOpen(false);
+      setJustDone(true);
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "등록 중 오류가 발생했어요");
+      setTimeout(() => {
+        setJustDone(false);
+        setOpen(false);
+      }, 1200);
+    } catch {
+      setError("등록 중 알 수 없는 오류가 발생했어요");
     } finally {
       setPending(false);
     }
@@ -58,12 +98,20 @@ function CreateProductForm() {
   return (
     <form
       action={handleSubmit}
-      className="mb-6 space-y-3 rounded-xl border border-neutral-200 p-4"
+      className="relative mb-6 space-y-3 rounded-xl border border-neutral-200 p-4"
     >
+      {justDone && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/90">
+          <p className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+            ✓ 등록 완료됐어요
+          </p>
+        </div>
+      )}
+
       <p className="text-sm font-medium mb-1">신규 상품 등록</p>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">사진</label>
+        <label className="mb-1 block text-xs text-neutral-500">사진 (선택)</label>
         <input type="file" name="photo" accept="image/*" className="text-sm" />
       </div>
       <div>
@@ -76,12 +124,7 @@ function CreateProductForm() {
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">가격(원/판)</label>
-        <input
-          type="number"
-          name="base_price"
-          required
-          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-        />
+        <PriceInput name="base_price" />
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
@@ -142,6 +185,7 @@ function CreateProductForm() {
 function ProductEditRow({ product }: { product: Product }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
@@ -154,9 +198,11 @@ function ProductEditRow({ product }: { product: Product }) {
         setError(result.error);
         return;
       }
+      setJustSaved(true);
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "저장 중 오류가 발생했어요");
+      setTimeout(() => setJustSaved(false), 1500);
+    } catch {
+      setError("저장 중 알 수 없는 오류가 발생했어요");
     } finally {
       setPending(false);
     }
@@ -165,7 +211,9 @@ function ProductEditRow({ product }: { product: Product }) {
   return (
     <form
       action={handleSubmit}
-      className="mb-3 space-y-3 rounded-xl border border-neutral-200 p-4"
+      className={`mb-3 space-y-3 rounded-xl border p-4 transition-colors ${
+        justSaved ? "border-green-400 bg-green-50/40" : "border-neutral-200"
+      }`}
     >
       <div className="flex items-center gap-3">
         {product.photo_url ? (
@@ -177,18 +225,13 @@ function ProductEditRow({ product }: { product: Product }) {
         ) : (
           <div className="h-14 w-14 rounded-lg bg-neutral-100" />
         )}
-        <div className="flex-1">
+        <div className="flex-1 space-y-1">
           <input
             name="name"
             defaultValue={product.name}
-            className="mb-1 w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm font-medium"
+            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm font-medium"
           />
-          <input
-            type="number"
-            name="base_price"
-            defaultValue={product.base_price}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm"
-          />
+          <PriceInput name="base_price" defaultValue={product.base_price} />
         </div>
       </div>
 
@@ -241,10 +284,12 @@ function ProductEditRow({ product }: { product: Product }) {
       <button
         type="submit"
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white disabled:opacity-60"
+        className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-60 ${
+          justSaved ? "bg-green-600" : "bg-primary"
+        }`}
       >
         {pending && <Spinner />}
-        {pending ? "저장 중..." : "저장"}
+        {pending ? "저장 중..." : justSaved ? "✓ 저장됨" : "저장"}
       </button>
     </form>
   );
