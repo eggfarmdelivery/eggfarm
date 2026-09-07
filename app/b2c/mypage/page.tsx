@@ -31,7 +31,7 @@ export default async function MyPage() {
 
       <main className="px-5 space-y-5">
         <section className="rounded-xl bg-primary-bg p-4">
-          <p className="text-xs text-primary-dark mb-1">정기배송 잔여 크레딧</p>
+          <p className="text-xs text-primary-dark mb-1">크레딧</p>
           <p className="text-2xl font-medium text-primary-dark">{credit.toLocaleString()}원</p>
         </section>
 
