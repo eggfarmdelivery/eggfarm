@@ -39,7 +39,7 @@ export default async function GeneralOrderPage() {
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <header className="flex items-center gap-2 px-5 py-4">
         <Link href="/b2c" aria-label="뒤로가기">
           ←

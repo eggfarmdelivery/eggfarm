@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
+import { getConfigs } from "@/lib/settings";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
@@ -20,13 +21,21 @@ async function getRecentOrders(accountId: string) {
 export default async function B2CHome() {
   const accountId = await getAccountId("b2c");
   const orders = await getRecentOrders(accountId);
+  const notice = await getConfigs(["notice_enabled", "notice_text"]);
+  const showNotice = notice.notice_enabled === "true" && notice.notice_text;
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <header className="flex items-center justify-between px-5 py-4">
         <img src="/logo.png" alt="에그팜" className="h-7 w-auto" />
         <button aria-label="알림">🔔</button>
       </header>
+
+      {showNotice && (
+        <div className="mx-5 mb-4 rounded-lg bg-primary-bg px-3 py-2.5 text-sm text-primary-dark">
+          📢 {notice.notice_text}
+        </div>
+      )}
 
       <main className="px-5">
         <section className="mb-6">

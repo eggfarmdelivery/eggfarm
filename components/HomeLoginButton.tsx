@@ -37,7 +37,7 @@ export default function HomeLoginButton() {
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FEE500] py-3 text-sm font-medium text-[#191600] disabled:opacity-70"
       >
         {pending && <Spinner />}
-        {pending ? "이동 중..." : "카카오로 회원가입"}
+        {pending ? "이동 중..." : "카카오로 시작하기"}
       </button>
       {error && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

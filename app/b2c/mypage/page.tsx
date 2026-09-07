@@ -24,7 +24,7 @@ export default async function MyPage() {
   const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <header className="px-5 py-4">
         <h1 className="text-base font-medium">마이페이지</h1>
       </header>

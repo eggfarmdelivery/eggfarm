@@ -75,6 +75,25 @@ export default function SettingsClient({ config }: { config: Record<string, stri
         </p>
       </section>
 
+      <section>
+        <p className="text-sm font-medium mb-2">홈화면 공지사항</p>
+        <label className="mb-2 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="notice_enabled"
+            defaultChecked={config.notice_enabled === "true"}
+          />
+          공지 표시하기
+        </label>
+        <textarea
+          name="notice_text"
+          defaultValue={config.notice_text}
+          rows={3}
+          placeholder="예: 9월 9일은 배송이 하루 지연될 수 있어요"
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+        />
+      </section>
+
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
       )}

@@ -11,13 +11,13 @@ export default async function B2COrdersPage() {
   const { data: orders } = await supabase
     .from("b2c_order")
     .select(
-      "id, order_type, status, total_amount, delivery_photo_url, created_at, b2c_order_item(quantity, product(name))"
+      "id, order_type, status, total_amount, delivery_photo_url, created_at, b2c_order_item(id, quantity, unit_price, product_id, product(name))"
     )
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <header className="px-5 py-4">
         <h1 className="text-base font-medium">주문내역</h1>
       </header>

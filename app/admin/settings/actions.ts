@@ -13,6 +13,8 @@ export async function updateSettings(formData: FormData): Promise<Result> {
       ["bank_account", String(formData.get("bank_account") ?? "").trim()],
       ["bank_holder", String(formData.get("bank_holder") ?? "").trim()],
       ["kakao_openchat_url", String(formData.get("kakao_openchat_url") ?? "").trim()],
+      ["notice_enabled", formData.get("notice_enabled") === "on" ? "true" : "false"],
+      ["notice_text", String(formData.get("notice_text") ?? "").trim()],
     ];
 
     for (const [key, value] of entries) {

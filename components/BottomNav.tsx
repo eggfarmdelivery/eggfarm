@@ -8,7 +8,10 @@ const items = [
 
 export default function BottomNav({ active }: { active: string }) {
   return (
-    <nav className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+    <nav
+      className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}
+    >
       <ul className="flex justify-around py-1.5">
         {items.map((item) => (
           <li key={item.href} className="flex-1">

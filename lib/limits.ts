@@ -51,6 +51,33 @@ export async function isSoldOut(productId: string): Promise<boolean> {
   return sold >= maxWithOverflow;
 }
 
+// 기존 주문 수량 변경 시 체크(늘릴 때만 재고 재검사, 줄일 때는 항상 허용)
+export async function checkQuantityChange(
+  productId: string,
+  oldQty: number,
+  newQty: number
+): Promise<LimitCheckResult> {
+  if (newQty <= oldQty) return { allowed: true, isOverflow: false };
+
+  const limit = await getCurrentLimit(productId);
+  if (!limit) return { allowed: true, isOverflow: false };
+
+  if (limit.per_person_limit && newQty > limit.per_person_limit) {
+    return {
+      allowed: false,
+      isOverflow: false,
+      reason: `1인당 최대 ${limit.per_person_limit}판까지 주문 가능해요`,
+    };
+  }
+
+  const delta = newQty - oldQty;
+  const sold = await getSoldSince(productId, limit.effective_date);
+  const maxWithOverflow = Math.floor(limit.stock_limit * (1 + limit.overflow_rate));
+
+  if (sold + delta <= limit.stock_limit) return { allowed: true, isOverflow: false };
+  if (sold + delta <= maxWithOverflow) return { allowed: true, isOverflow: true };
+  return { allowed: false, isOverflow: false, reason: "재고가 부족해서 수량을 늘릴 수 없어요" };
+}
 // 주문 수량이 한도상 허용되는지 확인. 기준 이하=자동진행, 기준~기준*(1+초과허용)=승인대기, 초과=거절
 export async function checkLimit(
   productId: string,

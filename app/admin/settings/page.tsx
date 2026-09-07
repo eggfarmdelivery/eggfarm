@@ -12,6 +12,8 @@ export default async function SettingsPage() {
     "bank_account",
     "bank_holder",
     "kakao_openchat_url",
+    "notice_enabled",
+    "notice_text",
   ]);
 
   return (
