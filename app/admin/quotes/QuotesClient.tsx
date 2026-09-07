@@ -20,7 +20,11 @@ export default function QuotesClient({ quotes }: { quotes: Quote[] }) {
   async function handleReplied(id: string) {
     setBusy(id);
     try {
-      await markQuoteReplied(id);
+      const result = await markQuoteReplied(id);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       router.refresh();
     } finally {
       setBusy(null);

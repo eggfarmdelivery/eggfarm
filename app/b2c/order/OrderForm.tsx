@@ -29,10 +29,15 @@ export default function OrderForm({
     setError(null);
     setPending(true);
     try {
-      await createGeneralOrder(formData);
+      const result = await createGeneralOrder(formData);
+      if (!result.success) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
       router.push("/b2c/orders");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "주문 처리 중 오류가 발생했어요");
+    } catch {
+      setError("주문 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }

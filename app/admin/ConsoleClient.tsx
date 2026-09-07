@@ -20,6 +20,7 @@ type B2COrder = {
   is_overflow: boolean;
   total_amount: number;
   created_at: string;
+  account: { name: string | null; phone: string | null } | null;
 };
 
 type B2BOrder = {
@@ -37,7 +38,7 @@ function PhotoUploadButton({
 }: {
   orderId: string;
   label: string;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [pending, setPending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -51,10 +52,15 @@ function PhotoUploadButton({
       const formData = new FormData();
       formData.set("order_id", orderId);
       formData.set("photo", file);
-      await onSubmit(formData);
+      const result = await onSubmit(formData);
+      if (!result.success) {
+        alert(result.error ?? "처리 중 오류가 발생했어요");
+        setPending(false);
+        return;
+      }
       router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "처리 중 오류가 발생했어요");
+    } catch {
+      alert("처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }
@@ -85,13 +91,17 @@ function PhotoUploadButton({
 // B2C 카드 하나 (상태에 맞는 액션 버튼 포함)
 function B2COrderCard({ order, onAction }: { order: B2COrder; onAction: () => void }) {
   const [busy, setBusy] = useState(false);
-  async function run(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<{ success: boolean; error?: string }>) {
     setBusy(true);
     try {
-      await fn();
+      const result = await fn();
+      if (!result.success) {
+        alert(result.error ?? "처리 중 오류가 발생했어요");
+        return;
+      }
       onAction();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "처리 중 오류가 발생했어요");
+    } catch {
+      alert("처리 중 알 수 없는 오류가 발생했어요");
     } finally {
       setBusy(false);
     }
@@ -99,11 +109,15 @@ function B2COrderCard({ order, onAction }: { order: B2COrder; onAction: () => vo
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm">
-          {order.order_type}배송 · {order.total_amount.toLocaleString()}원
+        <span className="text-sm font-medium">
+          {order.account?.name ?? "이름없음"}
+          {order.account?.phone ? ` · ${order.account.phone.slice(-4)}` : ""}
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
+      <p className="text-xs text-neutral-500 mb-1">
+        {order.order_type}배송 · {order.total_amount.toLocaleString()}원
+      </p>
       {order.is_overflow && (
         <p className="text-xs text-orange-600 mb-2">⚠ 재고 초과분 - 승인 필요</p>
       )}
@@ -149,13 +163,17 @@ function B2COrderCard({ order, onAction }: { order: B2COrder; onAction: () => vo
 
 function B2BOrderCard({ order, onAction }: { order: B2BOrder; onAction: () => void }) {
   const [busy, setBusy] = useState(false);
-  async function run(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<{ success: boolean; error?: string }>) {
     setBusy(true);
     try {
-      await fn();
+      const result = await fn();
+      if (!result.success) {
+        alert(result.error ?? "처리 중 오류가 발생했어요");
+        return;
+      }
       onAction();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "처리 중 오류가 발생했어요");
+    } catch {
+      alert("처리 중 알 수 없는 오류가 발생했어요");
     } finally {
       setBusy(false);
     }

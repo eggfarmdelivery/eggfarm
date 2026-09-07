@@ -83,11 +83,15 @@ export default function EditProfileClient({
       formData.set("address_dong", dong);
       formData.set("address_ho", ho);
       formData.set("entrance_password", entrancePassword);
-      await updateProfile(formData);
+      const result = await updateProfile(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setEditing(false);
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "저장 중 오류가 발생했어요");
+    } catch {
+      setError("저장 중 알 수 없는 오류가 발생했어요");
     } finally {
       setPending(false);
     }

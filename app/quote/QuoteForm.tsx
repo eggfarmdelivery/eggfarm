@@ -12,10 +12,14 @@ export default function QuoteForm() {
     setPending(true);
     setError(null);
     try {
-      await submitQuoteRequest(formData);
+      const result = await submitQuoteRequest(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setDone(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "제출 중 오류가 발생했어요");
+    } catch {
+      setError("제출 중 알 수 없는 오류가 발생했어요");
     } finally {
       setPending(false);
     }

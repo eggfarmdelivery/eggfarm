@@ -34,10 +34,14 @@ export default function RegularClient({
     setPending(true);
     setError(null);
     try {
-      await buyCreditPackage(amount);
+      const result = await buyCreditPackage(amount);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "충전 처리 중 오류가 발생했어요");
+    } catch {
+      setError("충전 처리 중 알 수 없는 오류가 발생했어요");
     } finally {
       setPending(false);
     }
@@ -47,10 +51,15 @@ export default function RegularClient({
     setPending(true);
     setError(null);
     try {
-      await createRegularOrder(formData);
+      const result = await createRegularOrder(formData);
+      if (!result.success) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
       router.push("/b2c/orders");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "신청 처리 중 오류가 발생했어요");
+    } catch {
+      setError("신청 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }

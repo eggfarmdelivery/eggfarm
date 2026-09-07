@@ -1,19 +1,24 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
 import ConsoleClient from "./ConsoleClient";
 
 export default async function AdminConsole() {
   await requireAdmin();
+  // 관리자는 일반 로그인 사용자가 아니라 RLS(auth.uid())를 못 타므로,
+  // 회원 이름/전화번호처럼 RLS가 걸린 정보를 보려면 서비스롤 클라이언트가 필요함
+  const admin = createAdminClient();
 
-  const { data: b2cOrders } = await supabase
+  const { data: b2cOrders } = await admin
     .from("b2c_order")
-    .select("id, order_type, status, is_overflow, total_amount, created_at")
+    .select(
+      "id, order_type, status, is_overflow, total_amount, created_at, account(name, phone)"
+    )
     .order("created_at", { ascending: false });
 
-  const { data: b2bOrders } = await supabase
+  const { data: b2bOrders } = await admin
     .from("b2b_order")
     .select("id, status, total_amount, created_at, account(business_name)")
     .order("created_at", { ascending: false });

@@ -65,10 +65,15 @@ export default function OnboardingClient() {
     setPending(true);
     setError(null);
     try {
-      await submitOnboarding(formData);
+      const result = await submitOnboarding(formData);
+      if (!result.success) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
       router.push(`/${role}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "저장 중 오류가 발생했어요");
+    } catch {
+      setError("저장 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }

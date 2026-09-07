@@ -30,7 +30,11 @@ function CreateProductForm() {
     setPending(true);
     setError(null);
     try {
-      await createProduct(formData);
+      const result = await createProduct(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -145,7 +149,11 @@ function ProductEditRow({ product }: { product: Product }) {
     setPending(true);
     setError(null);
     try {
-      await updateProduct(formData);
+      const result = await updateProduct(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "저장 중 오류가 발생했어요");

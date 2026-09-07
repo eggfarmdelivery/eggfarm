@@ -27,10 +27,18 @@ export default function SettlementClient({
   async function handleTransfer(row: Row) {
     setBusy(row.accountId);
     try {
-      await markSettlementTransferred(row.accountId, settlementMonth, row.totalAmount);
+      const result = await markSettlementTransferred(
+        row.accountId,
+        settlementMonth,
+        row.totalAmount
+      );
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       router.refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "처리 실패");
+    } catch {
+      alert("처리 중 알 수 없는 오류가 발생했어요");
     } finally {
       setBusy(null);
     }

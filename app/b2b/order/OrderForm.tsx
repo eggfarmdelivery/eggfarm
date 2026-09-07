@@ -21,10 +21,15 @@ export default function B2BOrderForm({ products }: { products: Product[] }) {
     setError(null);
     setPending(true);
     try {
-      await createB2BOrder(formData);
+      const result = await createB2BOrder(formData);
+      if (!result.success) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
       router.push("/b2b/orders");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "발주 처리 중 오류가 발생했어요");
+    } catch {
+      setError("발주 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
     }
   }
