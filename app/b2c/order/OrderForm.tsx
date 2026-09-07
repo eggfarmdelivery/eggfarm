@@ -28,6 +28,7 @@ export default function OrderForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
+  const [fullyPaidByCredit, setFullyPaidByCredit] = useState(false);
   const router = useRouter();
 
   const total = products.reduce(
@@ -45,7 +46,11 @@ export default function OrderForm({
         setPending(false);
         return;
       }
-      setPaidTotal(total);
+      if (result.remainingAmount > 0) {
+        setPaidTotal(result.remainingAmount);
+      } else {
+        setFullyPaidByCredit(true);
+      }
     } catch {
       setError("주문 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
@@ -119,6 +124,24 @@ export default function OrderForm({
           amount={paidTotal}
           onClose={() => router.push("/b2c/orders")}
         />
+      )}
+
+      {fullyPaidByCredit && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <p className="mb-1 text-base font-medium">주문이 완료됐어요</p>
+            <p className="mb-4 text-sm text-neutral-500">
+              보유 크레딧으로 전액 결제됐어요. 입금하실 금액은 없어요
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/b2c/orders")}
+              className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-white"
+            >
+              확인했어요
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );

@@ -11,6 +11,9 @@ import {
   startB2BDelivery,
   markB2BDelivered,
   confirmB2BPayment,
+  revertB2CStatus,
+  revertB2BStatus,
+  confirmBankRefund,
 } from "./actions";
 import Spinner from "@/components/Spinner";
 
@@ -177,6 +180,26 @@ function B2COrderCard({ order }: { order: B2COrder }) {
         {(order.status === "배송준비" || order.status === "배송위임") && (
           <PhotoUploadButton orderId={order.id} label="배송완료 사진" onSubmit={markB2CDelivered} />
         )}
+        {order.status === "환불대기" && (
+          <button
+            disabled={busy}
+            onClick={() => run(() => confirmBankRefund(order.id))}
+            className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+          >
+            계좌이체 완료 처리
+          </button>
+        )}
+        {["입금확인완료", "배송준비", "배송완료", "승인거절"].includes(order.status) && (
+          <button
+            disabled={busy}
+            onClick={() => {
+              if (confirm("이전 단계로 되돌릴까요?")) run(() => revertB2CStatus(order.id));
+            }}
+            className="text-xs rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-500"
+          >
+            ← 이전 단계로
+          </button>
+        )}
       </div>
     </div>
   );
@@ -219,6 +242,17 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
             입금확인
           </button>
         )}
+        {["배송중", "입금대기", "입금확인완료"].includes(order.status) && (
+          <button
+            disabled={busy}
+            onClick={() => {
+              if (confirm("이전 단계로 되돌릴까요?")) run(() => revertB2BStatus(order.id));
+            }}
+            className="text-xs rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-500"
+          >
+            ← 이전 단계로
+          </button>
+        )}
       </div>
     </div>
   );
@@ -254,8 +288,15 @@ function CollapsibleSection({
   );
 }
 
-const PROGRESS_STATUSES = ["입금대기", "입금확인완료", "배송준비", "배송위임", "배송중"];
-const DONE_STATUSES = ["배송완료", "취소", "승인거절"];
+const PROGRESS_STATUSES = [
+  "입금대기",
+  "입금확인완료",
+  "배송준비",
+  "배송위임",
+  "배송중",
+  "환불대기",
+];
+const DONE_STATUSES = ["배송완료", "취소", "승인거절", "환불완료"];
 const B2B_PROGRESS = ["발주요청", "배송중", "입금대기", "입금확인완료"];
 const B2B_DONE = ["배송완료", "취소"];
 

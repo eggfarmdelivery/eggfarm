@@ -87,7 +87,7 @@ export default function OrderJourney({ status }: { status: string }) {
                 <StepIcon icon={step.icon} tone={tone} />
               </div>
               <p
-                className={`mt-1 text-[10px] ${
+                className={`mt-1 whitespace-nowrap text-[9px] leading-none ${
                   tone === "todo" ? "text-neutral-400" : "text-neutral-700"
                 } ${tone === "current" ? "font-medium text-primary" : ""}`}
               >

@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import OrderJourney from "@/components/OrderJourney";
 import QuantityStepper from "@/components/QuantityStepper";
-import { updateOrderQuantities } from "./actions";
+import { updateOrderQuantities, cancelOrder } from "./actions";
 
 type OrderItem = {
   id: string;
@@ -32,7 +32,7 @@ const STATUS_GROUPS: { key: string; label: string; statuses: string[] }[] = [
     statuses: ["입금대기", "입금확인완료", "배송준비", "배송위임", "배송중"],
   },
   { key: "완료", label: "완료", statuses: ["배송완료"] },
-  { key: "기타", label: "취소/거절", statuses: ["취소", "승인거절"] },
+  { key: "기타", label: "취소/환불", statuses: ["취소", "승인거절", "환불대기", "환불완료"] },
 ];
 
 const PERIOD_OPTIONS = [
@@ -51,6 +51,8 @@ function monthsAgo(months: number) {
 
 function OrderDetail({ order }: { order: Order }) {
   const [editing, setEditing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [refundMethod, setRefundMethod] = useState<"credit" | "bank" | null>(null);
   const [qty, setQty] = useState<Record<string, number>>(
     Object.fromEntries((order.b2c_order_item ?? []).map((i) => [i.id, i.quantity]))
   );
@@ -59,6 +61,9 @@ function OrderDetail({ order }: { order: Order }) {
   const router = useRouter();
 
   const canEdit = order.status === "입금대기";
+  const canCancelFree = order.status === "입금대기";
+  const canCancelWithRefund = ["입금확인완료", "배송준비"].includes(order.status);
+  const canCancel = canCancelFree || canCancelWithRefund;
   const newTotal = (order.b2c_order_item ?? []).reduce(
     (sum, i) => sum + (qty[i.id] ?? i.quantity) * i.unit_price,
     0
@@ -89,6 +94,85 @@ function OrderDetail({ order }: { order: Order }) {
     }
   }
 
+  async function handleCancel() {
+    if (canCancelWithRefund && !refundMethod) {
+      setError("환불 방법을 선택해주세요");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const result = await cancelOrder(order.id, refundMethod ?? undefined);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setCancelling(false);
+      router.refresh();
+    } catch {
+      setError("취소 처리 중 알 수 없는 오류가 발생했어요");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (cancelling) {
+    return (
+      <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
+        <p className="mb-3 text-sm font-medium">정말 취소하시겠어요?</p>
+        {canCancelWithRefund && (
+          <div className="mb-3 space-y-2">
+            <p className="text-xs text-neutral-500">환불 방법을 선택해주세요</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setRefundMethod("credit")}
+                className={`rounded-lg border py-2.5 text-xs ${
+                  refundMethod === "credit"
+                    ? "border-primary bg-primary-bg text-primary"
+                    : "border-neutral-200 text-neutral-600"
+                }`}
+              >
+                적립금으로 받기
+              </button>
+              <button
+                onClick={() => setRefundMethod("bank")}
+                className={`rounded-lg border py-2.5 text-xs ${
+                  refundMethod === "bank"
+                    ? "border-primary bg-primary-bg text-primary"
+                    : "border-neutral-200 text-neutral-600"
+                }`}
+              >
+                계좌로 환불받기
+              </button>
+            </div>
+          </div>
+        )}
+        {error && (
+          <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setCancelling(false);
+              setError(null);
+            }}
+            disabled={pending}
+            className="flex-1 rounded-lg border border-neutral-300 py-2 text-xs"
+          >
+            그만두기
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={pending}
+            className="flex-1 rounded-lg bg-red-500 py-2 text-xs font-medium text-white disabled:opacity-60"
+          >
+            {pending ? "처리 중..." : "취소 확정"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
       {!editing ? (
@@ -99,14 +183,24 @@ function OrderDetail({ order }: { order: Order }) {
                 .map((i) => `${i.product?.name} ${i.quantity}판`)
                 .join(" · ")}
             </p>
-            {canEdit && (
-              <button
-                onClick={() => setEditing(true)}
-                className="shrink-0 text-xs text-primary underline"
-              >
-                수량 수정
-              </button>
-            )}
+            <div className="flex shrink-0 gap-2">
+              {canEdit && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-xs text-primary underline"
+                >
+                  수량 수정
+                </button>
+              )}
+              {canCancel && (
+                <button
+                  onClick={() => setCancelling(true)}
+                  className="text-xs text-neutral-400 underline"
+                >
+                  주문취소
+                </button>
+              )}
+            </div>
           </div>
           <OrderJourney status={order.status} />
           {order.delivery_photo_url && (
@@ -162,12 +256,19 @@ function OrderDetail({ order }: { order: Order }) {
 }
 
 export default function OrdersClient({ orders }: { orders: Order[] }) {
+  const router = useRouter();
   const [activeGroup, setActiveGroup] = useState("전체");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [period, setPeriod] = useState("1m");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  // 30초마다 자동 새로고침
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   const periodFiltered = useMemo(() => {
     if (period === "custom") {

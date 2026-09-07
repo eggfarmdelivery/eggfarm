@@ -4,7 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import { checkLimit } from "@/lib/limits";
 
-type Result = { success: true } | { success: false; error: string };
+type Result =
+  | { success: true; remainingAmount: number }
+  | { success: false; error: string };
 
 export async function createGeneralOrder(formData: FormData): Promise<Result> {
   try {
@@ -42,14 +44,25 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
 
+    // 크레딧(선불잔액) 우선차감: 남은 금액만 계좌입금 대상
+    const { data: ledger } = await supabase
+      .from("credit_ledger")
+      .select("delta")
+      .eq("account_id", accountId);
+    const balance = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
+    const creditUsed = Math.max(0, Math.min(balance, totalAmount));
+    const remainingAmount = totalAmount - creditUsed;
+
     const { data: order, error } = await supabase
       .from("b2c_order")
       .insert({
         account_id: accountId,
         order_type: "일반",
-        status: "입금대기",
+        status: remainingAmount > 0 ? "입금대기" : "입금확인완료",
         is_overflow: anyOverflow,
         total_amount: totalAmount,
+        credit_used: creditUsed,
+        ...(remainingAmount <= 0 ? { payment_confirmed_at: new Date().toISOString() } : {}),
       })
       .select("id")
       .single();
@@ -60,7 +73,16 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const { error: itemError } = await supabase.from("b2c_order_item").insert(itemsWithOrderId);
     if (itemError) throw new Error(itemError.message);
 
-    return { success: true };
+    if (creditUsed > 0) {
+      const { error: creditError } = await supabase.from("credit_ledger").insert({
+        account_id: accountId,
+        delta: -creditUsed,
+        reason: "주문결제",
+      });
+      if (creditError) throw new Error(creditError.message);
+    }
+
+    return { success: true, remainingAmount };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "주문 처리 중 오류가 발생했어요" };
   }
