@@ -6,7 +6,7 @@ import { createGeneralOrder } from "./actions";
 import Spinner from "@/components/Spinner";
 import QuantityStepper from "@/components/QuantityStepper";
 
-type Product = { id: string; name: string; base_price: number };
+type Product = { id: string; name: string; base_price: number; soldOut: boolean };
 
 export default function OrderForm({
   products,
@@ -57,16 +57,27 @@ export default function OrderForm({
             className="flex items-center justify-between border-b border-neutral-200 py-3"
           >
             <div>
-              <p className="text-sm">{p.name}</p>
+              <p className="text-sm">
+                {p.name}
+                {p.soldOut && (
+                  <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500">
+                    품절
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-neutral-400">
                 {p.base_price.toLocaleString()}원/판
               </p>
             </div>
-            <QuantityStepper
-              name={`qty_${p.id}`}
-              value={qty[p.id] ?? 0}
-              onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
-            />
+            {p.soldOut ? (
+              <span className="text-xs text-neutral-400">주문 불가</span>
+            ) : (
+              <QuantityStepper
+                name={`qty_${p.id}`}
+                value={qty[p.id] ?? 0}
+                onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
+              />
+            )}
           </div>
         ))}
       </div>

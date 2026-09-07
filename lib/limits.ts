@@ -42,6 +42,15 @@ async function getSoldSince(productId: string, sinceDate: string) {
   return sumB2c + sumB2b;
 }
 
+// 완전 소진 여부(초과허용분까지 다 팔렸는지) - 화면에 "품절" 표시용
+export async function isSoldOut(productId: string): Promise<boolean> {
+  const limit = await getCurrentLimit(productId);
+  if (!limit) return false; // 한도 미설정 상품은 품절 개념 없음
+  const sold = await getSoldSince(productId, limit.effective_date);
+  const maxWithOverflow = Math.floor(limit.stock_limit * (1 + limit.overflow_rate));
+  return sold >= maxWithOverflow;
+}
+
 // 주문 수량이 한도상 허용되는지 확인. 기준 이하=자동진행, 기준~기준*(1+초과허용)=승인대기, 초과=거절
 export async function checkLimit(
   productId: string,

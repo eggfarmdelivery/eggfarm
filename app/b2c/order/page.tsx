@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
+import { isSoldOut } from "@/lib/limits";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
 
@@ -16,6 +17,10 @@ export default async function GeneralOrderPage() {
     .select("id, name, base_price")
     .eq("is_active", true)
     .order("base_price", { ascending: false });
+
+  const productsWithStock = await Promise.all(
+    (products ?? []).map(async (p) => ({ ...p, soldOut: await isSoldOut(p.id) }))
+  );
 
   const { data: account } = await sessionSupabase
     .from("account")
@@ -32,7 +37,7 @@ export default async function GeneralOrderPage() {
         <h1 className="text-base font-medium">일반배송 주문</h1>
       </header>
 
-      <OrderForm products={products ?? []} address={account?.address ?? null} />
+      <OrderForm products={productsWithStock} address={account?.address ?? null} />
       <BottomNav active="/b2c" />
     </div>
   );

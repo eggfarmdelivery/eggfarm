@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 
@@ -11,14 +11,23 @@ export const metadata: Metadata = {
   },
 };
 
+// 핀치줌/확대축소 방지 + 항상 라이트모드로 고정(다크모드 대응 미비로 인한 테두리 안보임 등 방지)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  colorScheme: "light",
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
-      <body className="min-h-screen">
+    <html lang="ko" style={{ colorScheme: "light" }}>
+      <body className="min-h-screen overflow-x-hidden">
         <div className="mx-auto max-w-md min-h-screen bg-white shadow-sm">
           {children}
         </div>
