@@ -7,6 +7,7 @@ import { decryptSensitive } from "@/lib/crypto";
 import BottomNav from "@/components/BottomNav";
 import EditProfileClient from "./EditProfileClient";
 import LogoutButton from "./LogoutButton";
+import MyPageTabs from "./MyPageTabs";
 import OrdersClient from "@/app/b2c/orders/OrdersClient";
 
 export default async function MyPage() {
@@ -47,31 +48,39 @@ export default async function MyPage() {
         <h1 className="text-base font-medium">내 정보</h1>
       </header>
 
-      <main className="px-5 space-y-5">
-        <section className="rounded-xl bg-primary-bg p-4">
-          <p className="text-xs text-primary-dark mb-1">크레딧</p>
-          <p className="text-2xl font-medium text-primary-dark">{credit.toLocaleString()}원</p>
-        </section>
+      <main className="px-5">
+        <div className="mb-4 flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.png" alt="" className="h-12 w-12 shrink-0 rounded-full bg-primary-bg p-1.5" />
+          <div>
+            <p className="text-base font-medium">{account?.name ?? "-"}</p>
+            <p className="mt-0.5 text-sm text-neutral-500">
+              크레딧 {credit.toLocaleString()}원
+            </p>
+          </div>
+        </div>
 
-        <EditProfileClient
-          name={account?.name ?? ""}
-          phone={account?.phone ?? ""}
-          nickname={account?.nickname ?? ""}
-          zones={zones ?? []}
-          zoneId={account?.delivery_zone_id ?? ""}
-          dong={account?.address_dong ?? ""}
-          ho={account?.address_ho ?? ""}
-          entrancePassword={
-            account?.entrance_password ? decryptSensitive(account.entrance_password) : ""
+        <MyPageTabs
+          ordersContent={<OrdersClient orders={(orders as any) ?? []} />}
+          profileContent={
+            <EditProfileClient
+              name={account?.name ?? ""}
+              phone={account?.phone ?? ""}
+              nickname={account?.nickname ?? ""}
+              zones={zones ?? []}
+              zoneId={account?.delivery_zone_id ?? ""}
+              dong={account?.address_dong ?? ""}
+              ho={account?.address_ho ?? ""}
+              entrancePassword={
+                account?.entrance_password ? decryptSensitive(account.entrance_password) : ""
+              }
+            />
           }
         />
 
-        <section>
-          <p className="mb-2 text-sm font-medium">주문내역</p>
-          <OrdersClient orders={(orders as any) ?? []} />
-        </section>
-
-        <LogoutButton />
+        <div className="mt-5">
+          <LogoutButton />
+        </div>
       </main>
 
       <BottomNav active="/b2c/mypage" />
