@@ -402,7 +402,12 @@ export default function ConsoleClient({
     }
     const q = nicknameQuery.trim();
     if (q) {
-      result = result.filter((o) => (o.account?.nickname ?? "").includes(q));
+      result = result.filter((o) => {
+        const nickname = o.account?.nickname ?? "";
+        const name = o.account?.name ?? "";
+        const phone = o.account?.phone ?? "";
+        return nickname.includes(q) || name.includes(q) || phone.includes(q);
+      });
     }
     return result;
   }, [b2cOrders, campaignFilter, nicknameQuery]);
@@ -456,7 +461,7 @@ export default function ConsoleClient({
           <input
             value={nicknameQuery}
             onChange={(e) => setNicknameQuery(e.target.value)}
-            placeholder="닉네임으로 검색"
+            placeholder="닉네임/이름/전화번호로 검색"
             className="mb-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
           />
 

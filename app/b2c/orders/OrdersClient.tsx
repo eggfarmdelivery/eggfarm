@@ -416,13 +416,16 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
                     {new Date(o.created_at).toLocaleDateString("ko-KR")} ·{" "}
                     {o.total_amount.toLocaleString()}원
                   </p>
-                  <p className="mt-0.5 text-[11px] text-neutral-400">
-                    {o.payment_confirmed_at &&
-                      `결제일 ${new Date(o.payment_confirmed_at).toLocaleDateString("ko-KR")}`}
-                    {o.payment_confirmed_at && o.campaign?.delivery_date && " · "}
-                    {o.campaign?.delivery_date &&
-                      `도착예정 ${new Date(o.campaign.delivery_date).toLocaleDateString("ko-KR")}`}
-                  </p>
+                  {o.payment_confirmed_at && (
+                    <p className="mt-0.5 text-[11px] text-neutral-400">
+                      결제일 {new Date(o.payment_confirmed_at).toLocaleDateString("ko-KR")}
+                    </p>
+                  )}
+                  {o.campaign?.delivery_date && (
+                    <p className="mt-0.5 text-[11px] text-neutral-400">
+                      도착예정 {new Date(o.campaign.delivery_date).toLocaleDateString("ko-KR")}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <OrderStatusBadge status={o.status} />
