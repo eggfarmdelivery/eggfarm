@@ -130,17 +130,26 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
                 <span className="block text-xs text-neutral-400">{zone.address}</span>
               )}
             </span>
-            <button
-              type="button"
-              onClick={() => handleToggle(zone)}
-              className={`rounded-md border px-3 py-1 text-xs ${
-                zone.is_active
-                  ? "border-primary text-primary"
-                  : "border-neutral-300 text-neutral-500"
-              }`}
-            >
-              {zone.is_active ? "활성" : "비활성"}
-            </button>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleToggle(zone)}
+                className={`rounded-md border px-3 py-1 text-xs ${
+                  zone.is_active
+                    ? "border-primary text-primary"
+                    : "border-neutral-300 text-neutral-500"
+                }`}
+              >
+                {zone.is_active ? "활성" : "비활성"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(zone)}
+                className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-500"
+              >
+                삭제
+              </button>
+            </div>
           </div>
         ))}
       </div>
