@@ -62,8 +62,10 @@ export default function CampaignClient({
     setPending(true);
     setError(null);
     formData.set("title", title);
-    formData.set("opens_at", opensAt);
-    formData.set("closes_at", closesAt);
+    // 브라우저 로컬시각 문자열을 여기서 ISO(UTC)로 변환해 보냄 - 서버가 자기 타임존(UTC)으로
+    // 잘못 재해석해 시각이 밀리는 문제 방지
+    formData.set("opens_at", new Date(opensAt).toISOString());
+    formData.set("closes_at", new Date(closesAt).toISOString());
     selectedProductIds.forEach((id) => formData.append("product_ids", id));
     const result = await openCampaign(formData);
     setPending(false);
