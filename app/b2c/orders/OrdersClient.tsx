@@ -64,7 +64,7 @@ function OrderDetail({ order }: { order: Order }) {
 
   const canEdit = order.status === "입금대기";
   const canCancelFree = order.status === "입금대기";
-  const canCancelWithRefund = ["입금확인완료", "배송준비"].includes(order.status);
+  const canCancelWithRefund = ["입금확인완료"].includes(order.status);
   const canCancel = canCancelFree || canCancelWithRefund;
   const newTotal = (order.b2c_order_item ?? []).reduce(
     (sum, i) => sum + (qty[i.id] ?? i.quantity) * i.unit_price,

@@ -7,6 +7,7 @@ import {
   rejectOverflow,
   confirmB2CPayment,
   startB2CDelivery,
+  bulkStartB2CDelivery,
   markB2CDelivered,
   startB2BDelivery,
   markB2BDelivered,
@@ -125,12 +126,30 @@ function useAction() {
   return { busy, run };
 }
 
-function B2COrderCard({ order }: { order: B2COrder }) {
+function B2COrderCard({
+  order,
+  selectable,
+  selected,
+  onToggleSelect,
+}: {
+  order: B2COrder;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const { busy, run } = useAction();
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={onToggleSelect}
+              className="h-4 w-4"
+            />
+          )}
           {order.account?.nickname ?? order.account?.name ?? "이름없음"}
           {order.account?.phone ? ` · ${order.account.phone.slice(-4)}` : ""}
         </span>
@@ -187,10 +206,10 @@ function B2COrderCard({ order }: { order: B2COrder }) {
             onClick={() => run(() => startB2CDelivery(order.id))}
             className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
           >
-            배송준비 시작
+            배송중으로 변경
           </button>
         )}
-        {(order.status === "배송준비" || order.status === "배송위임") && (
+        {(order.status === "배송중" || order.status === "배송위임") && (
           <PhotoUploadButton orderId={order.id} label="배송완료 사진" onSubmit={markB2CDelivered} />
         )}
         {order.status === "환불대기" && (
@@ -202,7 +221,7 @@ function B2COrderCard({ order }: { order: B2COrder }) {
             계좌이체 완료 처리
           </button>
         )}
-        {["입금확인완료", "배송준비", "배송완료", "승인거절"].includes(order.status) && (
+        {["입금확인완료", "배송중", "배송완료", "승인거절"].includes(order.status) && (
           <button
             disabled={busy}
             onClick={() => {
@@ -304,7 +323,6 @@ function CollapsibleSection({
 const PROGRESS_STATUSES = [
   "입금대기",
   "입금확인완료",
-  "배송준비",
   "배송위임",
   "배송중",
   "환불대기",
@@ -412,6 +430,42 @@ export default function ConsoleClient({
     return result;
   }, [b2cOrders, campaignFilter, nicknameQuery]);
 
+  // 캠페인별 "아직 배송 안 된" 상품별 수량 합계 - 배송완료 처리될수록 자동으로 줄어듦
+  const deliverySummary = useMemo(() => {
+    if (campaignFilter === "all") return [];
+    const pending = b2cOrders.filter(
+      (o) => o.campaign_id === campaignFilter && ["입금확인완료", "배송중", "배송위임"].includes(o.status)
+    );
+    const map = new Map<string, number>();
+    for (const o of pending) {
+      for (const item of o.b2c_order_item ?? []) {
+        const name = item.product?.name ?? "상품";
+        map.set(name, (map.get(name) ?? 0) + item.quantity);
+      }
+    }
+    return Array.from(map.entries());
+  }, [b2cOrders, campaignFilter]);
+
+  const [selectedForDelivery, setSelectedForDelivery] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+
+  function toggleSelectForDelivery(id: string) {
+    setSelectedForDelivery((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkStart() {
+    setBulkPending(true);
+    await bulkStartB2CDelivery(Array.from(selectedForDelivery));
+    setSelectedForDelivery(new Set());
+    setBulkPending(false);
+    router.refresh();
+  }
+
   const b2cProgress = visibleB2cOrders.filter((o) => PROGRESS_STATUSES.includes(o.status));
   const b2cOverflow = b2cProgress.filter((o) => o.is_overflow);
   const b2bProgress = b2bOrders.filter((o) => B2B_PROGRESS.includes(o.status));
@@ -465,6 +519,24 @@ export default function ConsoleClient({
             className="mb-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
           />
 
+          {deliverySummary.length > 0 && (
+            <div className="mb-4 rounded-lg bg-primary-bg p-3">
+              <p className="mb-1.5 text-xs font-medium text-primary-dark">
+                배송해야 할 수량 (배송완료 처리마다 자동으로 줄어들어요)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {deliverySummary.map(([name, qty]) => (
+                  <span
+                    key={name}
+                    className="rounded-full bg-white px-3 py-1 text-xs text-primary-dark"
+                  >
+                    {name} {qty}판
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mb-4 grid grid-cols-2 gap-2">
             <button
               onClick={() => setB2cSubTab("progress")}
@@ -499,10 +571,31 @@ export default function ConsoleClient({
               )}
               {PROGRESS_STATUSES.map((status) => {
                 const list = b2cProgress.filter((o) => o.status === status && !o.is_overflow);
+                const isBulkable = status === "입금확인완료";
                 return (
                   <CollapsibleSection key={status} title={status} count={list.length}>
+                    {isBulkable && list.length > 0 && (
+                      <div className="mb-2 flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
+                        <span className="text-xs text-neutral-500">
+                          {selectedForDelivery.size}건 선택됨
+                        </span>
+                        <button
+                          disabled={selectedForDelivery.size === 0 || bulkPending}
+                          onClick={handleBulkStart}
+                          className="rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                        >
+                          {bulkPending ? "처리 중..." : "선택 일괄 배송중 처리"}
+                        </button>
+                      </div>
+                    )}
                     {list.map((o) => (
-                      <B2COrderCard key={o.id} order={o} />
+                      <B2COrderCard
+                        key={o.id}
+                        order={o}
+                        selectable={isBulkable}
+                        selected={selectedForDelivery.has(o.id)}
+                        onToggleSelect={() => toggleSelectForDelivery(o.id)}
+                      />
                     ))}
                   </CollapsibleSection>
                 );

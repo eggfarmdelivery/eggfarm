@@ -71,7 +71,20 @@ export async function confirmB2CPayment(orderId: string): Promise<Result> {
 export async function startB2CDelivery(orderId: string): Promise<Result> {
   try {
     await requireAdmin();
-    await updateB2CStatus(orderId, "입금확인완료", "배송준비");
+    await updateB2CStatus(orderId, "입금확인완료", "배송중");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}
+
+// 여러 건을 한 번에 배송중으로 전환(배송 출발 시 일괄 처리용)
+export async function bulkStartB2CDelivery(orderIds: string[]): Promise<Result> {
+  try {
+    await requireAdmin();
+    for (const orderId of orderIds) {
+      await updateB2CStatus(orderId, "입금확인완료", "배송중");
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
@@ -140,8 +153,8 @@ export async function confirmB2BPayment(orderId: string): Promise<Result> {
 // ---------------------------------------------------------
 const B2C_REVERT: Record<string, string> = {
   입금확인완료: "입금대기",
-  배송준비: "입금확인완료",
-  배송완료: "배송준비",
+  배송중: "입금확인완료",
+  배송완료: "배송중",
   승인거절: "입금대기",
 };
 const B2B_REVERT: Record<string, string> = {
