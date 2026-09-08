@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { encryptSensitive } from "@/lib/crypto";
+import { byteLength, NICKNAME_MAX_BYTES } from "@/lib/nickname";
 
 type Result = { success: true } | { success: false; error: string };
 
@@ -17,10 +18,17 @@ export async function submitOnboarding(formData: FormData): Promise<Result> {
     const name = String(formData.get("name") ?? "").trim();
     const phone = String(formData.get("phone") ?? "").trim();
     const address = String(formData.get("address") ?? "").trim();
+    const nickname = String(formData.get("nickname") ?? "").trim();
     const kakaoUserId = user.user_metadata?.provider_id ?? null;
 
     if (!name || !phone || !address) {
       throw new Error("필수 항목을 모두 입력해주세요");
+    }
+    if (role === "b2c") {
+      if (!nickname) throw new Error("닉네임을 입력해주세요");
+      if (byteLength(nickname) > NICKNAME_MAX_BYTES) {
+        throw new Error("닉네임이 너무 길어요. 한글 6자(영문은 12자) 이내로 입력해주세요");
+      }
     }
 
     if (role === "b2c") {
@@ -37,6 +45,7 @@ export async function submitOnboarding(formData: FormData): Promise<Result> {
         kakao_user_id: kakaoUserId,
         name,
         phone,
+        nickname,
         address,
         delivery_zone_id: deliveryZoneId,
         address_dong: addressDong || null,

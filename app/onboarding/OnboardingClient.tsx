@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitOnboarding } from "./actions";
 import Spinner from "@/components/Spinner";
+import { byteLength, truncateToByteLimit, NICKNAME_MAX_BYTES } from "@/lib/nickname";
 
 type Zone = { id: string; name: string };
 
@@ -23,10 +24,22 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [nicknameWarning, setNicknameWarning] = useState(false);
   const [zoneId, setZoneId] = useState<string>("");
   const [dong, setDong] = useState("");
   const [ho, setHo] = useState("");
   const router = useRouter();
+
+  function handleNicknameChange(raw: string) {
+    if (byteLength(raw) > NICKNAME_MAX_BYTES) {
+      setNickname(truncateToByteLimit(raw));
+      setNicknameWarning(true);
+      return;
+    }
+    setNickname(raw);
+    setNicknameWarning(false);
+  }
 
   function handleHoBlur() {
     if (ho && /^\d+$/.test(ho)) {
@@ -38,6 +51,7 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
     const zone = zones.find((z) => z.id === zoneId);
     formData.set("role", role);
     formData.set("phone", phone);
+    formData.set("nickname", nickname);
     const paddedHo = ho && /^\d+$/.test(ho) ? ho.padStart(4, "0") : ho;
     formData.set("delivery_zone_id", zoneId);
     formData.set("address_dong", dong);
@@ -59,7 +73,7 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
     }
   }
 
-  const canSubmit = zoneId && dong && ho;
+  const canSubmit = zoneId && dong && ho && nickname;
 
   return (
     <form action={handleSubmit} className="space-y-4">
@@ -83,6 +97,26 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
           placeholder="010-0000-0000"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">닉네임 (입금자명으로 사용돼요)</label>
+        <input
+          value={nickname}
+          onChange={(e) => handleNicknameChange(e.target.value)}
+          placeholder="예: 홍길동맘"
+          required
+          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+        />
+        {nicknameWarning ? (
+          <p className="mt-1 text-xs text-red-500">
+            닉네임이 너무 길어요. 한글 6자(영문은 12자) 이내로 입력해주세요
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-neutral-400">
+            닉네임은 한글 6자 또는 영문 12자까지 입력할 수 있어요 (섞어서 사용 가능)
+          </p>
+        )}
       </div>
 
       <div>
