@@ -4,11 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { openCampaign, updateCampaign, closeCampaignEarly, deleteCampaign } from "./actions";
 import Spinner from "@/components/Spinner";
-import type { Campaign, CampaignStatus } from "@/lib/campaign";
+import type { Campaign, CampaignProductLimit, CampaignStatus } from "@/lib/campaign";
 import { statusLabel } from "@/lib/campaign";
 
-type Product = { id: string; name: string };
-type CampaignInfo = { campaign: Campaign; productIds: string[]; status: CampaignStatus };
+type Product = { id: string; name: string; base_price: number };
+type CampaignInfo = {
+  campaign: Campaign;
+  productLimits: CampaignProductLimit[];
+  status: CampaignStatus;
+};
 
 const STATUS_STYLE: Record<CampaignStatus, string> = {
   not_yet_open: "text-neutral-500",
@@ -25,6 +29,13 @@ function toLocalInputValue(date: Date) {
   )}:${pad(date.getMinutes())}`;
 }
 
+function toDateInputValue(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+type ProductLimitState = { selected: boolean; stockLimit: string; perPersonLimit: string };
+
 function CampaignForm({
   products,
   initial,
@@ -33,7 +44,13 @@ function CampaignForm({
   submitLabel,
 }: {
   products: Product[];
-  initial?: { title: string; opensAt: string; closesAt: string; productIds: string[] };
+  initial?: {
+    title: string;
+    opensAt: string;
+    closesAt: string;
+    deliveryDate: string;
+    limitsByProduct: Record<string, { stockLimit: number; perPersonLimit: number | null }>;
+  };
   onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
   onCancel?: () => void;
   submitLabel: string;
@@ -48,18 +65,33 @@ function CampaignForm({
         return toLocalInputValue(d);
       })()
   );
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
-    initial?.productIds ?? products.map((p) => p.id)
+  const [deliveryDate, setDeliveryDate] = useState(
+    initial?.deliveryDate ??
+      (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 2);
+        return toDateInputValue(d);
+      })()
   );
+  const [productState, setProductState] = useState<Record<string, ProductLimitState>>(() => {
+    const state: Record<string, ProductLimitState> = {};
+    for (const p of products) {
+      const existing = initial?.limitsByProduct[p.id];
+      state[p.id] = {
+        selected: !!existing || !initial,
+        stockLimit: existing ? String(existing.stockLimit) : "",
+        perPersonLimit: existing?.perPersonLimit ? String(existing.perPersonLimit) : "",
+      };
+    }
+    return state;
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
-  function toggleProduct(id: string) {
-    setSelectedProductIds((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
+  function updateProduct(id: string, patch: Partial<ProductLimitState>) {
+    setProductState((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
   async function handleSubmit(formData: FormData) {
@@ -71,7 +103,14 @@ function CampaignForm({
     // 잘못 재해석해 시각이 밀리는 문제 방지
     formData.set("opens_at", new Date(opensAt).toISOString());
     formData.set("closes_at", new Date(closesAt).toISOString());
-    selectedProductIds.forEach((id) => formData.append("product_ids", id));
+    formData.set("delivery_date", deliveryDate);
+    for (const p of products) {
+      const state = productState[p.id];
+      if (!state?.selected) continue;
+      formData.append("product_ids", p.id);
+      formData.set(`stock_limit_${p.id}`, state.stockLimit);
+      formData.set(`per_person_limit_${p.id}`, state.perPersonLimit);
+    }
     const result = await onSubmit(formData);
     setPending(false);
     if (!result.success) {
@@ -107,54 +146,113 @@ function CampaignForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">오픈 일시</label>
+          <input
+            type="datetime-local"
+            value={opensAt}
+            onChange={(e) => setOpensAt(e.target.value)}
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">마감 일시</label>
+          <input
+            type="datetime-local"
+            value={closesAt}
+            onChange={(e) => setClosesAt(e.target.value)}
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+      </div>
+
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">오픈 일시</label>
+        <label className="mb-1 block text-xs text-neutral-500">배송 예정일</label>
         <input
-          type="datetime-local"
-          value={opensAt}
-          onChange={(e) => setOpensAt(e.target.value)}
+          type="date"
+          value={deliveryDate}
+          onChange={(e) => setDeliveryDate(e.target.value)}
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">마감 일시</label>
-        <input
-          type="datetime-local"
-          value={closesAt}
-          onChange={(e) => setClosesAt(e.target.value)}
-          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs text-neutral-500">포함할 품목</label>
+        <label className="mb-1 block text-xs text-neutral-500">
+          포함할 품목 (품목마다 재고상한·1인당 제한을 따로 정해요)
+        </label>
         {products.length === 0 ? (
           <p className="text-xs text-neutral-400">등록된 상품이 없어요</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {products.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => toggleProduct(p.id)}
-                className={`rounded-lg border py-2 text-sm ${
-                  selectedProductIds.includes(p.id)
-                    ? "border-primary bg-primary-bg text-primary"
-                    : "border-neutral-200 text-neutral-600"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
+          <div className="space-y-2">
+            {products.map((p) => {
+              const state = productState[p.id];
+              return (
+                <div
+                  key={p.id}
+                  className={`rounded-lg border p-3 ${
+                    state?.selected ? "border-neutral-300" : "border-neutral-200 opacity-60"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={state?.selected ?? false}
+                        onChange={(e) => updateProduct(p.id, { selected: e.target.checked })}
+                        className="h-4 w-4"
+                      />
+                      {p.name}
+                    </label>
+                    <span className="text-xs text-neutral-400">
+                      {p.base_price.toLocaleString()}원/판
+                    </span>
+                  </div>
+                  {state?.selected && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-0.5 block text-[11px] text-neutral-400">
+                          재고상한
+                        </label>
+                        <input
+                          value={state.stockLimit}
+                          onChange={(e) =>
+                            updateProduct(p.id, {
+                              stockLimit: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                          inputMode="numeric"
+                          placeholder="예: 30"
+                          className="w-full rounded-lg border border-neutral-200 px-2.5 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-0.5 block text-[11px] text-neutral-400">
+                          1인당 제한 <span className="text-neutral-300">(선택)</span>
+                        </label>
+                        <input
+                          value={state.perPersonLimit}
+                          onChange={(e) =>
+                            updateProduct(p.id, {
+                              perPersonLimit: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                          inputMode="numeric"
+                          placeholder="예: 3"
+                          className="w-full rounded-lg border border-neutral-200 px-2.5 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
       {success && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-          저장됐어요
-        </p>
+        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">저장됐어요</p>
       )}
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
@@ -236,7 +334,15 @@ export default function CampaignClient({
               title: editingInfo.campaign.title ?? "",
               opensAt: toLocalInputValue(new Date(editingInfo.campaign.opens_at)),
               closesAt: toLocalInputValue(new Date(editingInfo.campaign.closes_at)),
-              productIds: editingInfo.productIds,
+              deliveryDate: editingInfo.campaign.delivery_date
+                ? editingInfo.campaign.delivery_date
+                : toDateInputValue(new Date()),
+              limitsByProduct: Object.fromEntries(
+                editingInfo.productLimits.map((l) => [
+                  l.product_id,
+                  { stockLimit: l.stock_limit, perPersonLimit: l.per_person_limit },
+                ])
+              ),
             }}
             onSubmit={(formData) => updateCampaign(editingInfo.campaign.id, formData)}
             onCancel={() => setEditingId(null)}
@@ -282,6 +388,11 @@ export default function CampaignClient({
               오픈 {new Date(campaign.opens_at).toLocaleString("ko-KR")} · 마감{" "}
               {new Date(campaign.closes_at).toLocaleString("ko-KR")}
             </p>
+            {campaign.delivery_date && (
+              <p className="text-xs text-neutral-400">
+                배송예정일 {new Date(campaign.delivery_date).toLocaleDateString("ko-KR")}
+              </p>
+            )}
             <div className="mt-2 flex gap-2">
               <button
                 type="button"

@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { checkLimit } from "@/lib/limits";
+import { checkCampaignLimit, getCampaignProductLimits } from "@/lib/campaign";
 
 type Result =
   | { success: true; remainingAmount: number }
@@ -11,26 +11,35 @@ type Result =
 export async function createGeneralOrder(formData: FormData): Promise<Result> {
   try {
     const accountId = await getAccountId("b2c");
+    const campaignId = String(formData.get("campaign_id") ?? "").trim();
+    if (!campaignId) throw new Error("캠페인 정보가 없어요. 다시 시도해주세요");
+
+    const productLimits = await getCampaignProductLimits(campaignId);
+    if (productLimits.length === 0) throw new Error("이 캠페인에 포함된 상품이 없어요");
 
     const { data: products } = await supabase
       .from("product")
       .select("id, name, base_price")
-      .eq("is_active", true);
+      .in(
+        "id",
+        productLimits.map((l) => l.product_id)
+      );
 
     if (!products) throw new Error("상품을 불러오지 못했어요");
 
     const items: { product_id: string; quantity: number; unit_price: number; subtotal: number }[] = [];
-    let anyOverflow = false;
 
     for (const p of products) {
       const qty = Number(formData.get(`qty_${p.id}`) ?? 0);
       if (qty <= 0) continue;
 
-      const result = await checkLimit(p.id, qty);
+      const limit = productLimits.find((l) => l.product_id === p.id);
+      if (!limit) continue;
+
+      const result = await checkCampaignLimit(campaignId, limit, qty);
       if (!result.allowed) {
         throw new Error(`${p.name}: ${result.reason}`);
       }
-      if (result.isOverflow) anyOverflow = true;
 
       items.push({
         product_id: p.id,
@@ -61,9 +70,10 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       .from("b2c_order")
       .insert({
         account_id: accountId,
+        campaign_id: campaignId,
         order_type: "일반",
         status: remainingAmount > 0 ? "입금대기" : "입금확인완료",
-        is_overflow: anyOverflow,
+        is_overflow: false,
         total_amount: totalAmount,
         credit_used: creditUsed,
         ...(remainingAmount <= 0 ? { payment_confirmed_at: new Date().toISOString() } : {}),

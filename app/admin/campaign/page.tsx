@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/adminAuth";
-import { getAllCampaigns, getCampaignProductIds, getCampaignStatus } from "@/lib/campaign";
+import { getAllCampaigns, getCampaignProductLimits, getCampaignStatus } from "@/lib/campaign";
 import CampaignClient from "./CampaignClient";
 
 export default async function CampaignPage() {
@@ -12,15 +12,15 @@ export default async function CampaignPage() {
   const campaigns = await getAllCampaigns();
   const campaignsWithInfo = await Promise.all(
     campaigns.map(async (campaign) => {
-      const productIds = await getCampaignProductIds(campaign.id);
-      const status = await getCampaignStatus(campaign, productIds);
-      return { campaign, productIds, status };
+      const productLimits = await getCampaignProductLimits(campaign.id);
+      const status = await getCampaignStatus(campaign, productLimits);
+      return { campaign, productLimits, status };
     })
   );
 
   const { data: activeProducts } = await supabase
     .from("product")
-    .select("id, name")
+    .select("id, name, base_price")
     .eq("is_active", true)
     .order("base_price", { ascending: false });
 

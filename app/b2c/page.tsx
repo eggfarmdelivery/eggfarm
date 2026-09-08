@@ -8,6 +8,18 @@ import { getRecentCampaigns, isOpenStatus, statusLabel } from "@/lib/campaign";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
+function formatTimeLeft(closesAt: string): string {
+  const diffMs = new Date(closesAt).getTime() - Date.now();
+  if (diffMs <= 0) return "곧 마감";
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `마감 ${days}일 ${hours % 24}시간 남음`;
+  }
+  return `마감 ${hours}시간 ${minutes}분 남음`;
+}
+
 async function getRecentOrders(accountId: string) {
   const { data, error } = await supabase
     .from("b2c_order")
@@ -70,19 +82,25 @@ export default async function B2CHome() {
                   <p className="truncate text-xs font-medium">
                     {campaign.title ?? "일반배송 캠페인"}
                   </p>
+                  {campaign.delivery_date && (
+                    <p className="mt-0.5 text-[10px] text-neutral-400">
+                      배송{" "}
+                      {new Date(campaign.delivery_date).toLocaleDateString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        month: "numeric",
+                        day: "numeric",
+                        weekday: "short",
+                      })}
+                    </p>
+                  )}
                   {isOpenStatus(status) ? (
                     <>
-                      <p className="mt-0.5 text-[10px] text-neutral-400">
-                        {new Date(campaign.closes_at).toLocaleString("ko-KR", {
-                          timeZone: "Asia/Seoul",
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        까지
+                      <p className="mt-0.5 text-[10px] text-red-500">
+                        {formatTimeLeft(campaign.closes_at)}
                       </p>
-                      <p className="mt-1 text-xs font-medium text-primary">주문하기 →</p>
+                      <div className="mt-1.5 rounded-md bg-primary py-1.5 text-center text-[11px] font-medium text-white">
+                        주문하기
+                      </div>
                     </>
                   ) : (
                     <p className="mt-0.5 text-[10px] text-neutral-400">다시 열리면 알려드릴게요</p>

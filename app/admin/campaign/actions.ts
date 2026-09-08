@@ -19,10 +19,17 @@ async function uploadCampaignPhoto(file: File): Promise<string | null> {
   return data.publicUrl;
 }
 
+type ParsedProductLimit = {
+  productId: string;
+  stockLimit: number;
+  perPersonLimit: number | null;
+};
+
 function parseCampaignForm(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const opensAtIso = String(formData.get("opens_at") ?? "").trim();
   const closesAtIso = String(formData.get("closes_at") ?? "").trim();
+  const deliveryDate = String(formData.get("delivery_date") ?? "").trim();
   const productIds = formData.getAll("product_ids").map(String);
 
   if (!title) throw new Error("캠페인 제목을 입력해주세요");
@@ -37,14 +44,30 @@ function parseCampaignForm(formData: FormData) {
   }
   if (productIds.length === 0) throw new Error("포함할 품목을 하나 이상 선택해주세요");
 
-  return { title, opensAt, closesAt, productIds };
+  const productLimits: ParsedProductLimit[] = productIds.map((productId) => {
+    const stockLimitRaw = String(formData.get(`stock_limit_${productId}`) ?? "").trim();
+    const perPersonLimitRaw = String(
+      formData.get(`per_person_limit_${productId}`) ?? ""
+    ).trim();
+    const stockLimit = Number(stockLimitRaw);
+    if (!stockLimitRaw || !Number.isFinite(stockLimit) || stockLimit <= 0) {
+      throw new Error("선택한 품목마다 재고상한을 1 이상으로 입력해주세요");
+    }
+    const perPersonLimit = perPersonLimitRaw ? Number(perPersonLimitRaw) : null;
+    if (perPersonLimitRaw && (!Number.isFinite(perPersonLimit) || (perPersonLimit ?? 0) <= 0)) {
+      throw new Error("1인당 제한은 1 이상의 숫자로 입력해주세요");
+    }
+    return { productId, stockLimit, perPersonLimit };
+  });
+
+  return { title, opensAt, closesAt, deliveryDate: deliveryDate || null, productLimits };
 }
 
 // 새 캠페인 오픈 - 여러 캠페인을 동시에 열어둘 수 있음(항상 새 row로 추가됨)
 export async function openCampaign(formData: FormData): Promise<Result> {
   try {
     await requireAdmin();
-    const { title, opensAt, closesAt, productIds } = parseCampaignForm(formData);
+    const { title, opensAt, closesAt, deliveryDate, productLimits } = parseCampaignForm(formData);
     const photo = formData.get("photo") as File | null;
     const photoUrl = photo && photo.size > 0 ? await uploadCampaignPhoto(photo) : null;
 
@@ -55,13 +78,19 @@ export async function openCampaign(formData: FormData): Promise<Result> {
         photo_url: photoUrl,
         opens_at: opensAt.toISOString(),
         closes_at: closesAt.toISOString(),
+        delivery_date: deliveryDate,
       })
       .select("id")
       .single();
     if (error || !campaign) throw new Error(error?.message ?? "캠페인 생성 실패");
 
     const { error: linkError } = await supabase.from("campaign_product").insert(
-      productIds.map((productId) => ({ campaign_id: campaign.id, product_id: productId }))
+      productLimits.map((l) => ({
+        campaign_id: campaign.id,
+        product_id: l.productId,
+        stock_limit: l.stockLimit,
+        per_person_limit: l.perPersonLimit,
+      }))
     );
     if (linkError) throw new Error(linkError.message);
 
@@ -71,17 +100,18 @@ export async function openCampaign(formData: FormData): Promise<Result> {
   }
 }
 
-// 기존 캠페인 수정 (제목/사진/일정/포함품목)
+// 기존 캠페인 수정 (제목/사진/일정/포함품목/재고/인당제한)
 export async function updateCampaign(campaignId: string, formData: FormData): Promise<Result> {
   try {
     await requireAdmin();
-    const { title, opensAt, closesAt, productIds } = parseCampaignForm(formData);
+    const { title, opensAt, closesAt, deliveryDate, productLimits } = parseCampaignForm(formData);
     const photo = formData.get("photo") as File | null;
 
     const update: Record<string, unknown> = {
       title,
       opens_at: opensAt.toISOString(),
       closes_at: closesAt.toISOString(),
+      delivery_date: deliveryDate,
     };
     if (photo && photo.size > 0) {
       update.photo_url = await uploadCampaignPhoto(photo);
@@ -97,7 +127,12 @@ export async function updateCampaign(campaignId: string, formData: FormData): Pr
     if (delError) throw new Error(delError.message);
 
     const { error: insError } = await supabase.from("campaign_product").insert(
-      productIds.map((productId) => ({ campaign_id: campaignId, product_id: productId }))
+      productLimits.map((l) => ({
+        campaign_id: campaignId,
+        product_id: l.productId,
+        stock_limit: l.stockLimit,
+        per_person_limit: l.perPersonLimit,
+      }))
     );
     if (insError) throw new Error(insError.message);
 

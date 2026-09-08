@@ -20,12 +20,14 @@ type Product = {
 type CreditMode = "none" | "partial" | "full";
 
 export default function OrderForm({
+  campaignId,
   products,
   address,
   bankInfo,
   credit,
   depositorName,
 }: {
+  campaignId: string;
   products: Product[];
   address: string | null;
   bankInfo: Record<string, string>;
@@ -60,6 +62,7 @@ export default function OrderForm({
     setPending(true);
     try {
       formData.set("credit_to_use", String(creditToUse));
+      formData.set("campaign_id", campaignId);
       const result = await createGeneralOrder(formData);
       if (!result.success) {
         setError(result.error);
