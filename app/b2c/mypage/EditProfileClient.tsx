@@ -146,7 +146,7 @@ export default function EditProfileClient({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">배송가능 단지</label>
+        <label className="mb-1 block text-xs text-neutral-500">주소 (단지)</label>
         <div className="grid grid-cols-2 gap-2 mb-2">
           {zones.map((zone) => (
             <button

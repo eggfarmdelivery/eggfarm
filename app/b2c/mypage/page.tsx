@@ -5,7 +5,7 @@ import { Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { maskPhone } from "@/lib/mask";
+import { maskPhone, maskUnit } from "@/lib/mask";
 import BottomNav from "@/components/BottomNav";
 import LogoutButton from "./LogoutButton";
 import OrdersClient from "@/app/b2c/orders/OrdersClient";
@@ -37,7 +37,7 @@ export default async function MyPage() {
   const { data: orders } = await supabase
     .from("b2c_order")
     .select(
-      "id, order_type, status, total_amount, delivery_photo_url, created_at, b2c_order_item(id, quantity, unit_price, product_id, product(name))"
+      "id, order_type, status, total_amount, delivery_photo_url, payment_confirmed_at, created_at, campaign(delivery_date), b2c_order_item(id, quantity, unit_price, product_id, product(name, photo_url))"
     )
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });
@@ -92,7 +92,9 @@ export default async function MyPage() {
           <div className="flex items-center justify-between py-2 last:pb-0">
             <span className="text-neutral-500">배송지</span>
             <span>
-              {zone?.name ? `${zone.name} ${account?.address_dong}동 ${account?.address_ho}호` : "-"}
+              {zone?.name
+                ? `${zone.name} ${account?.address_dong}동 ${maskUnit(account?.address_ho ?? "")}호`
+                : "-"}
             </span>
           </div>
         </div>

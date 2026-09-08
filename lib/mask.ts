@@ -6,3 +6,10 @@ export function maskPhone(phone: string): string {
   const last4 = digits.slice(-4);
   return `${first3}-****-${last4}`;
 }
+
+// 호수 뒷자리 일부를 마스킹 (예: 1101 -> 11**)
+export function maskUnit(ho: string): string {
+  if (!ho || ho.length < 2) return ho;
+  const visibleLen = Math.max(1, ho.length - 2);
+  return `${ho.slice(0, visibleLen)}${"*".repeat(ho.length - visibleLen)}`;
+}

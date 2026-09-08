@@ -12,7 +12,7 @@ type OrderItem = {
   quantity: number;
   unit_price: number;
   product_id: string;
-  product: { name: string } | null;
+  product: { name: string; photo_url: string | null } | null;
 };
 type Order = {
   id: string;
@@ -20,7 +20,9 @@ type Order = {
   status: string;
   total_amount: number;
   delivery_photo_url: string | null;
+  payment_confirmed_at: string | null;
   created_at: string;
+  campaign: { delivery_date: string | null } | null;
   b2c_order_item: OrderItem[];
 };
 
@@ -308,7 +310,28 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
 
   return (
     <main className="px-5">
-      <div className="mb-3 flex justify-end">
+
+      {periodFiltered.length > 0 &&
+        (() => {
+          const recent = orders[0];
+          return (
+            <div className="mb-5">
+              <p className="mb-2 text-sm font-medium">최근 주문 현황</p>
+              <div className="rounded-xl border border-neutral-200 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-neutral-500">
+                    {recent.order_type}배송 · {recent.total_amount.toLocaleString()}원
+                  </span>
+                  <OrderStatusBadge status={recent.status} />
+                </div>
+                <OrderJourney status={recent.status} />
+              </div>
+            </div>
+          );
+        })()}
+
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm font-medium">전체 주문</p>
         <button
           onClick={() => setPeriodOpen((v) => !v)}
           className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600"
@@ -363,29 +386,6 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-4 gap-2">
-        {STATUS_GROUPS.map((g) => (
-          <button
-            key={g.key}
-            onClick={() => setActiveGroup(g.key)}
-            className={`rounded-lg border py-2.5 text-center transition-colors ${
-              activeGroup === g.key
-                ? "border-primary bg-primary-bg"
-                : "border-neutral-200 bg-white"
-            }`}
-          >
-            <p
-              className={`text-base font-medium ${
-                activeGroup === g.key ? "text-primary" : "text-neutral-700"
-              }`}
-            >
-              {counts[g.key] ?? 0}
-            </p>
-            <p className="text-[11px] text-neutral-500">{g.label}</p>
-          </button>
-        ))}
-      </div>
-
       {filtered.length === 0 && (
         <p className="py-10 text-center text-sm text-neutral-400">해당 주문이 없어요</p>
       )}
@@ -393,20 +393,38 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
       <div className="space-y-2">
         {filtered.map((o) => {
           const isOpen = expandedId === o.id;
+          const items = o.b2c_order_item ?? [];
+          const thumbUrl = items.find((i) => i.product?.photo_url)?.product?.photo_url ?? null;
+          const itemsSummary = items
+            .map((i) => `${i.product?.name ?? "상품"} ${i.quantity}판`)
+            .join(", ");
           return (
             <div key={o.id} className="rounded-xl border border-neutral-200 overflow-hidden">
               <button
                 onClick={() => setExpandedId(isOpen ? null : o.id)}
-                className="flex w-full items-center justify-between p-4 text-left active:bg-neutral-50"
+                className="flex w-full items-center gap-3 p-4 text-left active:bg-neutral-50"
               >
-                <div>
-                  <p className="text-sm font-medium">{o.order_type}배송</p>
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+                  {thumbUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{itemsSummary || `${o.order_type}배송`}</p>
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {new Date(o.created_at).toLocaleDateString("ko-KR")} ·{" "}
                     {o.total_amount.toLocaleString()}원
                   </p>
+                  <p className="mt-0.5 text-[11px] text-neutral-400">
+                    {o.payment_confirmed_at &&
+                      `결제일 ${new Date(o.payment_confirmed_at).toLocaleDateString("ko-KR")}`}
+                    {o.payment_confirmed_at && o.campaign?.delivery_date && " · "}
+                    {o.campaign?.delivery_date &&
+                      `도착예정 ${new Date(o.campaign.delivery_date).toLocaleDateString("ko-KR")}`}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <OrderStatusBadge status={o.status} />
                   <span className="text-neutral-300">{isOpen ? "▲" : "▼"}</span>
                 </div>

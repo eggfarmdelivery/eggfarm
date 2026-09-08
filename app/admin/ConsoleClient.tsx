@@ -24,7 +24,9 @@ type B2COrder = {
   is_overflow: boolean;
   total_amount: number;
   created_at: string;
-  account: { name: string | null; phone: string | null } | null;
+  campaign_id: string | null;
+  campaign: { title: string | null } | null;
+  account: { name: string | null; phone: string | null; nickname: string | null } | null;
   b2c_order_item: { quantity: number; product: { name: string } | null }[];
 };
 
@@ -129,11 +131,14 @@ function B2COrderCard({ order }: { order: B2COrder }) {
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium">
-          {order.account?.name ?? "이름없음"}
+          {order.account?.nickname ?? order.account?.name ?? "이름없음"}
           {order.account?.phone ? ` · ${order.account.phone.slice(-4)}` : ""}
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
+      {order.campaign?.title && (
+        <p className="mb-1 text-xs text-primary">{order.campaign.title}</p>
+      )}
       <p className="text-xs text-neutral-500 mb-1">
         {order.order_type}배송 · {order.total_amount.toLocaleString()}원
       </p>
@@ -372,6 +377,8 @@ export default function ConsoleClient({
   const [topTab, setTopTab] = useState<"b2c" | "b2b">("b2c");
   const [b2cSubTab, setB2cSubTab] = useState<"progress" | "done">("progress");
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [nicknameQuery, setNicknameQuery] = useState("");
   const router = useRouter();
 
   // 30초마다 자동 새로고침(수동 새로고침 없이도 최신 주문 반영)
@@ -380,12 +387,32 @@ export default function ConsoleClient({
     return () => clearInterval(interval);
   }, [router]);
 
-  const b2cProgress = b2cOrders.filter((o) => PROGRESS_STATUSES.includes(o.status));
+  const campaignOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of b2cOrders) {
+      if (o.campaign_id) map.set(o.campaign_id, o.campaign?.title ?? "제목없음");
+    }
+    return Array.from(map.entries());
+  }, [b2cOrders]);
+
+  const visibleB2cOrders = useMemo(() => {
+    let result = b2cOrders;
+    if (campaignFilter !== "all") {
+      result = result.filter((o) => o.campaign_id === campaignFilter);
+    }
+    const q = nicknameQuery.trim();
+    if (q) {
+      result = result.filter((o) => (o.account?.nickname ?? "").includes(q));
+    }
+    return result;
+  }, [b2cOrders, campaignFilter, nicknameQuery]);
+
+  const b2cProgress = visibleB2cOrders.filter((o) => PROGRESS_STATUSES.includes(o.status));
   const b2cOverflow = b2cProgress.filter((o) => o.is_overflow);
   const b2bProgress = b2bOrders.filter((o) => B2B_PROGRESS.includes(o.status));
 
   const progressCountB2c = b2cProgress.length;
-  const doneCountB2c = b2cOrders.filter((o) => DONE_STATUSES.includes(o.status)).length;
+  const doneCountB2c = visibleB2cOrders.filter((o) => DONE_STATUSES.includes(o.status)).length;
   const progressCountB2b = b2bProgress.length;
   const doneCountB2b = b2bOrders.filter((o) => B2B_DONE.includes(o.status)).length;
 
@@ -412,6 +439,27 @@ export default function ConsoleClient({
 
       {topTab === "b2c" ? (
         <>
+          {campaignOptions.length > 0 && (
+            <select
+              value={campaignFilter}
+              onChange={(e) => setCampaignFilter(e.target.value)}
+              className="mb-2 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            >
+              <option value="all">전체 캠페인</option>
+              {campaignOptions.map(([id, title]) => (
+                <option key={id} value={id}>
+                  {title}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            value={nicknameQuery}
+            onChange={(e) => setNicknameQuery(e.target.value)}
+            placeholder="닉네임으로 검색"
+            className="mb-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+          />
+
           <div className="mb-4 grid grid-cols-2 gap-2">
             <button
               onClick={() => setB2cSubTab("progress")}
@@ -460,7 +508,7 @@ export default function ConsoleClient({
             </>
           ) : (
             <DoneTab
-              orders={b2cOrders}
+              orders={visibleB2cOrders}
               statuses={DONE_STATUSES}
               renderCard={(o) => <B2COrderCard order={o} />}
             />
