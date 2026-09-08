@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/adminAuth";
-import { getCurrentCampaign, getCampaignStatus } from "@/lib/campaign";
+import { getCurrentCampaign, getCampaignStatus, getCampaignProductIds } from "@/lib/campaign";
 import CampaignClient from "./CampaignClient";
 
 export default async function CampaignPage() {
@@ -13,9 +13,12 @@ export default async function CampaignPage() {
 
   const { data: activeProducts } = await supabase
     .from("product")
-    .select("id")
-    .eq("is_active", true);
-  const activeProductIds = (activeProducts ?? []).map((p) => p.id);
+    .select("id, name")
+    .eq("is_active", true)
+    .order("base_price", { ascending: false });
+
+  const campaignProductIds = campaign ? await getCampaignProductIds(campaign.id) : [];
+  const activeProductIds = campaignProductIds.length > 0 ? campaignProductIds : [];
 
   const status = await getCampaignStatus(campaign, activeProductIds);
 
@@ -27,7 +30,12 @@ export default async function CampaignPage() {
         </Link>
         <h1 className="text-base font-medium">캠페인 관리</h1>
       </header>
-      <CampaignClient campaign={campaign} status={status} />
+      <CampaignClient
+        campaign={campaign}
+        status={status}
+        products={activeProducts ?? []}
+        campaignProductIds={campaignProductIds}
+      />
     </div>
   );
 }

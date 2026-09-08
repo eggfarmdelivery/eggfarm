@@ -3,6 +3,9 @@ import { isSoldOut } from "@/lib/limits";
 
 export type Campaign = {
   id: string;
+  title: string | null;
+  photo_url: string | null;
+  opens_at: string;
   closes_at: string;
   closed_early_at: string | null;
   created_at: string;
@@ -19,21 +22,32 @@ export type CampaignStatus =
 export async function getCurrentCampaign(): Promise<Campaign | null> {
   const { data } = await supabase
     .from("campaign")
-    .select("id, closes_at, closed_early_at, created_at")
+    .select("id, title, photo_url, opens_at, closes_at, closed_early_at, created_at")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data ?? null;
 }
 
-// activeProductIds: 현재 판매중인(is_active) 상품 id 목록 - 전부 품절이면 재고소진 조기마감으로 판단
+// 캠페인에 포함된 상품 id 목록 (비어있으면 "전체 상품 포함"으로 취급)
+export async function getCampaignProductIds(campaignId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("campaign_product")
+    .select("product_id")
+    .eq("campaign_id", campaignId);
+  return (data ?? []).map((r) => r.product_id);
+}
+
+// activeProductIds: 이 캠페인에서 실제로 판매중인 상품 id 목록 - 전부 품절이면 재고소진 조기마감으로 판단
 export async function getCampaignStatus(
   campaign: Campaign | null,
   activeProductIds: string[]
 ): Promise<CampaignStatus> {
   if (!campaign) return "none";
   if (campaign.closed_early_at) return "closed_early_manual";
-  if (new Date(campaign.closes_at) <= new Date()) return "closed_deadline";
+  const now = new Date();
+  if (new Date(campaign.opens_at) > now) return "none"; // 아직 오픈 전
+  if (new Date(campaign.closes_at) <= now) return "closed_deadline";
 
   if (activeProductIds.length > 0) {
     const soldOutFlags = await Promise.all(activeProductIds.map((id) => isSoldOut(id)));

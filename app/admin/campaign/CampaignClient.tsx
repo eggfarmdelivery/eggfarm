@@ -7,6 +7,8 @@ import Spinner from "@/components/Spinner";
 import type { Campaign, CampaignStatus } from "@/lib/campaign";
 import { statusLabel } from "@/lib/campaign";
 
+type Product = { id: string; name: string };
+
 const STATUS_TEXT: Record<CampaignStatus, string> = {
   none: "아직 캠페인을 연 적이 없어요",
   open: "지금 주문 받는 중이에요",
@@ -25,28 +27,61 @@ function toLocalInputValue(date: Date) {
 export default function CampaignClient({
   campaign,
   status,
+  products,
+  campaignProductIds,
 }: {
   campaign: Campaign | null;
   status: CampaignStatus;
+  products: Product[];
+  campaignProductIds: string[];
 }) {
+  const [title, setTitle] = useState("");
+  const [opensAt, setOpensAt] = useState(() => toLocalInputValue(new Date()));
   const [closesAt, setClosesAt] = useState(() => {
     const d = new Date();
     d.setHours(d.getHours() + 24, 0, 0, 0);
     return toLocalInputValue(d);
   });
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
+    products.map((p) => p.id)
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const isOpen = status === "open";
+  const isClosedButExists = campaign && !isOpen && status !== "none";
 
-  async function run(fn: () => Promise<{ success: boolean; error?: string }>) {
+  function toggleProduct(id: string) {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  }
+
+  async function handleOpen(formData: FormData) {
     setPending(true);
     setError(null);
-    const result = await fn();
+    formData.set("title", title);
+    formData.set("opens_at", opensAt);
+    formData.set("closes_at", closesAt);
+    selectedProductIds.forEach((id) => formData.append("product_ids", id));
+    const result = await openCampaign(formData);
     setPending(false);
     if (!result.success) {
-      setError(result.error ?? "처리 중 오류가 발생했어요");
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleCloseEarly() {
+    if (!campaign) return;
+    setPending(true);
+    setError(null);
+    const result = await closeCampaignEarly(campaign.id);
+    setPending(false);
+    if (!result.success) {
+      setError(result.error);
       return;
     }
     router.refresh();
@@ -60,10 +95,12 @@ export default function CampaignClient({
           {isOpen ? "오픈중" : status === "none" ? "미오픈" : statusLabel(status)}
         </p>
         <p className="text-xs text-neutral-500">{STATUS_TEXT[status]}</p>
-        {campaign && (
-          <p className="mt-2 text-xs text-neutral-400">
-            마감 예정: {new Date(campaign.closes_at).toLocaleString("ko-KR")}
-          </p>
+        {campaign && (isOpen || isClosedButExists) && (
+          <div className="mt-2 space-y-0.5 text-xs text-neutral-400">
+            {campaign.title && <p>제목: {campaign.title}</p>}
+            <p>오픈: {new Date(campaign.opens_at).toLocaleString("ko-KR")}</p>
+            <p>마감 예정: {new Date(campaign.closes_at).toLocaleString("ko-KR")}</p>
+          </div>
         )}
       </div>
 
@@ -75,31 +112,90 @@ export default function CampaignClient({
         <button
           type="button"
           disabled={pending}
-          onClick={() => run(() => closeCampaignEarly(campaign!.id))}
+          onClick={handleCloseEarly}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-60"
         >
           {pending && <Spinner />}
           지금 조기마감하기
         </button>
       ) : (
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">새 캠페인 마감 일시</label>
-          <input
-            type="datetime-local"
-            value={closesAt}
-            onChange={(e) => setClosesAt(e.target.value)}
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-          />
+        <form action={handleOpen} className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">캠페인 제목</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 9월 2주차 계란 주문받아요"
+              required
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">
+              캠페인 사진 <span className="text-neutral-400">(선택)</span>
+            </label>
+            <input
+              type="file"
+              name="photo"
+              accept="image/*"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">오픈 일시</label>
+            <input
+              type="datetime-local"
+              value={opensAt}
+              onChange={(e) => setOpensAt(e.target.value)}
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">마감 일시</label>
+            <input
+              type="datetime-local"
+              value={closesAt}
+              onChange={(e) => setClosesAt(e.target.value)}
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">포함할 품목</label>
+            {products.length === 0 ? (
+              <p className="text-xs text-neutral-400">등록된 상품이 없어요</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {products.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleProduct(p.id)}
+                    className={`rounded-lg border py-2 text-sm ${
+                      selectedProductIds.includes(p.id)
+                        ? "border-primary bg-primary-bg text-primary"
+                        : "border-neutral-200 text-neutral-600"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
-            type="button"
+            type="submit"
             disabled={pending}
-            onClick={() => run(() => openCampaign(closesAt))}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-medium text-white disabled:opacity-60"
           >
             {pending && <Spinner />}
             캠페인 오픈하기
           </button>
-        </div>
+        </form>
       )}
     </div>
   );

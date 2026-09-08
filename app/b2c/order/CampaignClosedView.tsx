@@ -1,4 +1,4 @@
-import type { CampaignStatus } from "@/lib/campaign";
+import type { Campaign, CampaignStatus } from "@/lib/campaign";
 import { statusLabel } from "@/lib/campaign";
 
 type Product = {
@@ -11,9 +11,11 @@ type Product = {
 export default function CampaignClosedView({
   products,
   status,
+  campaign,
 }: {
   products: Product[];
   status: CampaignStatus;
+  campaign: Campaign | null;
 }) {
   const label = status === "none" ? "아직 주문을 받지 않아요" : statusLabel(status);
 
@@ -22,6 +24,9 @@ export default function CampaignClosedView({
       <div className="mb-5 flex flex-col items-center gap-3 rounded-xl bg-neutral-50 py-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icon.png" alt="에그팜" className="h-16 w-16 opacity-70" />
+        {campaign?.title && status !== "none" && (
+          <p className="text-sm text-neutral-400">{campaign.title}</p>
+        )}
         <p className="text-base font-medium text-neutral-600">{label}</p>
         <p className="text-xs text-neutral-400">배송 가능해지면 다시 열릴 예정이에요</p>
       </div>

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { isSoldOut, getCurrentLimit, getRemainingStock } from "@/lib/limits";
 import { getConfigs } from "@/lib/settings";
-import { getCurrentCampaign, getCampaignStatus, isOpenStatus } from "@/lib/campaign";
+import { getCurrentCampaign, getCampaignStatus, getCampaignProductIds, isOpenStatus } from "@/lib/campaign";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
 import CampaignClosedView from "./CampaignClosedView";
@@ -15,14 +15,20 @@ export default async function GeneralOrderPage() {
   const accountId = await getAccountId("b2c");
   const sessionSupabase = await createClient();
 
-  const { data: products } = await supabase
+  const campaign = await getCurrentCampaign();
+  const campaignProductIds = campaign ? await getCampaignProductIds(campaign.id) : [];
+
+  const { data: allProducts } = await supabase
     .from("product")
     .select("id, name, base_price, photo_url")
     .eq("is_active", true)
     .order("base_price", { ascending: false });
 
+  // 캠페인에 포함된 상품만 주문화면에 노출 (캠페인 없으면 아무것도 안 보임)
+  const products = (allProducts ?? []).filter((p) => campaignProductIds.includes(p.id));
+
   const productsWithStock = await Promise.all(
-    (products ?? []).map(async (p) => {
+    products.map(async (p) => {
       const limit = await getCurrentLimit(p.id);
       return {
         ...p,
@@ -52,9 +58,7 @@ export default async function GeneralOrderPage() {
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
-  const campaign = await getCurrentCampaign();
-  const activeProductIds = (products ?? []).map((p) => p.id);
-  const campaignStatus = await getCampaignStatus(campaign, activeProductIds);
+  const campaignStatus = await getCampaignStatus(campaign, campaignProductIds);
 
   return (
     <div className="pb-32">
@@ -74,7 +78,7 @@ export default async function GeneralOrderPage() {
           depositorName={depositorName}
         />
       ) : (
-        <CampaignClosedView products={productsWithStock} status={campaignStatus} />
+        <CampaignClosedView products={productsWithStock} status={campaignStatus} campaign={campaign} />
       )}
       <BottomNav active="/b2c" />
     </div>
