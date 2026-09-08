@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import HomeLoginButton from "@/components/HomeLoginButton";
 import { supabase } from "@/lib/supabase";
 
