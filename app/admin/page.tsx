@@ -1,6 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import {
+  Megaphone,
+  Building2,
+  Package,
+  Wallet,
+  FileText,
+  History,
+  Settings,
+  ChevronRight,
+} from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
 import ConsoleClient from "./ConsoleClient";
@@ -23,18 +33,60 @@ export default async function AdminConsole() {
     .select("id, status, total_amount, created_at, account(business_name)")
     .order("created_at", { ascending: false });
 
+  const menuGroups = [
+    {
+      label: "운영",
+      items: [
+        { href: "/admin/campaign", label: "캠페인 관리", icon: Megaphone },
+        { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
+        { href: "/admin/products", label: "상품관리", icon: Package },
+      ],
+    },
+    {
+      label: "정산 · 기록",
+      items: [
+        { href: "/admin/settlement", label: "정산", icon: Wallet },
+        { href: "/admin/quotes", label: "견적", icon: FileText },
+        { href: "/admin/logs", label: "상태변경 이력", icon: History },
+      ],
+    },
+    {
+      label: "환경설정",
+      items: [{ href: "/admin/settings", label: "설정", icon: Settings }],
+    },
+  ];
+
   return (
     <div className="pb-10">
-      <header className="flex items-center justify-between px-5 py-4">
+      <header className="px-5 py-4">
         <h1 className="text-base font-medium">관리자 콘솔</h1>
-        <nav className="flex gap-3 text-xs text-neutral-500">
-          <Link href="/admin/campaign">캠페인</Link>
-          <Link href="/admin/zones">단지관리</Link>
-          <Link href="/admin/products">상품관리</Link>
-          <Link href="/admin/logs">이력</Link>
-          <Link href="/admin/settings">설정</Link>
-        </nav>
       </header>
+
+      <div className="mb-5 space-y-4 px-5">
+        {menuGroups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-1.5 text-xs text-neutral-400">{group.label}</p>
+            <div className="overflow-hidden rounded-xl border border-neutral-200">
+              {group.items.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
+                      idx > 0 ? "border-t border-neutral-200" : ""
+                    }`}
+                  >
+                    <Icon size={18} className="text-neutral-500" />
+                    <span className="flex-1">{item.label}</span>
+                    <ChevronRight size={16} className="text-neutral-300" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <ConsoleClient
         b2cOrders={(b2cOrders as any) ?? []}

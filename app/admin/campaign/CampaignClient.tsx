@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { openCampaign, updateCampaign, closeCampaignEarly, deleteCampaign } from "./actions";
 import Spinner from "@/components/Spinner";
+import Badge from "@/components/Badge";
+import { Plus, Truck, Clock } from "lucide-react";
 import type { Campaign, CampaignProductLimit, CampaignStatus } from "@/lib/campaign";
 import { statusLabel } from "@/lib/campaign";
 
@@ -14,12 +16,12 @@ type CampaignInfo = {
   status: CampaignStatus;
 };
 
-const STATUS_STYLE: Record<CampaignStatus, string> = {
-  not_yet_open: "text-neutral-500",
-  open: "text-primary",
-  closed_deadline: "text-neutral-400",
-  closed_early_manual: "text-red-500",
-  closed_early_stock: "text-red-500",
+const STATUS_TONE: Record<CampaignStatus, "green" | "gray" | "red"> = {
+  not_yet_open: "gray",
+  open: "green",
+  closed_deadline: "gray",
+  closed_early_manual: "red",
+  closed_early_stock: "red",
 };
 
 function toLocalInputValue(date: Date) {
@@ -365,7 +367,7 @@ export default function CampaignClient({
           onClick={() => setCreating(true)}
           className="mb-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-medium text-white"
         >
-          + 새 캠페인 만들기
+          <Plus size={16} /> 새 캠페인 만들기
         </button>
       )}
 
@@ -377,23 +379,24 @@ export default function CampaignClient({
           </p>
         )}
         {campaigns.map(({ campaign, status }) => (
-          <div key={campaign.id} className="rounded-lg border border-neutral-200 p-3">
-            <div className="mb-1 flex items-center justify-between">
+          <div key={campaign.id} className="rounded-xl border border-neutral-200 p-3.5">
+            <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium">{campaign.title ?? "제목 없음"}</p>
-              <span className={`text-xs font-medium ${STATUS_STYLE[status]}`}>
+              <Badge tone={STATUS_TONE[status]}>
                 {status === "open" ? "오픈중" : statusLabel(status)}
-              </span>
+              </Badge>
             </div>
-            <p className="text-xs text-neutral-400">
-              오픈 {new Date(campaign.opens_at).toLocaleString("ko-KR")} · 마감{" "}
-              {new Date(campaign.closes_at).toLocaleString("ko-KR")}
-            </p>
             {campaign.delivery_date && (
-              <p className="text-xs text-neutral-400">
-                배송예정일 {new Date(campaign.delivery_date).toLocaleDateString("ko-KR")}
+              <p className="flex items-center gap-1.5 text-xs text-neutral-500">
+                <Truck size={13} className="shrink-0" />
+                배송 {new Date(campaign.delivery_date).toLocaleDateString("ko-KR")}
               </p>
             )}
-            <div className="mt-2 flex gap-2">
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500">
+              <Clock size={13} className="shrink-0" />
+              마감 {new Date(campaign.closes_at).toLocaleString("ko-KR")}
+            </p>
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={() => {

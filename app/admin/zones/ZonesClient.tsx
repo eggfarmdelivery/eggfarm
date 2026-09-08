@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createZone, toggleZoneActive, deleteZone } from "./actions";
 import Spinner from "@/components/Spinner";
+import Badge from "@/components/Badge";
+import { MapPin, Building2, Trash2 } from "lucide-react";
 
 declare global {
   interface Window {
@@ -93,9 +95,9 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
           <button
             type="button"
             onClick={openAddressSearch}
-            className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
           >
-            주소 검색
+            <MapPin size={14} /> 주소 검색
           </button>
         </div>
         <button
@@ -122,32 +124,32 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
         {zones.map((zone) => (
           <div
             key={zone.id}
-            className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2.5"
+            className={`flex items-center justify-between rounded-xl border border-neutral-200 px-3.5 py-3 ${
+              zone.is_active ? "" : "opacity-60"
+            }`}
           >
-            <span className={zone.is_active ? "" : "text-neutral-400 line-through"}>
-              <span className="text-sm">{zone.name}</span>
-              {zone.address && (
-                <span className="block text-xs text-neutral-400">{zone.address}</span>
-              )}
-            </span>
-            <div className="flex shrink-0 gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleToggle(zone)}
-                className={`rounded-md border px-3 py-1 text-xs ${
-                  zone.is_active
-                    ? "border-primary text-primary"
-                    : "border-neutral-300 text-neutral-500"
-                }`}
-              >
-                {zone.is_active ? "활성" : "비활성"}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Building2 size={18} className="shrink-0 text-neutral-400" />
+              <div className="min-w-0">
+                <p className="truncate text-sm">{zone.name}</p>
+                {zone.address && (
+                  <p className="truncate text-xs text-neutral-400">{zone.address}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button type="button" onClick={() => handleToggle(zone)}>
+                <Badge tone={zone.is_active ? "green" : "gray"}>
+                  {zone.is_active ? "활성" : "비활성"}
+                </Badge>
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(zone)}
-                className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-500"
+                aria-label="삭제"
+                className="rounded-md p-1.5 text-neutral-400"
               >
-                삭제
+                <Trash2 size={15} />
               </button>
             </div>
           </div>

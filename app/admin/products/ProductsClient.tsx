@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createProduct, updateProduct } from "./actions";
 import Spinner from "@/components/Spinner";
+import Badge from "@/components/Badge";
+import { Plus, Egg, Check } from "lucide-react";
 
 type Limit = {
   stock_limit: number;
@@ -88,9 +90,9 @@ function CreateProductForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mb-6 w-full rounded-lg border border-dashed border-primary py-3 text-sm font-medium text-primary"
+        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary py-3 text-sm font-medium text-primary"
       >
-        + 신규 상품 등록
+        <Plus size={16} /> 신규 상품 등록
       </button>
     );
   }
@@ -102,8 +104,8 @@ function CreateProductForm() {
     >
       {justDone && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/90">
-          <p className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-            ✓ 등록 완료됐어요
+          <p className="flex items-center gap-1.5 rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+            <Check size={15} /> 등록 완료됐어요
           </p>
         </div>
       )}
@@ -223,14 +225,21 @@ function ProductEditRow({ product }: { product: Product }) {
             className="h-14 w-14 rounded-lg object-cover"
           />
         ) : (
-          <div className="h-14 w-14 rounded-lg bg-neutral-100" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-neutral-100">
+            <Egg size={22} className="text-neutral-400" />
+          </div>
         )}
         <div className="flex-1 space-y-1">
-          <input
-            name="name"
-            defaultValue={product.name}
-            className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm font-medium"
-          />
+          <div className="flex items-center gap-1.5">
+            <input
+              name="name"
+              defaultValue={product.name}
+              className="w-full rounded-md border border-neutral-200 px-2 py-1.5 text-sm font-medium"
+            />
+            <Badge tone={product.is_active ? "green" : "gray"}>
+              {product.is_active ? "판매중" : "중지"}
+            </Badge>
+          </div>
           <PriceInput name="base_price" defaultValue={product.base_price} />
         </div>
       </div>
@@ -289,7 +298,13 @@ function ProductEditRow({ product }: { product: Product }) {
         }`}
       >
         {pending && <Spinner />}
-        {pending ? "저장 중..." : justSaved ? "✓ 저장됨" : "저장"}
+        {pending ? "저장 중..." : justSaved ? (
+          <>
+            <Check size={15} className="inline -mt-0.5" /> 저장됨
+          </>
+        ) : (
+          "저장"
+        )}
       </button>
     </form>
   );
