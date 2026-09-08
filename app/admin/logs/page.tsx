@@ -72,6 +72,7 @@ export default async function LogsPage() {
               </span>
               <span className="text-xs text-neutral-400">
                 {new Date(log.created_at).toLocaleString("ko-KR", {
+                  timeZone: "Asia/Seoul",
                   month: "numeric",
                   day: "numeric",
                   hour: "2-digit",

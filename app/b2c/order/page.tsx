@@ -6,17 +6,48 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { isSoldOut, getCurrentLimit, getRemainingStock } from "@/lib/limits";
 import { getConfigs } from "@/lib/settings";
-import { getCurrentCampaign, getCampaignStatus, getCampaignProductIds, isOpenStatus } from "@/lib/campaign";
+import {
+  getCampaignById,
+  getOpenCampaigns,
+  getCampaignStatus,
+  getCampaignProductIds,
+  isOpenStatus,
+  type Campaign,
+  type CampaignStatus,
+} from "@/lib/campaign";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
 import CampaignClosedView from "./CampaignClosedView";
 
-export default async function GeneralOrderPage() {
+export default async function GeneralOrderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ campaign?: string }>;
+}) {
+  const { campaign: campaignIdParam } = await searchParams;
   const accountId = await getAccountId("b2c");
   const sessionSupabase = await createClient();
 
-  const campaign = await getCurrentCampaign();
-  const campaignProductIds = campaign ? await getCampaignProductIds(campaign.id) : [];
+  // 특정 캠페인이 지정됐으면 그걸, 아니면 지금 오픈중인 캠페인 중 첫 번째를 사용
+  // (여러 캠페인이 동시에 열려있을 수 있음 - 홈화면 카드에서 캠페인별로 링크를 눌러 들어옴)
+  let campaign: Campaign | null = null;
+  let campaignProductIds: string[] = [];
+  let campaignStatus: CampaignStatus | "none" = "none";
+
+  if (campaignIdParam) {
+    campaign = await getCampaignById(campaignIdParam);
+    if (campaign) {
+      campaignProductIds = await getCampaignProductIds(campaign.id);
+      campaignStatus = await getCampaignStatus(campaign, campaignProductIds);
+    }
+  } else {
+    const open = await getOpenCampaigns();
+    if (open.length > 0) {
+      campaign = open[0].campaign;
+      campaignProductIds = open[0].productIds;
+      campaignStatus = "open";
+    }
+  }
 
   const { data: allProducts } = await supabase
     .from("product")
@@ -58,8 +89,6 @@ export default async function GeneralOrderPage() {
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
-  const campaignStatus = await getCampaignStatus(campaign, campaignProductIds);
-
   return (
     <div className="pb-32">
       <header className="flex items-center gap-2 px-5 py-4">
@@ -69,7 +98,7 @@ export default async function GeneralOrderPage() {
         <h1 className="text-base font-medium">일반배송 주문</h1>
       </header>
 
-      {isOpenStatus(campaignStatus) ? (
+      {isOpenStatus(campaignStatus as CampaignStatus) ? (
         <OrderForm
           products={productsWithStock}
           address={account?.address ?? null}

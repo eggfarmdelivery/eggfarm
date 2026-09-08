@@ -43,7 +43,7 @@ export default async function B2BOrdersPage() {
                   .join(" · ")}
               </p>
               <p className="text-xs text-neutral-400">
-                {new Date(o.created_at).toLocaleDateString("ko-KR")}
+                {new Date(o.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
               </p>
               {o.delivery_photo_url && (
                 <img

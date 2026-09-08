@@ -5,22 +5,50 @@ import { useRouter } from "next/navigation";
 import { createZone, toggleZoneActive } from "./actions";
 import Spinner from "@/components/Spinner";
 
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (options: {
+        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void;
+      }) => { open: () => void };
+    };
+  }
+}
+
 type Zone = { id: string; name: string; address: string | null; is_active: boolean; created_at: string };
 
 export default function ZonesClient({ zones }: { zones: Zone[] }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
   const router = useRouter();
+
+  function openAddressSearch() {
+    if (!window.daum) {
+      alert("주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해주세요");
+      return;
+    }
+    new window.daum.Postcode({
+      oncomplete: (data) => {
+        setAddress(data.roadAddress || data.jibunAddress);
+      },
+    }).open();
+  }
 
   async function handleCreate(formData: FormData) {
     setPending(true);
     setError(null);
+    formData.set("name", name);
+    formData.set("address", address);
     const result = await createZone(formData);
     setPending(false);
     if (!result.success) {
       setError(result.error);
       return;
     }
+    setName("");
+    setAddress("");
     router.refresh();
   }
 
@@ -38,16 +66,27 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
     <div className="px-5">
       <form action={handleCreate} className="mb-5 space-y-2">
         <input
-          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
           placeholder="단지명 (예: 래미안 루원단지)"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
-        <input
-          name="address"
-          placeholder="주소 (예: 인천 서구 새오개로 123)"
-          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-        />
+        <div className="flex gap-2">
+          <input
+            value={address}
+            readOnly
+            placeholder="주소 검색을 눌러주세요"
+            className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
+          />
+          <button
+            type="button"
+            onClick={openAddressSearch}
+            className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
+          >
+            주소 검색
+          </button>
+        </div>
         <button
           type="submit"
           disabled={pending}

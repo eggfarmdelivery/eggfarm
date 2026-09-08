@@ -14,7 +14,7 @@ export default function CampaignClosedView({
   campaign,
 }: {
   products: Product[];
-  status: CampaignStatus;
+  status: CampaignStatus | "none";
   campaign: Campaign | null;
 }) {
   const label = status === "none" ? "아직 주문을 받지 않아요" : statusLabel(status);

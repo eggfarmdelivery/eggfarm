@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import { getConfigs } from "@/lib/settings";
-import { getCurrentCampaign, getCampaignProductIds, getCampaignStatus, statusLabel } from "@/lib/campaign";
+import { getRecentCampaigns, isOpenStatus, statusLabel } from "@/lib/campaign";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import BottomNav from "@/components/BottomNav";
 
@@ -25,10 +25,7 @@ export default async function B2CHome() {
   const notice = await getConfigs(["notice_enabled", "notice_text"]);
   const showNotice = notice.notice_enabled === "true" && notice.notice_text;
 
-  const campaign = await getCurrentCampaign();
-  const campaignProductIds = campaign ? await getCampaignProductIds(campaign.id) : [];
-  const campaignStatus = await getCampaignStatus(campaign, campaignProductIds);
-  const showCampaignCard = campaign && campaignStatus !== "none";
+  const recentCampaigns = await getRecentCampaigns(7);
 
   return (
     <div className="pb-32">
@@ -44,63 +41,56 @@ export default async function B2CHome() {
       )}
 
       <main className="px-5">
-        {showCampaignCard && (
-          <Link
-            href="/b2c/order"
-            className="mb-5 block overflow-hidden rounded-xl border border-neutral-200"
-          >
-            <div className="relative h-32 w-full bg-neutral-100">
-              {campaign!.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={campaign!.photo_url}
-                  alt={campaign!.title ?? "캠페인"}
-                  className={`h-full w-full object-cover ${
-                    campaignStatus !== "open" ? "blur-sm" : ""
-                  }`}
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src="/icon.png"
-                  alt="에그팜"
-                  className={`h-full w-full object-contain p-6 opacity-70 ${
-                    campaignStatus !== "open" ? "blur-sm" : ""
-                  }`}
-                />
-              )}
-              {campaignStatus !== "open" && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
-                    {statusLabel(campaignStatus)}
-                  </span>
+        <section className="mb-6 space-y-3">
+          {recentCampaigns.length > 0 ? (
+            recentCampaigns.map(({ campaign, status }) => (
+              <Link
+                key={campaign.id}
+                href={`/b2c/order?campaign=${campaign.id}`}
+                className="block overflow-hidden rounded-xl border border-neutral-200"
+              >
+                <div className="relative h-32 w-full bg-neutral-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={campaign.photo_url ?? "/icon.png"}
+                    alt={campaign.title ?? "캠페인"}
+                    className={`h-full w-full ${
+                      campaign.photo_url ? "object-cover" : "object-contain p-6 opacity-70"
+                    } ${!isOpenStatus(status) ? "blur-sm" : ""}`}
+                  />
+                  {!isOpenStatus(status) && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
+                        {statusLabel(status)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="p-3">
-              <p className="text-sm font-medium">{campaign!.title ?? "일반배송 캠페인"}</p>
-              <p className="mt-0.5 text-xs text-neutral-400">
-                {campaignStatus === "open"
-                  ? `마감 ${new Date(campaign!.closes_at).toLocaleString("ko-KR", {
-                      month: "numeric",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}까지`
-                  : "다시 열리면 알려드릴게요"}
-              </p>
-            </div>
-          </Link>
-        )}
-
-        <section className="mb-6">
-          <Link
-            href="/b2c/order"
-            className="flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
-          >
-            <span className="text-2xl">🛒</span>
-            <span className="text-sm">일반배송 주문</span>
-          </Link>
+                <div className="p-3">
+                  <p className="text-sm font-medium">{campaign.title ?? "일반배송 캠페인"}</p>
+                  <p className="mt-0.5 text-xs text-neutral-400">
+                    {isOpenStatus(status)
+                      ? `마감 ${new Date(campaign.closes_at).toLocaleString("ko-KR", {
+                          timeZone: "Asia/Seoul",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}까지`
+                      : "다시 열리면 알려드릴게요"}
+                  </p>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <Link
+              href="/b2c/order"
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
+            >
+              <span className="text-2xl">🛒</span>
+              <span className="text-sm">일반배송 주문</span>
+            </Link>
+          )}
         </section>
 
         <section>
@@ -119,7 +109,9 @@ export default async function B2CHome() {
                   <div>
                     <p className="text-sm">{o.order_type}배송</p>
                     <p className="text-xs text-neutral-400 mt-0.5">
-                      {new Date(o.created_at).toLocaleDateString("ko-KR")}
+                      {new Date(o.created_at).toLocaleDateString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                      })}
                     </p>
                   </div>
                   <OrderStatusBadge status={o.status} />
