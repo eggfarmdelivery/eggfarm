@@ -1,13 +1,13 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { decryptSensitive } from "@/lib/crypto";
+import { maskPhone } from "@/lib/mask";
 import BottomNav from "@/components/BottomNav";
-import EditProfileClient from "./EditProfileClient";
 import LogoutButton from "./LogoutButton";
-import MyPageTabs from "./MyPageTabs";
 import OrdersClient from "@/app/b2c/orders/OrdersClient";
 
 export default async function MyPage() {
@@ -16,17 +16,17 @@ export default async function MyPage() {
 
   const { data: account } = await sessionSupabase
     .from("account")
-    .select(
-      "name, phone, nickname, delivery_zone_id, address_dong, address_ho, entrance_password"
-    )
+    .select("name, phone, nickname, delivery_zone_id, address_dong, address_ho")
     .eq("id", accountId)
     .single();
 
-  const { data: zones } = await supabase
-    .from("delivery_zone")
-    .select("id, name")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+  const { data: zone } = account?.delivery_zone_id
+    ? await supabase
+        .from("delivery_zone")
+        .select("name")
+        .eq("id", account.delivery_zone_id)
+        .single()
+    : { data: null };
 
   const { data: ledger } = await supabase
     .from("credit_ledger")
@@ -42,6 +42,11 @@ export default async function MyPage() {
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });
 
+  const depositorName =
+    account?.nickname && account?.phone
+      ? `${account.nickname}${account.phone.replace(/\D/g, "").slice(-4)}`
+      : null;
+
   return (
     <div className="pb-32">
       <header className="px-5 py-4">
@@ -49,34 +54,51 @@ export default async function MyPage() {
       </header>
 
       <main className="px-5">
-        <div className="mb-4 flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.png" alt="" className="h-12 w-12 shrink-0 rounded-full bg-primary-bg p-1.5" />
-          <div>
-            <p className="text-base font-medium">{account?.name ?? "-"}</p>
-            <p className="mt-0.5 text-sm text-neutral-500">
-              크레딧 {credit.toLocaleString()}원
-            </p>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icon.png"
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-full bg-primary-bg p-1.5"
+            />
+            <div>
+              <p className="text-base font-medium">{account?.name ?? "-"}</p>
+              <p className="mt-0.5 text-sm text-neutral-500">
+                크레딧 {credit.toLocaleString()}원
+              </p>
+            </div>
+          </div>
+          <Link href="/b2c/mypage/edit" aria-label="회원정보 수정" className="p-1.5 text-neutral-500">
+            <Settings size={20} />
+          </Link>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-neutral-200 p-4 text-sm">
+          <div className="flex items-center justify-between border-b border-neutral-100 py-2 first:pt-0">
+            <span className="text-neutral-500">전화번호</span>
+            <span>{account?.phone ? maskPhone(account.phone) : "-"}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-neutral-100 py-2">
+            <span className="text-neutral-500">닉네임</span>
+            <span>{account?.nickname ?? "-"}</span>
+          </div>
+          {depositorName && (
+            <div className="flex items-center justify-between border-b border-neutral-100 py-2">
+              <span className="text-neutral-500">입금자명</span>
+              <span className="font-medium text-primary-dark">{depositorName}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between py-2 last:pb-0">
+            <span className="text-neutral-500">배송지</span>
+            <span>
+              {zone?.name ? `${zone.name} ${account?.address_dong}동 ${account?.address_ho}호` : "-"}
+            </span>
           </div>
         </div>
 
-        <MyPageTabs
-          ordersContent={<OrdersClient orders={(orders as any) ?? []} />}
-          profileContent={
-            <EditProfileClient
-              name={account?.name ?? ""}
-              phone={account?.phone ?? ""}
-              nickname={account?.nickname ?? ""}
-              zones={zones ?? []}
-              zoneId={account?.delivery_zone_id ?? ""}
-              dong={account?.address_dong ?? ""}
-              ho={account?.address_ho ?? ""}
-              entrancePassword={
-                account?.entrance_password ? decryptSensitive(account.entrance_password) : ""
-              }
-            />
-          }
-        />
+        <p className="mb-2 text-sm font-medium">주문내역</p>
+        <OrdersClient orders={(orders as any) ?? []} />
 
         <div className="mt-5">
           <LogoutButton />
