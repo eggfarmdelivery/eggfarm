@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createZone, toggleZoneActive } from "./actions";
 import Spinner from "@/components/Spinner";
 
-type Zone = { id: string; name: string; is_active: boolean; created_at: string };
+type Zone = { id: string; name: string; address: string | null; is_active: boolean; created_at: string };
 
 export default function ZonesClient({ zones }: { zones: Zone[] }) {
   const [pending, setPending] = useState(false);
@@ -36,20 +36,25 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
 
   return (
     <div className="px-5">
-      <form action={handleCreate} className="mb-5 flex gap-2">
+      <form action={handleCreate} className="mb-5 space-y-2">
         <input
           name="name"
           required
-          placeholder="예: 래미안 루원단지"
+          placeholder="단지명 (예: 래미안 루원단지)"
+          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+        />
+        <input
+          name="address"
+          placeholder="주소 (예: 인천 서구 새오개로 123)"
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
         <button
           type="submit"
           disabled={pending}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white disabled:opacity-60"
         >
           {pending && <Spinner />}
-          추가
+          단지 추가
         </button>
       </form>
 
@@ -69,8 +74,11 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
             key={zone.id}
             className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2.5"
           >
-            <span className={`text-sm ${zone.is_active ? "" : "text-neutral-400 line-through"}`}>
-              {zone.name}
+            <span className={zone.is_active ? "" : "text-neutral-400 line-through"}>
+              <span className="text-sm">{zone.name}</span>
+              {zone.address && (
+                <span className="block text-xs text-neutral-400">{zone.address}</span>
+              )}
             </span>
             <button
               type="button"

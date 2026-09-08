@@ -10,7 +10,7 @@ export default async function ZonesPage() {
 
   const { data: zones } = await supabase
     .from("delivery_zone")
-    .select("id, name, is_active, created_at")
+    .select("id, name, address, is_active, created_at")
     .order("created_at", { ascending: true });
 
   return (

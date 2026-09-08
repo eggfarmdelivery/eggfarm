@@ -19,10 +19,12 @@ export default async function Home({
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white p-6 text-center">
       <img src="/logo.png" alt="에그팜" className="h-14 w-auto" />
       {zoneNames.length > 0 && (
-        <p className="max-w-xs text-sm text-neutral-500">
+        <p className="max-w-xs text-sm text-neutral-600">
           지금은{" "}
-          <span className="font-medium text-neutral-700">{zoneNames.join(", ")}</span>만
-          이용 가능해요
+          <span className="font-bold text-neutral-900 bg-primary-bg px-1 rounded">
+            {zoneNames.join(", ")}
+          </span>
+          만 이용 가능해요
         </p>
       )}
       <HomeLoginButton />

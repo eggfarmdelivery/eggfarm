@@ -9,9 +9,13 @@ export async function createZone(formData: FormData): Promise<Result> {
   try {
     await requireAdmin();
     const name = String(formData.get("name") ?? "").trim();
+    const address = String(formData.get("address") ?? "").trim();
     if (!name) throw new Error("단지명을 입력해주세요");
 
-    const { error } = await supabase.from("delivery_zone").insert({ name });
+    const { error } = await supabase.from("delivery_zone").insert({
+      name,
+      address: address || null,
+    });
     if (error) throw new Error(error.message);
     return { success: true };
   } catch (e) {
