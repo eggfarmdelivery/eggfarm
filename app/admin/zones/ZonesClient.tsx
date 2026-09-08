@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createZone, toggleZoneActive } from "./actions";
+import { createZone, toggleZoneActive, deleteZone } from "./actions";
 import Spinner from "@/components/Spinner";
 
 declare global {
@@ -55,6 +55,17 @@ export default function ZonesClient({ zones }: { zones: Zone[] }) {
   async function handleToggle(zone: Zone) {
     setError(null);
     const result = await toggleZoneActive(zone.id, !zone.is_active);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleDelete(zone: Zone) {
+    if (!confirm(`"${zone.name}" 단지를 삭제할까요? 되돌릴 수 없어요`)) return;
+    setError(null);
+    const result = await deleteZone(zone.id);
     if (!result.success) {
       setError(result.error);
       return;

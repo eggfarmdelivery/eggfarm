@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { openCampaign, updateCampaign, closeCampaignEarly } from "./actions";
+import { openCampaign, updateCampaign, closeCampaignEarly, deleteCampaign } from "./actions";
 import Spinner from "@/components/Spinner";
 import type { Campaign, CampaignStatus } from "@/lib/campaign";
 import { statusLabel } from "@/lib/campaign";
@@ -206,6 +206,17 @@ export default function CampaignClient({
     router.refresh();
   }
 
+  async function handleDelete(campaignId: string) {
+    if (!confirm("이 캠페인을 삭제할까요? 되돌릴 수 없어요")) return;
+    setClosingError(null);
+    const result = await deleteCampaign(campaignId);
+    if (!result.success) {
+      setClosingError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
   const editingInfo = campaigns.find((c) => c.campaign.id === editingId);
 
   return (
@@ -291,6 +302,13 @@ export default function CampaignClient({
                   조기마감
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => handleDelete(campaign.id)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-500"
+              >
+                삭제
+              </button>
             </div>
           </div>
         ))}

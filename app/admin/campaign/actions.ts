@@ -122,3 +122,15 @@ export async function closeCampaignEarly(campaignId: string): Promise<Result> {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
   }
 }
+
+// 캠페인 삭제 (테스트 데이터 정리 등) - campaign_product는 on delete cascade로 함께 삭제됨
+export async function deleteCampaign(campaignId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    const { error } = await supabase.from("campaign").delete().eq("id", campaignId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "삭제 중 오류가 발생했어요" };
+  }
+}

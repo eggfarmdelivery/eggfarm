@@ -41,7 +41,7 @@ export default async function B2CHome() {
       )}
 
       <main className="px-5">
-        <section className="mb-6 space-y-3">
+        <section className="mb-6 grid grid-cols-2 gap-3">
           {recentCampaigns.length > 0 ? (
             recentCampaigns.map(({ campaign, status }) => (
               <Link
@@ -49,43 +49,51 @@ export default async function B2CHome() {
                 href={`/b2c/order?campaign=${campaign.id}`}
                 className="block overflow-hidden rounded-xl border border-neutral-200"
               >
-                <div className="relative h-32 w-full bg-neutral-100">
+                <div className="relative h-20 w-full bg-neutral-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={campaign.photo_url ?? "/icon.png"}
                     alt={campaign.title ?? "캠페인"}
                     className={`h-full w-full ${
-                      campaign.photo_url ? "object-cover" : "object-contain p-6 opacity-70"
+                      campaign.photo_url ? "object-cover" : "object-contain p-4 opacity-70"
                     } ${!isOpenStatus(status) ? "blur-sm" : ""}`}
                   />
                   {!isOpenStatus(status) && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
+                      <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
                         {statusLabel(status)}
                       </span>
                     </div>
                   )}
                 </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium">{campaign.title ?? "일반배송 캠페인"}</p>
-                  <p className="mt-0.5 text-xs text-neutral-400">
-                    {isOpenStatus(status)
-                      ? `마감 ${new Date(campaign.closes_at).toLocaleString("ko-KR", {
+                <div className="p-2.5">
+                  <p className="truncate text-xs font-medium">
+                    {campaign.title ?? "일반배송 캠페인"}
+                  </p>
+                  {isOpenStatus(status) ? (
+                    <>
+                      <p className="mt-0.5 text-[10px] text-neutral-400">
+                        {new Date(campaign.closes_at).toLocaleString("ko-KR", {
                           timeZone: "Asia/Seoul",
                           month: "numeric",
                           day: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
-                        })}까지`
-                      : "다시 열리면 알려드릴게요"}
-                  </p>
+                        })}
+                        까지
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-primary">주문하기 →</p>
+                    </>
+                  ) : (
+                    <p className="mt-0.5 text-[10px] text-neutral-400">다시 열리면 알려드릴게요</p>
+                  )}
                 </div>
               </Link>
             ))
           ) : (
             <Link
               href="/b2c/order"
-              className="flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
+              className="col-span-2 flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
             >
               <span className="text-2xl">🛒</span>
               <span className="text-sm">일반배송 주문</span>
