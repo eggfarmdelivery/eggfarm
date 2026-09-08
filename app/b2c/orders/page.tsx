@@ -1,30 +1,6 @@
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
-import { supabase } from "@/lib/supabase";
-import { getAccountId } from "@/lib/getAccount";
-import BottomNav from "@/components/BottomNav";
-import OrdersClient from "./OrdersClient";
-
-export default async function B2COrdersPage() {
-  const accountId = await getAccountId("b2c");
-
-  const { data: orders } = await supabase
-    .from("b2c_order")
-    .select(
-      "id, order_type, status, total_amount, delivery_photo_url, created_at, b2c_order_item(id, quantity, unit_price, product_id, product(name))"
-    )
-    .eq("account_id", accountId)
-    .order("created_at", { ascending: false });
-
-  return (
-    <div className="pb-32">
-      <header className="px-5 py-4">
-        <h1 className="text-base font-medium">주문내역</h1>
-      </header>
-
-      <OrdersClient orders={(orders as any) ?? []} />
-
-      <BottomNav active="/b2c/orders" />
-    </div>
-  );
+// 주문내역이 마이페이지("내 정보")로 통합돼서 옛 링크/북마크 호환용으로만 남겨둠
+export default function B2COrdersPage() {
+  redirect("/b2c/mypage");
 }

@@ -7,6 +7,7 @@ import { decryptSensitive } from "@/lib/crypto";
 import BottomNav from "@/components/BottomNav";
 import EditProfileClient from "./EditProfileClient";
 import LogoutButton from "./LogoutButton";
+import OrdersClient from "@/app/b2c/orders/OrdersClient";
 
 export default async function MyPage() {
   const accountId = await getAccountId("b2c");
@@ -32,10 +33,18 @@ export default async function MyPage() {
     .eq("account_id", accountId);
   const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
 
+  const { data: orders } = await supabase
+    .from("b2c_order")
+    .select(
+      "id, order_type, status, total_amount, delivery_photo_url, created_at, b2c_order_item(id, quantity, unit_price, product_id, product(name))"
+    )
+    .eq("account_id", accountId)
+    .order("created_at", { ascending: false });
+
   return (
     <div className="pb-32">
       <header className="px-5 py-4">
-        <h1 className="text-base font-medium">마이페이지</h1>
+        <h1 className="text-base font-medium">내 정보</h1>
       </header>
 
       <main className="px-5 space-y-5">
@@ -56,6 +65,11 @@ export default async function MyPage() {
             account?.entrance_password ? decryptSensitive(account.entrance_password) : ""
           }
         />
+
+        <section>
+          <p className="mb-2 text-sm font-medium">주문내역</p>
+          <OrdersClient orders={(orders as any) ?? []} />
+        </section>
 
         <LogoutButton />
       </main>

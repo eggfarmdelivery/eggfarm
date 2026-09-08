@@ -2,8 +2,7 @@ import Link from "next/link";
 
 const items = [
   { href: "/b2c", label: "홈" },
-  { href: "/b2c/orders", label: "주문내역" },
-  { href: "/b2c/mypage", label: "마이페이지" },
+  { href: "/b2c/mypage", label: "내 정보" },
 ];
 
 export default function BottomNav({ active }: { active: string }) {
