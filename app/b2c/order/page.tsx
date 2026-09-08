@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { isSoldOut, getCurrentLimit, getRemainingStock } from "@/lib/limits";
 import { getConfigs } from "@/lib/settings";
+import { getCurrentCampaign, getCampaignStatus, isOpenStatus } from "@/lib/campaign";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
+import CampaignClosedView from "./CampaignClosedView";
 
 export default async function GeneralOrderPage() {
   const accountId = await getAccountId("b2c");
@@ -50,6 +52,10 @@ export default async function GeneralOrderPage() {
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
+  const campaign = await getCurrentCampaign();
+  const activeProductIds = (products ?? []).map((p) => p.id);
+  const campaignStatus = await getCampaignStatus(campaign, activeProductIds);
+
   return (
     <div className="pb-32">
       <header className="flex items-center gap-2 px-5 py-4">
@@ -59,13 +65,17 @@ export default async function GeneralOrderPage() {
         <h1 className="text-base font-medium">일반배송 주문</h1>
       </header>
 
-      <OrderForm
-        products={productsWithStock}
-        address={account?.address ?? null}
-        bankInfo={bankInfo}
-        credit={credit}
-        depositorName={depositorName}
-      />
+      {isOpenStatus(campaignStatus) ? (
+        <OrderForm
+          products={productsWithStock}
+          address={account?.address ?? null}
+          bankInfo={bankInfo}
+          credit={credit}
+          depositorName={depositorName}
+        />
+      ) : (
+        <CampaignClosedView products={productsWithStock} status={campaignStatus} />
+      )}
       <BottomNav active="/b2c" />
     </div>
   );

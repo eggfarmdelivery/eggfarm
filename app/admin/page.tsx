@@ -28,6 +28,8 @@ export default async function AdminConsole() {
       <header className="flex items-center justify-between px-5 py-4">
         <h1 className="text-base font-medium">관리자 콘솔</h1>
         <nav className="flex gap-3 text-xs text-neutral-500">
+          <Link href="/admin/campaign">캠페인</Link>
+          <Link href="/admin/zones">단지관리</Link>
           <Link href="/admin/products">상품관리</Link>
           <Link href="/admin/logs">이력</Link>
           <Link href="/admin/settings">설정</Link>

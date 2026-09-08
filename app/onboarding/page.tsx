@@ -1,14 +1,21 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { supabase } from "@/lib/supabase";
 import OnboardingClient from "./OnboardingClient";
 
 export default async function OnboardingPage() {
-  const supabase = await createClient();
+  const sessionSupabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await sessionSupabase.auth.getUser();
 
   if (!user) redirect("/?error=no_session&detail=onboarding_could_not_read_cookie");
+
+  const { data: zones } = await supabase
+    .from("delivery_zone")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
 
   return (
     <div className="px-5 py-8">
@@ -16,7 +23,7 @@ export default async function OnboardingPage() {
       <p className="mb-6 text-sm text-neutral-500">
         배송에 필요한 정보를 입력해주세요
       </p>
-      <OnboardingClient />
+      <OnboardingClient zones={zones ?? []} />
     </div>
   );
 }

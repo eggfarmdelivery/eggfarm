@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
+import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import { decryptSensitive } from "@/lib/crypto";
 import BottomNav from "@/components/BottomNav";
@@ -9,13 +10,21 @@ import LogoutButton from "./LogoutButton";
 
 export default async function MyPage() {
   const accountId = await getAccountId("b2c");
-  const supabase = await createClient();
+  const sessionSupabase = await createClient();
 
-  const { data: account } = await supabase
+  const { data: account } = await sessionSupabase
     .from("account")
-    .select("name, phone, nickname, base_address, address_dong, address_ho, entrance_password")
+    .select(
+      "name, phone, nickname, delivery_zone_id, address_dong, address_ho, entrance_password"
+    )
     .eq("id", accountId)
     .single();
+
+  const { data: zones } = await supabase
+    .from("delivery_zone")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
 
   const { data: ledger } = await supabase
     .from("credit_ledger")
@@ -39,7 +48,8 @@ export default async function MyPage() {
           name={account?.name ?? ""}
           phone={account?.phone ?? ""}
           nickname={account?.nickname ?? ""}
-          baseAddress={account?.base_address ?? ""}
+          zones={zones ?? []}
+          zoneId={account?.delivery_zone_id ?? ""}
           dong={account?.address_dong ?? ""}
           ho={account?.address_ho ?? ""}
           entrancePassword={

@@ -6,16 +6,6 @@ import { updateProfile } from "./actions";
 import Spinner from "@/components/Spinner";
 import { byteLength, truncateToByteLimit, NICKNAME_MAX_BYTES } from "@/lib/nickname";
 
-declare global {
-  interface Window {
-    daum?: {
-      Postcode: new (options: {
-        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void;
-      }) => { open: () => void };
-    };
-  }
-}
-
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length < 4) return digits;
@@ -27,11 +17,14 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
 
+type Zone = { id: string; name: string };
+
 type Props = {
   name: string;
   phone: string;
   nickname: string;
-  baseAddress: string;
+  zones: Zone[];
+  zoneId: string;
   dong: string;
   ho: string;
   entrancePassword: string;
@@ -41,7 +34,8 @@ export default function EditProfileClient({
   name: initialName,
   phone: initialPhone,
   nickname: initialNickname,
-  baseAddress: initialBaseAddress,
+  zones,
+  zoneId: initialZoneId,
   dong: initialDong,
   ho: initialHo,
   entrancePassword: initialEntrancePassword,
@@ -54,7 +48,7 @@ export default function EditProfileClient({
   const [phone, setPhone] = useState(initialPhone);
   const [nickname, setNickname] = useState(initialNickname);
   const [nicknameWarning, setNicknameWarning] = useState(false);
-  const [baseAddress, setBaseAddress] = useState(initialBaseAddress);
+  const [zoneId, setZoneId] = useState(initialZoneId);
   const [dong, setDong] = useState(initialDong);
   const [ho, setHo] = useState(initialHo);
   const [entrancePassword, setEntrancePassword] = useState(initialEntrancePassword);
@@ -62,6 +56,7 @@ export default function EditProfileClient({
   const router = useRouter();
   const phoneTail = phone.replace(/\D/g, "").slice(-4);
   const depositorPreview = nickname && phoneTail ? `${nickname}${phoneTail}` : null;
+  const zoneName = zones.find((z) => z.id === zoneId)?.name ?? "";
 
   function handleNicknameChange(raw: string) {
     if (byteLength(raw) > NICKNAME_MAX_BYTES) {
@@ -71,18 +66,6 @@ export default function EditProfileClient({
     }
     setNickname(raw);
     setNicknameWarning(false);
-  }
-
-  function openAddressSearch() {
-    if (!window.daum) {
-      alert("주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해주세요");
-      return;
-    }
-    new window.daum.Postcode({
-      oncomplete: (data) => {
-        setBaseAddress(data.roadAddress || data.jibunAddress);
-      },
-    }).open();
   }
 
   function handleHoBlur() {
@@ -97,7 +80,7 @@ export default function EditProfileClient({
       formData.set("name", name);
       formData.set("phone", phone);
       formData.set("nickname", nickname);
-      formData.set("base_address", baseAddress);
+      formData.set("delivery_zone_id", zoneId);
       formData.set("address_dong", dong);
       formData.set("address_ho", ho);
       formData.set("entrance_password", entrancePassword);
@@ -139,9 +122,9 @@ export default function EditProfileClient({
             <p className="text-sm font-semibold text-primary-dark">{depositorPreview}</p>
           </div>
         )}
-        <p className="text-xs text-neutral-500 mb-1">주소</p>
+        <p className="text-xs text-neutral-500 mb-1">배송지</p>
         <p className="text-sm mb-3">
-          {baseAddress ? `${baseAddress} ${dong}동 ${ho}호` : "-"}
+          {zoneName ? `${zoneName} ${dong}동 ${ho}호` : "-"}
         </p>
         <p className="text-xs text-neutral-500 mb-1">공동현관 비밀번호</p>
         <p className="text-sm mb-3">{entrancePassword || "미등록"}</p>
@@ -199,21 +182,22 @@ export default function EditProfileClient({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">주소</label>
-        <div className="flex gap-2 mb-2">
-          <input
-            value={baseAddress}
-            readOnly
-            placeholder="주소 검색을 눌러주세요"
-            className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
-          />
-          <button
-            type="button"
-            onClick={openAddressSearch}
-            className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
-          >
-            주소 검색
-          </button>
+        <label className="mb-1 block text-xs text-neutral-500">배송가능 단지</label>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          {zones.map((zone) => (
+            <button
+              key={zone.id}
+              type="button"
+              onClick={() => setZoneId(zone.id)}
+              className={`rounded-lg border py-2.5 text-sm ${
+                zoneId === zone.id
+                  ? "border-primary bg-primary-bg text-primary"
+                  : "border-neutral-200 text-neutral-600"
+              }`}
+            >
+              {zone.name}
+            </button>
+          ))}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="relative">

@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { submitOnboarding } from "./actions";
 import Spinner from "@/components/Spinner";
 
-declare global {
-  interface Window {
-    daum?: {
-      Postcode: new (options: {
-        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void;
-      }) => { open: () => void };
-    };
-  }
-}
+type Zone = { id: string; name: string };
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -26,27 +18,15 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
 
-export default function OnboardingClient() {
+export default function OnboardingClient({ zones }: { zones: Zone[] }) {
   const [role] = useState<"b2c" | "b2b">("b2c");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
-  const [baseAddress, setBaseAddress] = useState("");
+  const [zoneId, setZoneId] = useState<string>("");
   const [dong, setDong] = useState("");
   const [ho, setHo] = useState("");
   const router = useRouter();
-
-  function openAddressSearch() {
-    if (!window.daum) {
-      alert("주소 검색을 불러오는 중이에요. 잠시 후 다시 시도해주세요");
-      return;
-    }
-    new window.daum.Postcode({
-      oncomplete: (data) => {
-        setBaseAddress(data.roadAddress || data.jibunAddress);
-      },
-    }).open();
-  }
 
   function handleHoBlur() {
     if (ho && /^\d+$/.test(ho)) {
@@ -55,13 +35,14 @@ export default function OnboardingClient() {
   }
 
   async function handleSubmit(formData: FormData) {
+    const zone = zones.find((z) => z.id === zoneId);
     formData.set("role", role);
     formData.set("phone", phone);
     const paddedHo = ho && /^\d+$/.test(ho) ? ho.padStart(4, "0") : ho;
-    formData.set("base_address", baseAddress);
+    formData.set("delivery_zone_id", zoneId);
     formData.set("address_dong", dong);
     formData.set("address_ho", paddedHo);
-    formData.set("address", `${baseAddress} ${dong}동 ${paddedHo}호`.trim());
+    formData.set("address", `${zone?.name ?? ""} ${dong}동 ${paddedHo}호`.trim());
     setPending(true);
     setError(null);
     try {
@@ -78,7 +59,7 @@ export default function OnboardingClient() {
     }
   }
 
-  const canSubmit = baseAddress && dong && ho;
+  const canSubmit = zoneId && dong && ho;
 
   return (
     <form action={handleSubmit} className="space-y-4">
@@ -105,23 +86,30 @@ export default function OnboardingClient() {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">주소</label>
-        <div className="flex gap-2 mb-2">
-          <input
-            value={baseAddress}
-            readOnly
-            placeholder="주소 검색을 눌러주세요"
-            className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
-          />
-          <button
-            type="button"
-            onClick={openAddressSearch}
-            className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm whitespace-nowrap"
-          >
-            주소 검색
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
+        <label className="mb-1 block text-xs text-neutral-500">배송가능 단지</label>
+        {zones.length === 0 ? (
+          <p className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+            현재 등록된 배송가능 단지가 없어요. 잠시 후 다시 시도해주세요
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {zones.map((zone) => (
+              <button
+                key={zone.id}
+                type="button"
+                onClick={() => setZoneId(zone.id)}
+                className={`rounded-lg border py-2.5 text-sm ${
+                  zoneId === zone.id
+                    ? "border-primary bg-primary-bg text-primary"
+                    : "border-neutral-200 text-neutral-600"
+                }`}
+              >
+                {zone.name}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <div className="relative">
             <input
               value={dong}

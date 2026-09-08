@@ -24,10 +24,12 @@ export async function submitOnboarding(formData: FormData): Promise<Result> {
     }
 
     if (role === "b2c") {
-      const baseAddress = String(formData.get("base_address") ?? "").trim();
+      const deliveryZoneId = String(formData.get("delivery_zone_id") ?? "").trim();
       const addressDong = String(formData.get("address_dong") ?? "").trim();
       const addressHo = String(formData.get("address_ho") ?? "").trim();
       const entrancePasswordRaw = String(formData.get("entrance_password") ?? "").trim();
+
+      if (!deliveryZoneId) throw new Error("배송가능 단지를 선택해주세요");
 
       const { error } = await supabase.from("account").insert({
         role: "b2c",
@@ -36,7 +38,7 @@ export async function submitOnboarding(formData: FormData): Promise<Result> {
         name,
         phone,
         address,
-        base_address: baseAddress || null,
+        delivery_zone_id: deliveryZoneId,
         address_dong: addressDong || null,
         address_ho: addressHo || null,
         entrance_password: entrancePasswordRaw ? encryptSensitive(entrancePasswordRaw) : null,
