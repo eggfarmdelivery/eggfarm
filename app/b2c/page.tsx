@@ -61,7 +61,7 @@ export default async function B2CHome() {
                 href={`/b2c/order?campaign=${campaign.id}`}
                 className="block overflow-hidden rounded-xl border border-neutral-200"
               >
-                <div className="relative h-20 w-full bg-neutral-100">
+                <div className="relative h-32 w-full bg-neutral-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={campaign.photo_url ?? "/icon.png"}
