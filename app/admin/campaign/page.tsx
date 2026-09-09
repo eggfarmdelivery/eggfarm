@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/adminAuth";
-import { getAllCampaigns, getCampaignProductLimits, getCampaignStatus } from "@/lib/campaign";
+import { getAllCampaigns, getCampaignProductLimits, getCampaignZoneIds, getCampaignStatus } from "@/lib/campaign";
 import CampaignClient from "./CampaignClient";
 
 export default async function CampaignPage() {
@@ -13,8 +13,9 @@ export default async function CampaignPage() {
   const campaignsWithInfo = await Promise.all(
     campaigns.map(async (campaign) => {
       const productLimits = await getCampaignProductLimits(campaign.id);
+      const zoneIds = await getCampaignZoneIds(campaign.id);
       const status = await getCampaignStatus(campaign, productLimits);
-      return { campaign, productLimits, status };
+      return { campaign, productLimits, zoneIds, status };
     })
   );
 
@@ -24,6 +25,12 @@ export default async function CampaignPage() {
     .eq("is_active", true)
     .order("base_price", { ascending: false });
 
+  const { data: zones } = await supabase
+    .from("delivery_zone")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
   return (
     <div className="pb-10">
       <header className="flex items-center gap-2 px-5 py-4">
@@ -32,7 +39,11 @@ export default async function CampaignPage() {
         </Link>
         <h1 className="text-base font-medium">캠페인 관리</h1>
       </header>
-      <CampaignClient campaigns={campaignsWithInfo} products={activeProducts ?? []} />
+      <CampaignClient
+        campaigns={campaignsWithInfo}
+        products={activeProducts ?? []}
+        zones={zones ?? []}
+      />
     </div>
   );
 }

@@ -39,7 +39,7 @@ export default function OrderForm({
   const [pending, setPending] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
   const [fullyPaidByCredit, setFullyPaidByCredit] = useState(false);
-  const [creditMode, setCreditMode] = useState<CreditMode>(credit > 0 ? "full" : "none");
+  const [creditMode, setCreditMode] = useState<CreditMode>("none");
   const [partialCreditInput, setPartialCreditInput] = useState("");
   const router = useRouter();
 
@@ -127,15 +127,29 @@ export default function OrderForm({
             {p.soldOut ? (
               <span className="shrink-0 text-xs text-neutral-400">주문 불가</span>
             ) : (
-              <QuantityStepper
-                name={`qty_${p.id}`}
-                value={qty[p.id] ?? 0}
-                onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
-                max={p.perPersonLimit ?? undefined}
-                limitMessage={
-                  p.perPersonLimit ? `1인당 최대 ${p.perPersonLimit}판까지예요` : undefined
-                }
-              />
+              (() => {
+                const caps = [p.perPersonLimit, p.remainingStock].filter(
+                  (v): v is number => v !== null
+                );
+                const effectiveMax = caps.length ? Math.min(...caps) : undefined;
+                const limitMessage =
+                  effectiveMax !== undefined &&
+                  p.remainingStock !== null &&
+                  effectiveMax === p.remainingStock
+                    ? `재고가 ${p.remainingStock}판 남았어요`
+                    : p.perPersonLimit
+                      ? `1인당 최대 ${p.perPersonLimit}판까지예요`
+                      : undefined;
+                return (
+                  <QuantityStepper
+                    name={`qty_${p.id}`}
+                    value={qty[p.id] ?? 0}
+                    onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
+                    max={effectiveMax}
+                    limitMessage={limitMessage}
+                  />
+                );
+              })()
             )}
           </div>
         ))}
@@ -206,7 +220,7 @@ export default function OrderForm({
         )}
         <div className="flex items-baseline justify-between border-t border-neutral-200 pt-1.5">
           <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
-          <span className="text-xl font-semibold text-primary">
+          <span className="text-xl font-semibold text-red-500">
             {remainingCash.toLocaleString()}원
           </span>
         </div>

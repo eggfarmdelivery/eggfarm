@@ -157,13 +157,27 @@ export function statusLabel(status: CampaignStatus): string {
   }
 }
 
+// 캠페인에 지정된 배송가능 단지 id 목록 (반드시 1개 이상 지정됨)
+export async function getCampaignZoneIds(campaignId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("campaign_zone")
+    .select("delivery_zone_id")
+    .eq("campaign_id", campaignId);
+  return (data ?? []).map((r) => r.delivery_zone_id);
+}
+
 // 지금 실제로 주문 가능한(오픈중) 캠페인들 - 구매자 홈 카드용, 여러 개 동시 노출 가능
-export async function getOpenCampaigns(): Promise<
-  { campaign: Campaign; productLimits: CampaignProductLimit[] }[]
-> {
+// zoneId가 주어지면 그 단지가 지정된 캠페인만 반환(단지 미포함 캠페인은 아예 안 보임)
+export async function getOpenCampaigns(
+  zoneId?: string | null
+): Promise<{ campaign: Campaign; productLimits: CampaignProductLimit[] }[]> {
   const all = await getAllCampaigns();
   const result: { campaign: Campaign; productLimits: CampaignProductLimit[] }[] = [];
   for (const campaign of all) {
+    if (zoneId) {
+      const zoneIds = await getCampaignZoneIds(campaign.id);
+      if (!zoneIds.includes(zoneId)) continue;
+    }
     const productLimits = await getCampaignProductLimits(campaign.id);
     const status = await getCampaignStatus(campaign, productLimits);
     if (status === "open") result.push({ campaign, productLimits });
@@ -172,8 +186,10 @@ export async function getOpenCampaigns(): Promise<
 }
 
 // 최근 N일 이내 생성된 캠페인 전부(마감/조기마감 포함) - 구매자 홈에서 "운영 이력"을 보여주기 위함
+// zoneId가 주어지면 그 단지가 지정된 캠페인만 반환
 export async function getRecentCampaigns(
-  days = 7
+  days = 7,
+  zoneId?: string | null
 ): Promise<
   { campaign: Campaign; productLimits: CampaignProductLimit[]; status: CampaignStatus }[]
 > {
@@ -186,6 +202,10 @@ export async function getRecentCampaigns(
     status: CampaignStatus;
   }[] = [];
   for (const campaign of recent) {
+    if (zoneId) {
+      const zoneIds = await getCampaignZoneIds(campaign.id);
+      if (!zoneIds.includes(zoneId)) continue;
+    }
     const productLimits = await getCampaignProductLimits(campaign.id);
     const status = await getCampaignStatus(campaign, productLimits);
     result.push({ campaign, productLimits, status });

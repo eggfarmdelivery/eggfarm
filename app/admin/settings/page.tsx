@@ -4,6 +4,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getConfigs } from "@/lib/settings";
 import SettingsClient from "./SettingsClient";
+import TestAccountReset from "./TestAccountReset";
 
 export default async function SettingsPage() {
   await requireAdmin();
@@ -25,6 +26,9 @@ export default async function SettingsPage() {
         <h1 className="text-base font-medium">운영 설정</h1>
       </header>
       <SettingsClient config={config} />
+      <div className="px-5">
+        <TestAccountReset />
+      </div>
     </div>
   );
 }

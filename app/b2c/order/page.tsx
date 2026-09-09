@@ -10,6 +10,7 @@ import {
   getOpenCampaigns,
   getCampaignStatus,
   getCampaignProductLimits,
+  getCampaignZoneIds,
   getCampaignRemainingStock,
   isCampaignProductSoldOut,
   isOpenStatus,
@@ -30,20 +31,34 @@ export default async function GeneralOrderPage({
   const accountId = await getAccountId("b2c");
   const sessionSupabase = await createClient();
 
+  const { data: account } = await sessionSupabase
+    .from("account")
+    .select("address, nickname, phone, delivery_zone_id")
+    .eq("id", accountId)
+    .single();
+  const myZoneId = account?.delivery_zone_id ?? null;
+
   // 특정 캠페인이 지정됐으면 그걸, 아니면 지금 오픈중인 캠페인 중 첫 번째를 사용
   // (여러 캠페인이 동시에 열려있을 수 있음 - 홈화면 카드에서 캠페인별로 링크를 눌러 들어옴)
   let campaign: Campaign | null = null;
   let productLimits: CampaignProductLimit[] = [];
   let campaignStatus: CampaignStatus | "none" = "none";
+  let zoneMismatch = false;
 
   if (campaignIdParam) {
     campaign = await getCampaignById(campaignIdParam);
     if (campaign) {
-      productLimits = await getCampaignProductLimits(campaign.id);
-      campaignStatus = await getCampaignStatus(campaign, productLimits);
+      const zoneIds = await getCampaignZoneIds(campaign.id);
+      if (!myZoneId || !zoneIds.includes(myZoneId)) {
+        zoneMismatch = true;
+        campaign = null;
+      } else {
+        productLimits = await getCampaignProductLimits(campaign.id);
+        campaignStatus = await getCampaignStatus(campaign, productLimits);
+      }
     }
   } else {
-    const open = await getOpenCampaigns();
+    const open = await getOpenCampaigns(myZoneId);
     if (open.length > 0) {
       campaign = open[0].campaign;
       productLimits = open[0].productLimits;
@@ -73,12 +88,6 @@ export default async function GeneralOrderPage({
     })
   );
 
-  const { data: account } = await sessionSupabase
-    .from("account")
-    .select("address, nickname, phone")
-    .eq("id", accountId)
-    .single();
-
   const { data: ledger } = await supabase
     .from("credit_ledger")
     .select("delta")
@@ -101,7 +110,15 @@ export default async function GeneralOrderPage({
         <h1 className="text-base font-medium">일반배송 주문</h1>
       </header>
 
-      {isOpenStatus(campaignStatus as CampaignStatus) && campaign ? (
+      {zoneMismatch ? (
+        <div className="px-5">
+          <div className="rounded-xl bg-neutral-50 px-4 py-8 text-center">
+            <p className="text-sm text-neutral-600">
+              이 캠페인은 회원님의 단지에서는 이용할 수 없어요
+            </p>
+          </div>
+        </div>
+      ) : isOpenStatus(campaignStatus as CampaignStatus) && campaign ? (
         <OrderForm
           campaignId={campaign.id}
           products={productsWithStock}

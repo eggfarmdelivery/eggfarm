@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { checkCampaignLimit, getCampaignProductLimits } from "@/lib/campaign";
+import { checkCampaignLimit, getCampaignProductLimits, getCampaignZoneIds } from "@/lib/campaign";
 
 type Result =
   | { success: true; remainingAmount: number }
@@ -13,6 +13,16 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const accountId = await getAccountId("b2c");
     const campaignId = String(formData.get("campaign_id") ?? "").trim();
     if (!campaignId) throw new Error("캠페인 정보가 없어요. 다시 시도해주세요");
+
+    const { data: account } = await supabase
+      .from("account")
+      .select("delivery_zone_id")
+      .eq("id", accountId)
+      .single();
+    const zoneIds = await getCampaignZoneIds(campaignId);
+    if (!account?.delivery_zone_id || !zoneIds.includes(account.delivery_zone_id)) {
+      throw new Error("이 캠페인은 회원님의 단지에서는 이용할 수 없어요");
+    }
 
     const productLimits = await getCampaignProductLimits(campaignId);
     if (productLimits.length === 0) throw new Error("이 캠페인에 포함된 상품이 없어요");

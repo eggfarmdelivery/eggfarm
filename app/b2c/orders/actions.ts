@@ -9,7 +9,7 @@ type Result = { success: true } | { success: false; error: string };
 
 // 취소 가능 여부 판단: 입금 전엔 그냥 취소(환불 불필요), 입금확인~배송준비까지는 환불방식 선택 필요
 const NO_PAYMENT_STATUSES = ["입금대기"];
-const REFUND_ELIGIBLE_STATUSES = ["입금확인완료", "배송준비"];
+const REFUND_ELIGIBLE_STATUSES = ["입금확인완료"];
 
 export async function cancelOrder(
   orderId: string,
@@ -37,27 +37,11 @@ export async function cancelOrder(
     }
     if (!refundMethod) throw new Error("환불 방법을 선택해주세요");
 
-    if (refundMethod === "credit") {
-      const { error: creditError } = await supabase.from("credit_ledger").insert({
-        account_id: accountId,
-        delta: order.total_amount,
-        reason: "주문취소환급",
-      });
-      if (creditError) throw new Error(creditError.message);
-
-      const { error } = await supabase
-        .from("b2c_order")
-        .update({ status: "환불완료" })
-        .eq("id", orderId);
-      if (error) throw new Error(error.message);
-      await logStatusChange("b2c_order", orderId, order.status, "환불완료");
-      return { success: true };
-    }
-
-    // 계좌환불: 관리자가 실제 이체 후 확정 처리
+    // 적립금/계좌 환불 모두 즉시 처리하지 않고, 관리자가 실제 환불 처리를 완료해야
+    // "환불완료"로 넘어가며(이때 적립금도 함께 지급) - 주문취소 시점엔 상태만 환불대기로 전환
     const { error } = await supabase
       .from("b2c_order")
-      .update({ status: "환불대기" })
+      .update({ status: "환불대기", refund_method: refundMethod })
       .eq("id", orderId);
     if (error) throw new Error(error.message);
     await logStatusChange("b2c_order", orderId, order.status, "환불대기");

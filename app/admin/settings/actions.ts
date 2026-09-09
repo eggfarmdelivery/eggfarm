@@ -5,6 +5,50 @@ import { requireAdmin } from "@/lib/adminAuth";
 
 type Result = { success: true } | { success: false; error: string };
 
+// ---------------------------------------------------------
+// 테스트 계정 초기화 도구 - 닉네임/전화번호로 검색 후 관련 데이터 전부 삭제
+// ---------------------------------------------------------
+export type AccountSearchResult = {
+  id: string;
+  name: string | null;
+  nickname: string | null;
+  phone: string | null;
+};
+
+export async function searchAccounts(query: string): Promise<AccountSearchResult[] | { error: string }> {
+  try {
+    await requireAdmin();
+    const q = query.trim();
+    if (!q) return [];
+    const { data, error } = await supabase
+      .from("account")
+      .select("id, name, nickname, phone")
+      .or(`nickname.ilike.%${q}%,phone.ilike.%${q}%,name.ilike.%${q}%`)
+      .limit(10);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "검색 중 오류가 발생했어요" };
+  }
+}
+
+export async function resetTestAccount(accountId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    await supabase.from("credit_ledger").delete().eq("account_id", accountId);
+    await supabase.from("b2b_account_price").delete().eq("account_id", accountId);
+    await supabase.from("b2b_price_history").delete().eq("account_id", accountId);
+    await supabase.from("b2b_settlement").delete().eq("account_id", accountId);
+    await supabase.from("b2c_order").delete().eq("account_id", accountId);
+    await supabase.from("b2b_order").delete().eq("account_id", accountId);
+    const { error } = await supabase.from("account").delete().eq("id", accountId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "초기화 중 오류가 발생했어요" };
+  }
+}
+
 export async function updateSettings(formData: FormData): Promise<Result> {
   try {
     await requireAdmin();

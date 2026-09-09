@@ -10,9 +10,11 @@ import type { Campaign, CampaignProductLimit, CampaignStatus } from "@/lib/campa
 import { statusLabel } from "@/lib/campaign";
 
 type Product = { id: string; name: string; base_price: number };
+type Zone = { id: string; name: string };
 type CampaignInfo = {
   campaign: Campaign;
   productLimits: CampaignProductLimit[];
+  zoneIds: string[];
   status: CampaignStatus;
 };
 
@@ -40,18 +42,21 @@ type ProductLimitState = { selected: boolean; stockLimit: string; perPersonLimit
 
 function CampaignForm({
   products,
+  zones,
   initial,
   onSubmit,
   onCancel,
   submitLabel,
 }: {
   products: Product[];
+  zones: Zone[];
   initial?: {
     title: string;
     opensAt: string;
     closesAt: string;
     deliveryDate: string;
     limitsByProduct: Record<string, { stockLimit: number; perPersonLimit: number | null }>;
+    zoneIds: string[];
   };
   onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
   onCancel?: () => void;
@@ -87,6 +92,7 @@ function CampaignForm({
     }
     return state;
   });
+  const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>(initial?.zoneIds ?? []);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -94,6 +100,12 @@ function CampaignForm({
 
   function updateProduct(id: string, patch: Partial<ProductLimitState>) {
     setProductState((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  }
+
+  function toggleZone(id: string) {
+    setSelectedZoneIds((prev) =>
+      prev.includes(id) ? prev.filter((z) => z !== id) : [...prev, id]
+    );
   }
 
   async function handleSubmit(formData: FormData) {
@@ -113,6 +125,7 @@ function CampaignForm({
       formData.set(`stock_limit_${p.id}`, state.stockLimit);
       formData.set(`per_person_limit_${p.id}`, state.perPersonLimit);
     }
+    selectedZoneIds.forEach((id) => formData.append("zone_ids", id));
     const result = await onSubmit(formData);
     setPending(false);
     if (!result.success) {
@@ -177,6 +190,32 @@ function CampaignForm({
           onChange={(e) => setDeliveryDate(e.target.value)}
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">
+          배송가능 단지 (지정 안 된 단지 주민은 주문할 수 없어요)
+        </label>
+        {zones.length === 0 ? (
+          <p className="text-xs text-neutral-400">등록된 단지가 없어요</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {zones.map((z) => (
+              <button
+                key={z.id}
+                type="button"
+                onClick={() => toggleZone(z.id)}
+                className={`rounded-lg border py-2 text-sm ${
+                  selectedZoneIds.includes(z.id)
+                    ? "border-primary bg-primary-bg text-primary"
+                    : "border-neutral-200 text-neutral-600"
+                }`}
+              >
+                {z.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
@@ -287,9 +326,11 @@ function CampaignForm({
 export default function CampaignClient({
   campaigns,
   products,
+  zones,
 }: {
   campaigns: CampaignInfo[];
   products: Product[];
+  zones: Zone[];
 }) {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -332,6 +373,7 @@ export default function CampaignClient({
           <p className="mb-2 text-sm font-medium">캠페인 수정</p>
           <CampaignForm
             products={products}
+            zones={zones}
             initial={{
               title: editingInfo.campaign.title ?? "",
               opensAt: toLocalInputValue(new Date(editingInfo.campaign.opens_at)),
@@ -345,6 +387,7 @@ export default function CampaignClient({
                   { stockLimit: l.stock_limit, perPersonLimit: l.per_person_limit },
                 ])
               ),
+              zoneIds: editingInfo.zoneIds,
             }}
             onSubmit={(formData) => updateCampaign(editingInfo.campaign.id, formData)}
             onCancel={() => setEditingId(null)}
@@ -356,6 +399,7 @@ export default function CampaignClient({
           <p className="mb-2 text-sm font-medium">새 캠페인</p>
           <CampaignForm
             products={products}
+            zones={zones}
             onSubmit={openCampaign}
             onCancel={() => setCreating(false)}
             submitLabel="캠페인 오픈하기"
@@ -394,7 +438,7 @@ export default function CampaignClient({
             )}
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500">
               <Clock size={13} className="shrink-0" />
-              마감 {new Date(campaign.closes_at).toLocaleString("ko-KR")}
+              마감 {new Date(campaign.closes_at).toLocaleString("ko-KR", { hour12: false })}
             </p>
             <div className="mt-3 flex gap-2">
               <button

@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { getConfigs } from "@/lib/settings";
 import { getRecentCampaigns, isOpenStatus, statusLabel } from "@/lib/campaign";
+import { supabase } from "@/lib/supabase";
+import { getAccountId } from "@/lib/getAccount";
 import BottomNav from "@/components/BottomNav";
 
 function formatTimeLeft(closesAt: string): string {
@@ -18,10 +20,17 @@ function formatTimeLeft(closesAt: string): string {
 }
 
 export default async function B2CHome() {
+  const accountId = await getAccountId("b2c");
+  const { data: account } = await supabase
+    .from("account")
+    .select("delivery_zone_id")
+    .eq("id", accountId)
+    .single();
+
   const notice = await getConfigs(["notice_enabled", "notice_text"]);
   const showNotice = notice.notice_enabled === "true" && notice.notice_text;
 
-  const recentCampaigns = await getRecentCampaigns(7);
+  const recentCampaigns = await getRecentCampaigns(7, account?.delivery_zone_id ?? null);
 
   return (
     <div className="pb-32">

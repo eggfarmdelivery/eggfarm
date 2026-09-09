@@ -57,6 +57,17 @@ export default function PaymentInfoModal({
                 {copied ? "복사됨" : "복사"}
               </button>
             </div>
+            <a
+              href={`supertoss://send?bank=${encodeURIComponent(
+                bankInfo.bank_name
+              )}&accountNo=${bankInfo.bank_account}&amount=${amount}`}
+              className="mt-3 flex w-full items-center justify-center rounded-lg border border-primary-dark/20 bg-white py-2.5 text-sm font-medium text-primary-dark"
+            >
+              토스로 송금하기
+            </a>
+            <p className="mt-2 text-center text-[11px] text-primary-dark/60">
+              토스 앱이 없다면 위 계좌를 복사해서 이용 중인 은행 앱으로 입금해주세요
+            </p>
           </div>
         ) : (
           <p className="mb-4 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-500">

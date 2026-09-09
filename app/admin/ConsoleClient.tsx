@@ -14,9 +14,10 @@ import {
   confirmB2BPayment,
   revertB2CStatus,
   revertB2BStatus,
-  confirmBankRefund,
+  confirmRefund,
 } from "./actions";
 import Spinner from "@/components/Spinner";
+import { addTimestampWatermark } from "@/lib/watermark";
 
 type B2COrder = {
   id: string;
@@ -27,8 +28,9 @@ type B2COrder = {
   created_at: string;
   campaign_id: string | null;
   campaign: { title: string | null } | null;
-  account: { name: string | null; phone: string | null; nickname: string | null } | null;
+  account: { name: string | null; phone: string | null; nickname: string | null; address: string | null } | null;
   b2c_order_item: { quantity: number; product: { name: string } | null }[];
+  refund_method: "credit" | "bank" | null;
 };
 
 type B2BOrder = {
@@ -45,19 +47,26 @@ function formatTime(iso: string) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
 function PhotoUploadButton({
   orderId,
   label,
+  confirmAddress,
+  confirmItemsSummary,
   onSubmit,
 }: {
   orderId: string;
   label: string;
+  confirmAddress?: string | null;
+  confirmItemsSummary?: string;
   onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [pending, setPending] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -66,15 +75,32 @@ function PhotoUploadButton({
     if (!file) return;
     setPending(true);
     try {
+      const watermarked = await addTimestampWatermark(file);
+      setPendingFile(watermarked);
+      setPreviewUrl(URL.createObjectURL(watermarked));
+    } catch {
+      alert("사진 처리 중 오류가 발생했어요");
+    } finally {
+      setPending(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handleConfirm() {
+    if (!pendingFile) return;
+    setPending(true);
+    try {
       const formData = new FormData();
       formData.set("order_id", orderId);
-      formData.set("photo", file);
+      formData.set("photo", pendingFile);
       const result = await onSubmit(formData);
       if (!result.success) {
         alert(result.error ?? "처리 중 오류가 발생했어요");
         setPending(false);
         return;
       }
+      setPendingFile(null);
+      setPreviewUrl(null);
       router.refresh();
     } catch {
       alert("처리 중 알 수 없는 오류가 발생했어요");
@@ -91,7 +117,7 @@ function PhotoUploadButton({
         className="flex items-center gap-1.5 text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
       >
         {pending && <Spinner className="h-3 w-3" />}
-        {pending ? "업로드 중..." : label}
+        {pending ? "처리 중..." : label}
       </button>
       <input
         ref={fileRef}
@@ -101,6 +127,52 @@ function PhotoUploadButton({
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <p className="mb-3 text-sm font-medium">이 내용으로 배송완료 처리할까요?</p>
+            {(confirmAddress || confirmItemsSummary) && (
+              <div className="mb-3 rounded-lg bg-neutral-50 p-3 text-sm">
+                {confirmAddress && (
+                  <p className="mb-1">
+                    <span className="text-neutral-500">배송지</span> {confirmAddress}
+                  </p>
+                )}
+                {confirmItemsSummary && (
+                  <p>
+                    <span className="text-neutral-500">상품</span> {confirmItemsSummary}
+                  </p>
+                )}
+              </div>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl} alt="배송완료 사진" className="mb-4 w-full rounded-lg" />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  setPendingFile(null);
+                  setPreviewUrl(null);
+                }}
+                className="flex-1 rounded-lg border border-neutral-300 py-2.5 text-sm"
+              >
+                다시 선택
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={handleConfirm}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {pending && <Spinner className="h-3 w-3" />}
+                {pending ? "처리 중..." : "확인, 배송완료 처리"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -210,15 +282,23 @@ function B2COrderCard({
           </button>
         )}
         {(order.status === "배송중" || order.status === "배송위임") && (
-          <PhotoUploadButton orderId={order.id} label="배송완료 사진" onSubmit={markB2CDelivered} />
+          <PhotoUploadButton
+            orderId={order.id}
+            label="배송완료 사진"
+            confirmAddress={order.account?.address}
+            confirmItemsSummary={(order.b2c_order_item ?? [])
+              .map((i) => `${i.product?.name ?? "상품"} ${i.quantity}판`)
+              .join(", ")}
+            onSubmit={markB2CDelivered}
+          />
         )}
         {order.status === "환불대기" && (
           <button
             disabled={busy}
-            onClick={() => run(() => confirmBankRefund(order.id))}
+            onClick={() => run(() => confirmRefund(order.id))}
             className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
           >
-            계좌이체 완료 처리
+            {order.refund_method === "credit" ? "적립금 지급 처리" : "계좌이체 완료 처리"}
           </button>
         )}
         {["입금확인완료", "배송중", "배송완료", "승인거절"].includes(order.status) && (

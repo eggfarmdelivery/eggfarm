@@ -202,9 +202,31 @@ export async function revertB2BStatus(orderId: string): Promise<Result> {
 // ---------------------------------------------------------
 // 계좌환불 완료 처리 (사용자가 "계좌로 환불받기"를 선택한 경우, 관리자가 실제 이체 후 처리)
 // ---------------------------------------------------------
-export async function confirmBankRefund(orderId: string): Promise<Result> {
+// ---------------------------------------------------------
+// 환불 완료 처리 (사용자가 선택한 환불방법에 따라 분기)
+// - 적립금: 이 시점에 크레딧을 지급(주문취소 시점엔 지급 안 함)
+// - 계좌: 관리자가 실제 이체 완료 후 확정 처리
+// ---------------------------------------------------------
+export async function confirmRefund(orderId: string): Promise<Result> {
   try {
     await requireAdmin();
+    const { data: order, error: fetchError } = await supabase
+      .from("b2c_order")
+      .select("account_id, status, total_amount, refund_method")
+      .eq("id", orderId)
+      .single();
+    if (fetchError || !order) throw new Error("주문을 찾을 수 없어요");
+    if (order.status !== "환불대기") throw new Error("환불대기 상태가 아니에요");
+
+    if (order.refund_method === "credit") {
+      const { error: creditError } = await supabase.from("credit_ledger").insert({
+        account_id: order.account_id,
+        delta: order.total_amount,
+        reason: "주문취소환급",
+      });
+      if (creditError) throw new Error(creditError.message);
+    }
+
     await updateB2CStatus(orderId, "환불대기", "환불완료", {
       refund_completed_at: new Date().toISOString(),
     });
