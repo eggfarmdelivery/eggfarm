@@ -64,12 +64,14 @@ export async function getCampaignProductIds(campaignId: string): Promise<string[
 
 // 이 캠페인 안에서 지금까지 팔린 수량(취소 제외) - 재고/한도는 캠페인별로 완전히 독립
 // (조인된 테이블 컬럼으로 필터링하는 대신, 이 캠페인의 주문id를 먼저 뽑아 명확하게 필터링)
-async function getCampaignSold(campaignId: string, productId: string): Promise<number> {
+export async function getCampaignSold(campaignId: string, productId: string): Promise<number> {
   const { data: orders } = await supabase
     .from("b2c_order")
     .select("id")
     .eq("campaign_id", campaignId)
-    .neq("status", "취소");
+    .neq("status", "취소")
+    .neq("status", "환불대기")
+    .neq("status", "환불완료");
   const orderIds = (orders ?? []).map((o) => o.id);
   if (orderIds.length === 0) return 0;
 
@@ -115,6 +117,29 @@ export async function checkCampaignLimit(
   }
   const sold = await getCampaignSold(campaignId, limit.product_id);
   if (sold + requestedQty > limit.stock_limit) {
+    return { allowed: false, reason: "재고가 모두 소진됐어요" };
+  }
+  return { allowed: true };
+}
+
+// 이미 존재하는 주문의 수량을 바꿀 때 검사 - sold에는 이 주문의 기존 수량이 이미 포함돼있으므로
+// 증가분(delta)만큼만 재고에 추가로 반영해서 검사함(이중계산 방지)
+export async function checkCampaignQuantityChange(
+  campaignId: string,
+  limit: CampaignProductLimit,
+  oldQty: number,
+  newQty: number
+): Promise<CampaignLimitCheckResult> {
+  if (newQty <= oldQty) return { allowed: true };
+  if (limit.per_person_limit && newQty > limit.per_person_limit) {
+    return {
+      allowed: false,
+      reason: `1인당 최대 ${limit.per_person_limit}판까지 주문 가능해요`,
+    };
+  }
+  const sold = await getCampaignSold(campaignId, limit.product_id);
+  const delta = newQty - oldQty;
+  if (sold + delta > limit.stock_limit) {
     return { allowed: false, reason: "재고가 모두 소진됐어요" };
   }
   return { allowed: true };

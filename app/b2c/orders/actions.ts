@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { checkQuantityChange } from "@/lib/limits";
+import { getCampaignProductLimits, checkCampaignQuantityChange } from "@/lib/campaign";
 import { logStatusChange } from "@/lib/statusLog";
 
 type Result = { success: true } | { success: false; error: string };
@@ -60,7 +60,7 @@ export async function updateOrderQuantities(
 
     const { data: order, error: orderError } = await supabase
       .from("b2c_order")
-      .select("id, account_id, status")
+      .select("id, account_id, status, campaign_id")
       .eq("id", orderId)
       .single();
     if (orderError || !order) throw new Error("주문을 찾을 수 없어요");
@@ -69,13 +69,23 @@ export async function updateOrderQuantities(
       throw new Error("입금 확인 전에만 수량을 수정할 수 있어요");
     }
 
-    let anyOverflow = false;
+    const productLimits = order.campaign_id
+      ? await getCampaignProductLimits(order.campaign_id)
+      : [];
+
     for (const item of items) {
       if (item.newQty === item.oldQty) continue;
       if (item.newQty < 1) throw new Error("수량은 최소 1판 이상이어야 해요");
-      const result = await checkQuantityChange(item.productId, item.oldQty, item.newQty);
-      if (!result.allowed) throw new Error(result.reason ?? "수량을 변경할 수 없어요");
-      if (result.isOverflow) anyOverflow = true;
+      const limit = productLimits.find((l) => l.product_id === item.productId);
+      if (order.campaign_id && limit) {
+        const result = await checkCampaignQuantityChange(
+          order.campaign_id,
+          limit,
+          item.oldQty,
+          item.newQty
+        );
+        if (!result.allowed) throw new Error(result.reason ?? "수량을 변경할 수 없어요");
+      }
     }
 
     for (const item of items) {
@@ -90,7 +100,7 @@ export async function updateOrderQuantities(
     const newTotal = items.reduce((sum, i) => sum + i.newQty * i.unitPrice, 0);
     const { error: totalError } = await supabase
       .from("b2c_order")
-      .update({ total_amount: newTotal, is_overflow: anyOverflow })
+      .update({ total_amount: newTotal })
       .eq("id", orderId);
     if (totalError) throw new Error(totalError.message);
 
