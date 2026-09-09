@@ -1,6 +1,7 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { checkCampaignLimit, getCampaignProductLimits, getCampaignZoneIds } from "@/lib/campaign";
 
@@ -14,7 +15,10 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const campaignId = String(formData.get("campaign_id") ?? "").trim();
     if (!campaignId) throw new Error("캠페인 정보가 없어요. 다시 시도해주세요");
 
-    const { data: account } = await supabase
+    // account 테이블은 RLS가 걸려있어 세션(로그인 쿠키) 있는 클라이언트로 조회해야 함
+    // (anon 클라이언트로 조회하면 항상 null이 되어 매번 단지 불일치로 잘못 처리되던 버그 수정)
+    const sessionSupabase = await createClient();
+    const { data: account } = await sessionSupabase
       .from("account")
       .select("delivery_zone_id")
       .eq("id", accountId)
