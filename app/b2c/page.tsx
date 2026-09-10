@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import BottomNav from "@/components/BottomNav";
 import KakaoShareButton from "@/components/KakaoShareButton";
+import CampaignShareOverlay from "@/components/CampaignShareOverlay";
 
 function formatTimeLeft(closesAt: string): string {
   const diffMs = new Date(closesAt).getTime() - Date.now();
@@ -66,22 +67,11 @@ export default async function B2CHome() {
                 className="block overflow-hidden rounded-xl border border-neutral-200"
               >
                 <div className="relative h-32 w-full bg-neutral-100">
-                  <div
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    className="absolute right-1.5 top-1.5 z-10 rounded-full bg-black/50 p-1.5"
-                  >
-                    <KakaoShareButton
-                      title={campaign.title ?? "일반배송 캠페인"}
-                      description="에그팜에서 같이 주문해요"
-                      imageUrl={campaign.photo_url ?? "https://eggfarm.vercel.app/icon.png"}
-                      path={`/b2c/order?campaign=${campaign.id}`}
-                      label=""
-                      className="text-white"
-                    />
-                  </div>
+                  <CampaignShareOverlay
+                    title={campaign.title ?? "일반배송 캠페인"}
+                    imageUrl={campaign.photo_url ?? "https://eggfarm.vercel.app/icon.png"}
+                    path={`/b2c/order?campaign=${campaign.id}`}
+                  />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={campaign.photo_url ?? "/icon.png"}
