@@ -67,30 +67,17 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
 
-    // 크레딧은 쿠폰처럼 사용자가 화면에서 직접 선택한 금액만큼만 사용(자동 전액차감 아님)
-    const { data: ledger } = await supabase
-      .from("credit_ledger")
-      .select("delta")
-      .eq("account_id", accountId);
-    const balance = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
-    const requestedCreditUse = Math.max(0, Number(formData.get("credit_to_use") ?? 0));
-    if (requestedCreditUse > balance) {
-      throw new Error("보유 크레딧보다 많은 금액을 사용할 수 없어요");
-    }
-    const creditUsed = Math.max(0, Math.min(requestedCreditUse, balance, totalAmount));
-    const remainingAmount = totalAmount - creditUsed;
-
+    // 크레딧 기능은 당분간 보류 - 항상 무통장입금(전액 입금대기)으로 처리
     const { data: order, error } = await supabase
       .from("b2c_order")
       .insert({
         account_id: accountId,
         campaign_id: campaignId,
         order_type: "일반",
-        status: remainingAmount > 0 ? "입금대기" : "입금확인완료",
+        status: "입금대기",
         is_overflow: false,
         total_amount: totalAmount,
-        credit_used: creditUsed,
-        ...(remainingAmount <= 0 ? { payment_confirmed_at: new Date().toISOString() } : {}),
+        credit_used: 0,
       })
       .select("id")
       .single();
@@ -101,16 +88,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const { error: itemError } = await supabase.from("b2c_order_item").insert(itemsWithOrderId);
     if (itemError) throw new Error(itemError.message);
 
-    if (creditUsed > 0) {
-      const { error: creditError } = await supabase.from("credit_ledger").insert({
-        account_id: accountId,
-        delta: -creditUsed,
-        reason: "주문결제",
-      });
-      if (creditError) throw new Error(creditError.message);
-    }
-
-    return { success: true, remainingAmount };
+    return { success: true, remainingAmount: totalAmount };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "주문 처리 중 오류가 발생했어요" };
   }

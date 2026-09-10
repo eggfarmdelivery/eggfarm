@@ -29,16 +29,10 @@ export default async function MyPage() {
         .single()
     : { data: null };
 
-  const { data: ledger } = await supabase
-    .from("credit_ledger")
-    .select("delta")
-    .eq("account_id", accountId);
-  const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
-
   const { data: rawOrders } = await supabase
     .from("b2c_order")
     .select(
-      "id, order_type, status, total_amount, credit_used, delivery_photo_url, payment_confirmed_at, created_at, campaign_id, campaign(delivery_date), b2c_order_item(id, quantity, unit_price, product_id, product(name, photo_url))"
+      "id, order_type, status, total_amount, delivery_photo_url, payment_confirmed_at, created_at, campaign_id, campaign(delivery_date), b2c_order_item(id, quantity, unit_price, product_id, product(name, photo_url))"
     )
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });
@@ -88,9 +82,6 @@ export default async function MyPage() {
             />
             <div>
               <p className="text-base font-medium">{account?.name ?? "-"}</p>
-              <p className="mt-0.5 text-sm text-neutral-500">
-                크레딧 {credit.toLocaleString()}원
-              </p>
             </div>
           </div>
           <Link href="/b2c/mypage/edit" aria-label="회원정보 수정" className="p-1.5 text-neutral-500">

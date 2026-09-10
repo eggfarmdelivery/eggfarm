@@ -25,13 +25,14 @@ type B2COrder = {
   status: string;
   is_overflow: boolean;
   total_amount: number;
-  credit_used: number | null;
+  refund_bank_name: string | null;
+  refund_account_number: string | null;
+  refund_holder_name: string | null;
   created_at: string;
   campaign_id: string | null;
   campaign: { title: string | null } | null;
   account: { name: string | null; phone: string | null; nickname: string | null; address: string | null } | null;
   b2c_order_item: { quantity: number; product: { name: string } | null }[];
-  refund_method: "credit" | "bank" | null;
 };
 
 type B2BOrder = {
@@ -244,14 +245,10 @@ function B2COrderCard({
       <p className="text-xs text-neutral-400 mb-1">{formatTime(order.created_at)}</p>
       {order.status === "환불대기" && (
         <div className="mb-2 rounded-md bg-orange-50 px-2.5 py-2 text-xs text-orange-700">
+          <p>환불할 금액 {order.total_amount.toLocaleString()}원</p>
           <p>
-            실제 환불할 금액(현금) {(order.total_amount - (order.credit_used ?? 0)).toLocaleString()}원
+            {order.refund_bank_name} {order.refund_account_number} ({order.refund_holder_name})
           </p>
-          {(order.credit_used ?? 0) > 0 && (
-            <p className="text-orange-500">
-              크레딧 {order.credit_used!.toLocaleString()}원은 이미 복원됐어요
-            </p>
-          )}
         </div>
       )}
       {order.is_overflow && (
@@ -311,7 +308,7 @@ function B2COrderCard({
             onClick={() => run(() => confirmRefund(order.id))}
             className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
           >
-            {order.refund_method === "credit" ? "적립금 지급 처리" : "계좌이체 완료 처리"}
+            계좌이체 완료 처리
           </button>
         )}
         {["입금확인완료", "배송중", "배송완료", "승인거절"].includes(order.status) && (

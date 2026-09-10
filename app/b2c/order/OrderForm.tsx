@@ -17,30 +17,23 @@ type Product = {
   remainingStock: number | null;
 };
 
-type CreditMode = "none" | "partial" | "full";
-
 export default function OrderForm({
   campaignId,
   products,
   address,
   bankInfo,
-  credit,
   depositorName,
 }: {
   campaignId: string;
   products: Product[];
   address: string | null;
   bankInfo: Record<string, string>;
-  credit: number;
   depositorName: string | null;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
-  const [fullyPaidByCredit, setFullyPaidByCredit] = useState(false);
-  const [creditMode, setCreditMode] = useState<CreditMode>("none");
-  const [partialCreditInput, setPartialCreditInput] = useState("");
   const router = useRouter();
 
   const total = products.reduce(
@@ -48,20 +41,10 @@ export default function OrderForm({
     0
   );
 
-  const partialCreditRaw = Number(partialCreditInput.replace(/\D/g, "") || 0);
-  const creditToUse =
-    creditMode === "full"
-      ? Math.min(credit, total)
-      : creditMode === "partial"
-        ? Math.max(0, Math.min(partialCreditRaw, credit, total))
-        : 0;
-  const remainingCash = Math.max(0, total - creditToUse);
-
   async function handleSubmit(formData: FormData) {
     setError(null);
     setPending(true);
     try {
-      formData.set("credit_to_use", String(creditToUse));
       formData.set("campaign_id", campaignId);
       const result = await createGeneralOrder(formData);
       if (!result.success) {
@@ -69,11 +52,7 @@ export default function OrderForm({
         setPending(false);
         return;
       }
-      if (result.remainingAmount > 0) {
-        setPaidTotal(result.remainingAmount);
-      } else {
-        setFullyPaidByCredit(true);
-      }
+      setPaidTotal(result.remainingAmount);
     } catch {
       setError("주문 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
@@ -155,75 +134,9 @@ export default function OrderForm({
         ))}
       </div>
 
-      {credit > 0 && (
-        <div className="mb-4">
-          <p className="text-xs text-neutral-500 mb-1">
-            크레딧 사용 (보유 {credit.toLocaleString()}원)
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setCreditMode("none")}
-              className={`rounded-lg border py-2 text-xs ${
-                creditMode === "none"
-                  ? "border-primary bg-primary-bg text-primary"
-                  : "border-neutral-200 text-neutral-600"
-              }`}
-            >
-              사용 안 함
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreditMode("partial")}
-              className={`rounded-lg border py-2 text-xs ${
-                creditMode === "partial"
-                  ? "border-primary bg-primary-bg text-primary"
-                  : "border-neutral-200 text-neutral-600"
-              }`}
-            >
-              일부 사용
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreditMode("full")}
-              className={`rounded-lg border py-2 text-xs ${
-                creditMode === "full"
-                  ? "border-primary bg-primary-bg text-primary"
-                  : "border-neutral-200 text-neutral-600"
-              }`}
-            >
-              전액 사용
-            </button>
-          </div>
-          {creditMode === "partial" && (
-            <input
-              value={partialCreditInput}
-              onChange={(e) => setPartialCreditInput(e.target.value)}
-              inputMode="numeric"
-              placeholder="사용할 금액을 입력해주세요"
-              className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-            />
-          )}
-        </div>
-      )}
-
-      <div className="mb-4 space-y-1 rounded-lg bg-neutral-50 p-3">
-        <div className="flex items-baseline justify-between text-sm text-neutral-500">
-          <span>상품 금액</span>
-          <span>{total.toLocaleString()}원</span>
-        </div>
-        {creditToUse > 0 && (
-          <div className="flex items-baseline justify-between text-sm text-neutral-500">
-            <span>크레딧 사용</span>
-            <span>-{creditToUse.toLocaleString()}원</span>
-          </div>
-        )}
-        <div className="flex items-baseline justify-between border-t border-neutral-200 pt-1.5">
-          <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
-          <span className="text-xl font-semibold text-red-500">
-            {remainingCash.toLocaleString()}원
-          </span>
-        </div>
+      <div className="mb-4 flex items-baseline justify-between rounded-lg bg-neutral-50 p-3">
+        <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
+        <span className="text-xl font-semibold text-red-500">{total.toLocaleString()}원</span>
       </div>
 
       {error && (
@@ -246,26 +159,8 @@ export default function OrderForm({
           bankInfo={bankInfo as BankInfo}
           amount={paidTotal}
           depositorName={depositorName}
-          onClose={() => router.push("/b2c/orders")}
+          onClose={() => router.push("/b2c/mypage")}
         />
-      )}
-
-      {fullyPaidByCredit && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-            <p className="mb-1 text-base font-medium">주문이 완료됐어요</p>
-            <p className="mb-4 text-sm text-neutral-500">
-              보유 크레딧으로 전액 결제됐어요. 입금하실 금액은 없어요
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push("/b2c/orders")}
-              className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-white"
-            >
-              확인했어요
-            </button>
-          </div>
-        </div>
       )}
     </form>
   );

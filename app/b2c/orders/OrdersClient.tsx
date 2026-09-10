@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import OrderJourney from "@/components/OrderJourney";
 import QuantityStepper from "@/components/QuantityStepper";
-import { updateOrderQuantities, cancelOrder } from "./actions";
+import { updateOrderQuantities, cancelOrder, type RefundAccount } from "./actions";
 
 type OrderItem = {
   id: string;
@@ -21,7 +21,6 @@ type Order = {
   order_type: string;
   status: string;
   total_amount: number;
-  credit_used: number | null;
   delivery_photo_url: string | null;
   payment_confirmed_at: string | null;
   created_at: string;
@@ -57,7 +56,9 @@ function monthsAgo(months: number) {
 function OrderDetail({ order }: { order: Order }) {
   const [editing, setEditing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [refundMethod, setRefundMethod] = useState<"credit" | "bank" | null>("credit");
+  const [refundBankName, setRefundBankName] = useState("");
+  const [refundAccountNumber, setRefundAccountNumber] = useState("");
+  const [refundHolderName, setRefundHolderName] = useState("");
   const [qty, setQty] = useState<Record<string, number>>(
     Object.fromEntries((order.b2c_order_item ?? []).map((i) => [i.id, i.quantity]))
   );
@@ -100,14 +101,21 @@ function OrderDetail({ order }: { order: Order }) {
   }
 
   async function handleCancel() {
-    if (canCancelWithRefund && !refundMethod) {
-      setError("환불 방법을 선택해주세요");
+    if (canCancelWithRefund && (!refundBankName || !refundAccountNumber || !refundHolderName)) {
+      setError("환불받을 계좌 정보를 모두 입력해주세요");
       return;
     }
     setPending(true);
     setError(null);
     try {
-      const result = await cancelOrder(order.id, refundMethod ?? undefined);
+      const refundAccount: RefundAccount | undefined = canCancelWithRefund
+        ? {
+            bankName: refundBankName,
+            accountNumber: refundAccountNumber,
+            holderName: refundHolderName,
+          }
+        : undefined;
+      const result = await cancelOrder(order.id, refundAccount);
       if (!result.success) {
         setError(result.error);
         return;
@@ -127,37 +135,28 @@ function OrderDetail({ order }: { order: Order }) {
         <p className="mb-3 text-sm font-medium">정말 취소하시겠어요?</p>
         {canCancelWithRefund && (
           <div className="mb-3 space-y-2 rounded-xl bg-neutral-50 p-3">
-            {(order.credit_used ?? 0) > 0 && (
-              <p className="text-xs text-neutral-500">
-                사용하신 크레딧 {order.credit_used!.toLocaleString()}원은 자동으로 복원돼요
-              </p>
-            )}
             <p className="whitespace-nowrap text-xs font-medium text-neutral-600">
-              {(order.total_amount - (order.credit_used ?? 0)).toLocaleString()}원(입금하신 금액)을
-              어떻게 돌려받으실래요?
+              {order.total_amount.toLocaleString()}원을 환불받을 계좌를 입력해주세요
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setRefundMethod("credit")}
-                className={`rounded-lg border py-2.5 text-xs ${
-                  refundMethod === "credit"
-                    ? "border-primary bg-primary text-white"
-                    : "border-neutral-200 bg-white text-neutral-600"
-                }`}
-              >
-                적립금(크레딧)으로 받기
-              </button>
-              <button
-                onClick={() => setRefundMethod("bank")}
-                className={`rounded-lg border py-2.5 text-xs ${
-                  refundMethod === "bank"
-                    ? "border-primary bg-primary text-white"
-                    : "border-neutral-200 bg-white text-neutral-600"
-                }`}
-              >
-                계좌로 환불받기
-              </button>
-            </div>
+            <input
+              value={refundBankName}
+              onChange={(e) => setRefundBankName(e.target.value)}
+              placeholder="은행명 (예: 국민은행)"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={refundAccountNumber}
+              onChange={(e) => setRefundAccountNumber(e.target.value.replace(/[^0-9-]/g, ""))}
+              inputMode="numeric"
+              placeholder="계좌번호"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={refundHolderName}
+              onChange={(e) => setRefundHolderName(e.target.value)}
+              placeholder="예금주명"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            />
           </div>
         )}
         {error && (

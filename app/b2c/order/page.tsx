@@ -88,12 +88,6 @@ export default async function GeneralOrderPage({
     })
   );
 
-  const { data: ledger } = await supabase
-    .from("credit_ledger")
-    .select("delta")
-    .eq("account_id", accountId);
-  const credit = (ledger ?? []).reduce((s, r) => s + r.delta, 0);
-
   const depositorName =
     account?.nickname && account?.phone
       ? `${account.nickname}${account.phone.replace(/\D/g, "").slice(-4)}`
@@ -124,7 +118,6 @@ export default async function GeneralOrderPage({
           products={productsWithStock}
           address={account?.address ?? null}
           bankInfo={bankInfo}
-          credit={credit}
           depositorName={depositorName}
         />
       ) : (
