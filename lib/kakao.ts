@@ -71,18 +71,32 @@ async function getValidAdminAccessToken(): Promise<string | null> {
   return newAccessToken;
 }
 
-// 관리자 본인 카톡("나에게 보내기")으로 텍스트 메시지 발송 - 실패해도 조용히 무시(주문 흐름을 막지 않기 위함)
+// 관리자 본인 카톡("나에게 보내기")으로 텍스트 메시지 발송
+// 실패해도 주문 흐름은 막지 않되, 원인 파악을 위해 로그는 남김(Vercel 함수 로그에서 확인 가능)
 export async function sendKakaoMemoToAdmin(text: string, linkUrl?: string) {
+  const result = await sendKakaoMemoRaw(text, linkUrl);
+  if (!result.success) {
+    console.error("[kakao] 나에게 보내기 실패:", result.error);
+  }
+}
+
+// 설정화면 "테스트 발송" 버튼에서 직접 호출 - 성공/실패와 실제 에러 내용을 그대로 반환
+export async function sendKakaoMemoRaw(
+  text: string,
+  linkUrl?: string
+): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const accessToken = await getValidAdminAccessToken();
-    if (!accessToken) return;
+    if (!accessToken) {
+      return { success: false, error: "연동된 카카오 토큰이 없어요. 다시 연동해주세요" };
+    }
 
     const templateObject = {
       object_type: "text",
       text,
       link: {
-        web_url: linkUrl ?? "",
-        mobile_web_url: linkUrl ?? "",
+        web_url: linkUrl ?? "https://eggfarm.shop",
+        mobile_web_url: linkUrl ?? "https://eggfarm.shop",
       },
     };
 
@@ -90,7 +104,7 @@ export async function sendKakaoMemoToAdmin(text: string, linkUrl?: string) {
       template_object: JSON.stringify(templateObject),
     });
 
-    await fetch("https://kapi.kakao.com/v2/api/talk/memo/default/send", {
+    const res = await fetch("https://kapi.kakao.com/v2/api/talk/memo/default/send", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -98,7 +112,13 @@ export async function sendKakaoMemoToAdmin(text: string, linkUrl?: string) {
       },
       body: params.toString(),
     });
-  } catch {
-    // 알림 실패는 무시 - 주문 자체는 정상 처리되어야 함
+
+    if (!res.ok) {
+      const body = await res.text();
+      return { success: false, error: `(${res.status}) ${body}` };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "알 수 없는 오류" };
   }
 }

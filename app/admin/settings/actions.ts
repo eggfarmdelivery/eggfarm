@@ -3,6 +3,7 @@
 import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
+import { sendKakaoMemoRaw } from "@/lib/kakao";
 
 type Result = { success: true } | { success: false; error: string };
 
@@ -74,4 +75,9 @@ export async function updateSettings(formData: FormData): Promise<Result> {
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "저장 중 오류가 발생했어요" };
   }
+}
+
+export async function testKakaoNotify(): Promise<Result> {
+  await requireAdmin();
+  return sendKakaoMemoRaw("[테스트] 에그팜 알림이 정상적으로 도착했어요");
 }
