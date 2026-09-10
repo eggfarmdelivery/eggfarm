@@ -242,7 +242,7 @@ function OrderDetail({ order }: { order: Order }) {
             </div>
           </div>
           <OrderJourney status={order.status} />
-          {order.delivery_photo_url && (
+          {order.status === "배송완료" && order.delivery_photo_url && (
             <img
               src={order.delivery_photo_url}
               alt="배송완료 사진"
