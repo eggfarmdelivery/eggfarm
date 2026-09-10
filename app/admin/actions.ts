@@ -212,16 +212,20 @@ export async function confirmRefund(orderId: string): Promise<Result> {
     await requireAdmin();
     const { data: order, error: fetchError } = await supabase
       .from("b2c_order")
-      .select("account_id, status, total_amount, refund_method")
+      .select("account_id, status, total_amount, credit_used, refund_method")
       .eq("id", orderId)
       .single();
     if (fetchError || !order) throw new Error("주문을 찾을 수 없어요");
     if (order.status !== "환불대기") throw new Error("환불대기 상태가 아니에요");
 
-    if (order.refund_method === "credit") {
+    // 크레딧으로 냈던 부분은 주문취소 시점에 이미 복원됐으므로, 여기서는
+    // 실제로 현금(계좌입금)으로 낸 부분만 선택한 방법으로 환불 처리
+    const cashPaid = order.total_amount - (order.credit_used ?? 0);
+
+    if (order.refund_method === "credit" && cashPaid > 0) {
       const { error: creditError } = await supabase.from("credit_ledger").insert({
         account_id: order.account_id,
-        delta: order.total_amount,
+        delta: cashPaid,
         reason: "주문취소환급",
       });
       if (creditError) throw new Error(creditError.message);

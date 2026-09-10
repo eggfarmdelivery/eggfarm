@@ -19,13 +19,28 @@ export async function cancelOrder(
     const accountId = await getAccountId("b2c");
     const { data: order, error: orderError } = await supabase
       .from("b2c_order")
-      .select("id, account_id, status, total_amount")
+      .select("id, account_id, status, total_amount, credit_used")
       .eq("id", orderId)
       .single();
     if (orderError || !order) throw new Error("주문을 찾을 수 없어요");
     if (order.account_id !== accountId) throw new Error("본인 주문만 취소할 수 있어요");
 
+    const creditUsed = order.credit_used ?? 0;
+
+    // 크레딧 사용분은 환불방법 선택과 무관하게 항상 즉시 복원(원래 자기 잔액을 되돌리는 것뿐이라
+    // 관리자 확인 없이도 안전함) - 현금(계좌입금)분만 아래에서 선택한 방법으로 별도 처리
+    async function restoreUsedCredit() {
+      if (creditUsed <= 0) return;
+      const { error: creditError } = await supabase.from("credit_ledger").insert({
+        account_id: accountId,
+        delta: creditUsed,
+        reason: "주문취소 크레딧복원",
+      });
+      if (creditError) throw new Error(creditError.message);
+    }
+
     if (NO_PAYMENT_STATUSES.includes(order.status)) {
+      await restoreUsedCredit();
       const { error } = await supabase.from("b2c_order").update({ status: "취소" }).eq("id", orderId);
       if (error) throw new Error(error.message);
       await logStatusChange("b2c_order", orderId, order.status, "취소");
@@ -35,10 +50,22 @@ export async function cancelOrder(
     if (!REFUND_ELIGIBLE_STATUSES.includes(order.status)) {
       throw new Error("배송이 시작된 이후에는 취소할 수 없어요");
     }
-    if (!refundMethod) throw new Error("환불 방법을 선택해주세요");
 
-    // 적립금/계좌 환불 모두 즉시 처리하지 않고, 관리자가 실제 환불 처리를 완료해야
-    // "환불완료"로 넘어가며(이때 적립금도 함께 지급) - 주문취소 시점엔 상태만 환불대기로 전환
+    const cashPaid = order.total_amount - creditUsed;
+    // 현금으로 낸 부분이 없으면(전액 크레딧결제) 환불방법 선택 없이 크레딧만 복원하고 바로 취소 처리
+    if (cashPaid <= 0) {
+      await restoreUsedCredit();
+      const { error } = await supabase.from("b2c_order").update({ status: "취소" }).eq("id", orderId);
+      if (error) throw new Error(error.message);
+      await logStatusChange("b2c_order", orderId, order.status, "취소");
+      return { success: true };
+    }
+
+    if (!refundMethod) throw new Error("환불 방법을 선택해주세요");
+    await restoreUsedCredit();
+
+    // 현금분은 즉시 처리하지 않고, 관리자가 실제 환불 처리를 완료해야
+    // "환불완료"로 넘어가며(이때 적립금 선택이면 현금분만큼 추가 크레딧 지급) - 주문취소 시점엔 상태만 환불대기로 전환
     const { error } = await supabase
       .from("b2c_order")
       .update({ status: "환불대기", refund_method: refundMethod })

@@ -13,12 +13,15 @@ type OrderItem = {
   unit_price: number;
   product_id: string;
   product: { name: string; photo_url: string | null } | null;
+  maxQty?: number;
+  perPersonLimit?: number | null;
 };
 type Order = {
   id: string;
   order_type: string;
   status: string;
   total_amount: number;
+  credit_used: number | null;
   delivery_photo_url: string | null;
   payment_confirmed_at: string | null;
   created_at: string;
@@ -124,7 +127,15 @@ function OrderDetail({ order }: { order: Order }) {
         <p className="mb-3 text-sm font-medium">정말 취소하시겠어요?</p>
         {canCancelWithRefund && (
           <div className="mb-3 space-y-2 rounded-xl bg-neutral-50 p-3">
-            <p className="whitespace-nowrap text-xs font-medium text-neutral-600">환불 방법을 선택해주세요</p>
+            {(order.credit_used ?? 0) > 0 && (
+              <p className="text-xs text-neutral-500">
+                사용하신 크레딧 {order.credit_used!.toLocaleString()}원은 자동으로 복원돼요
+              </p>
+            )}
+            <p className="whitespace-nowrap text-xs font-medium text-neutral-600">
+              {(order.total_amount - (order.credit_used ?? 0)).toLocaleString()}원(입금하신 금액)을
+              어떻게 돌려받으실래요?
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setRefundMethod("credit")}
@@ -216,17 +227,26 @@ function OrderDetail({ order }: { order: Order }) {
       ) : (
         <div>
           <div className="mb-3 space-y-2">
-            {(order.b2c_order_item ?? []).map((i) => (
-              <div key={i.id} className="flex items-center justify-between">
-                <span className="text-sm">{i.product?.name}</span>
-                <QuantityStepper
-                  name={`qty_${i.id}`}
-                  value={qty[i.id] ?? i.quantity}
-                  onChange={(v) => setQty((prev) => ({ ...prev, [i.id]: v }))}
-                  min={1}
-                />
-              </div>
-            ))}
+            {(order.b2c_order_item ?? []).map((i) => {
+              const currentValue = qty[i.id] ?? i.quantity;
+              const limitMessage =
+                i.maxQty !== undefined && i.perPersonLimit !== undefined && i.maxQty === i.perPersonLimit
+                  ? `1인당 최대 ${i.perPersonLimit}판까지 주문 가능해요`
+                  : "추가로 주문 가능한 재고가 없어 이 수량으로는 변경할 수 없어요";
+              return (
+                <div key={i.id} className="flex items-center justify-between">
+                  <span className="text-sm">{i.product?.name}</span>
+                  <QuantityStepper
+                    name={`qty_${i.id}`}
+                    value={currentValue}
+                    onChange={(v) => setQty((prev) => ({ ...prev, [i.id]: v }))}
+                    min={1}
+                    max={i.maxQty}
+                    limitMessage={limitMessage}
+                  />
+                </div>
+              );
+            })}
           </div>
           <div className="mb-3 flex items-baseline justify-between border-t border-neutral-100 pt-2">
             <span className="text-xs text-neutral-500">변경 후 금액</span>

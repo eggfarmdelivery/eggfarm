@@ -25,6 +25,7 @@ type B2COrder = {
   status: string;
   is_overflow: boolean;
   total_amount: number;
+  credit_used: number | null;
   created_at: string;
   campaign_id: string | null;
   campaign: { title: string | null } | null;
@@ -241,6 +242,18 @@ function B2COrderCard({
         </p>
       )}
       <p className="text-xs text-neutral-400 mb-1">{formatTime(order.created_at)}</p>
+      {order.status === "환불대기" && (
+        <div className="mb-2 rounded-md bg-orange-50 px-2.5 py-2 text-xs text-orange-700">
+          <p>
+            실제 환불할 금액(현금) {(order.total_amount - (order.credit_used ?? 0)).toLocaleString()}원
+          </p>
+          {(order.credit_used ?? 0) > 0 && (
+            <p className="text-orange-500">
+              크레딧 {order.credit_used!.toLocaleString()}원은 이미 복원됐어요
+            </p>
+          )}
+        </div>
+      )}
       {order.is_overflow && (
         <p className="text-xs text-orange-600 mb-2">⚠ 재고 초과분 - 승인 필요</p>
       )}
