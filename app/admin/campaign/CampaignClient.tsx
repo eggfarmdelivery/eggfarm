@@ -6,8 +6,8 @@ import { openCampaign, updateCampaign, closeCampaignEarly, deleteCampaign } from
 import Spinner from "@/components/Spinner";
 import Badge from "@/components/Badge";
 import { Plus, Truck, Clock } from "lucide-react";
-import type { Campaign, CampaignProductLimit, CampaignStatus } from "@/lib/campaign";
-import { statusLabel } from "@/lib/campaign";
+import type { Campaign, CampaignProductLimit, CampaignStatus } from "@/lib/campaignShared";
+import { statusLabel } from "@/lib/campaignShared";
 
 type Product = { id: string; name: string; base_price: number };
 type Zone = { id: string; name: string };

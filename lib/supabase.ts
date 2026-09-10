@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 // 이 클라이언트는 서버 전용 파일(서버 액션/서버 컴포넌트/route handler)에서만 import됨 -

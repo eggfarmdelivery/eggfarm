@@ -1,30 +1,19 @@
 import { supabase } from "@/lib/supabase";
+import "server-only";
 
-export type Campaign = {
-  id: string;
-  title: string | null;
-  photo_url: string | null;
-  opens_at: string;
-  closes_at: string;
-  closed_early_at: string | null;
-  delivery_date: string | null;
-  delivery_fee: number;
-  free_shipping_min_qty: number;
-  created_at: string;
-};
-
-export type CampaignProductLimit = {
-  product_id: string;
-  stock_limit: number;
-  per_person_limit: number | null;
-};
-
-export type CampaignStatus =
-  | "not_yet_open" // 오픈 일시가 아직 안 됨
-  | "open"
-  | "closed_deadline" // 정상 마감(마감시각 도래)
-  | "closed_early_manual" // 관리자가 수동 조기마감
-  | "closed_early_stock"; // 재고소진으로 조기마감(자동, 상태값은 저장 안 하고 매번 계산)
+export type {
+  Campaign,
+  CampaignProductLimit,
+  CampaignStatus,
+  CampaignLimitCheckResult,
+} from "@/lib/campaignShared";
+export { calculateDeliveryFee, isOpenStatus, statusLabel } from "@/lib/campaignShared";
+import type {
+  Campaign,
+  CampaignProductLimit,
+  CampaignStatus,
+  CampaignLimitCheckResult,
+} from "@/lib/campaignShared";
 
 // 여러 캠페인을 동시에 운영할 수 있음 - 전체 목록(관리자용, 최신순)
 export async function getAllCampaigns(): Promise<Campaign[]> {
@@ -49,14 +38,6 @@ export async function getCampaignById(id: string): Promise<Campaign | null> {
 }
 
 // 캠페인에 포함된 상품 + 그 캠페인 전용 재고상한/인당제한
-export function calculateDeliveryFee(
-  campaign: { delivery_fee: number; free_shipping_min_qty: number },
-  totalQty: number
-): number {
-  if (totalQty >= campaign.free_shipping_min_qty) return 0;
-  return campaign.delivery_fee;
-}
-
 export async function getCampaignProductLimits(
   campaignId: string
 ): Promise<CampaignProductLimit[]> {
@@ -110,8 +91,6 @@ export async function isCampaignProductSoldOut(
   const sold = await getCampaignSold(campaignId, productId);
   return sold >= stockLimit;
 }
-
-export type CampaignLimitCheckResult = { allowed: boolean; reason?: string };
 
 // 주문 시 캠페인 재고/인당제한 검사(초과허용 없이 하드캡)
 export async function checkCampaignLimit(
@@ -172,24 +151,6 @@ export async function getCampaignStatus(
   }
 
   return "open";
-}
-
-export function isOpenStatus(status: CampaignStatus): boolean {
-  return status === "open";
-}
-
-export function statusLabel(status: CampaignStatus): string {
-  switch (status) {
-    case "not_yet_open":
-      return "오픈 예정";
-    case "closed_deadline":
-      return "주문마감";
-    case "closed_early_manual":
-    case "closed_early_stock":
-      return "조기마감";
-    default:
-      return "";
-  }
 }
 
 // 캠페인에 지정된 배송가능 단지 id 목록 (반드시 1개 이상 지정됨)
