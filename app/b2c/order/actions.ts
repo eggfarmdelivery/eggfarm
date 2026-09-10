@@ -83,6 +83,25 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0) + deliveryFee;
 
+    // 방금 전(60초 이내)에 같은 계정·캠페인·금액으로 만든 "입금대기" 주문이 있으면
+    // 응답이 늦어져서 다시 누른 중복 클릭일 가능성이 높음 - 새로 만들지 않고 그 주문을 그대로 반환
+    const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+    const { data: recentDuplicate } = await supabase
+      .from("b2c_order")
+      .select("id, total_amount")
+      .eq("account_id", accountId)
+      .eq("campaign_id", campaignId)
+      .eq("status", "입금대기")
+      .eq("total_amount", totalAmount)
+      .gte("created_at", sixtySecondsAgo)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recentDuplicate) {
+      return { success: true, remainingAmount: recentDuplicate.total_amount };
+    }
+
     // 크레딧 기능은 당분간 보류 - 항상 무통장입금(전액 입금대기)으로 처리
     const { data: order, error } = await supabase
       .from("b2c_order")

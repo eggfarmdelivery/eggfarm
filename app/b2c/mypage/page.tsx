@@ -56,7 +56,33 @@ export default async function MyPage() {
           return { ...item, maxQty, perPersonLimit: limit.per_person_limit };
         })
       );
-      return { ...order, b2c_order_item: items };
+
+      // 이 주문에 아직 안 담긴, 같은 캠페인의 다른 상품들 - "상품 추가"용
+      const existingProductIds = new Set((order.b2c_order_item ?? []).map((i: any) => i.product_id));
+      const addableLimits = limits.filter((l) => !existingProductIds.has(l.product_id));
+      const addableProducts =
+        addableLimits.length === 0
+          ? []
+          : await Promise.all(
+              addableLimits.map(async (limit) => {
+                const { data: product } = await supabase
+                  .from("product")
+                  .select("id, name, base_price")
+                  .eq("id", limit.product_id)
+                  .single();
+                const sold = await getCampaignSold(order.campaign_id, limit.product_id);
+                const remainingStock = Math.max(0, limit.stock_limit - sold);
+                return {
+                  id: limit.product_id,
+                  name: product?.name ?? "상품",
+                  base_price: product?.base_price ?? 0,
+                  remainingStock,
+                  perPersonLimit: limit.per_person_limit,
+                };
+              })
+            );
+
+      return { ...order, b2c_order_item: items, addableProducts };
     })
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGeneralOrder } from "./actions";
 import Spinner from "@/components/Spinner";
@@ -38,6 +38,7 @@ export default function OrderForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
+  const submittingRef = useRef(false);
   const router = useRouter();
 
   const totalQty = Object.values(qty).reduce((s, v) => s + v, 0);
@@ -49,6 +50,10 @@ export default function OrderForm({
   const total = productTotal + appliedDeliveryFee;
 
   async function handleSubmit(formData: FormData) {
+    // state는 리액트 렌더링을 거쳐야 반영되어 빠른 연속 탭(더블탭)에서는 둘 다 통과할 수 있음 -
+    // ref는 즉시(동기적으로) 갱신되므로 이걸로 확실하게 중복 제출을 막음
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setPending(true);
     try {
@@ -58,12 +63,14 @@ export default function OrderForm({
       if (!result.success) {
         setError(result.error);
         setPending(false);
+        submittingRef.current = false;
         return;
       }
       setPaidTotal(result.remainingAmount);
     } catch {
       setError("주문 처리 중 알 수 없는 오류가 발생했어요");
       setPending(false);
+      submittingRef.current = false;
     }
   }
 
@@ -166,10 +173,12 @@ export default function OrderForm({
       <button
         type="submit"
         disabled={pending || total === 0}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-60"
+        className={`flex w-full items-center justify-center gap-2 rounded-lg py-3 font-medium text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-70 ${
+          pending ? "bg-primary-dark" : "bg-primary"
+        }`}
       >
-        {pending && <Spinner />}
-        {pending ? "처리 중..." : "주문하기"}
+        {pending && <Spinner className="h-5 w-5" />}
+        {pending ? "주문 접수 중이에요..." : "주문하기"}
       </button>
 
       {paidTotal !== null && (

@@ -296,14 +296,15 @@ function CollapsibleSection({
   );
 }
 
-const PROGRESS_STATUSES = [
+const B2C_STATUS_TABS = [
   "입금대기",
   "입금확인완료",
-  "배송위임",
   "배송중",
+  "배송완료",
   "환불대기",
+  "환불완료",
+  "취소",
 ];
-const DONE_STATUSES = ["배송완료", "취소", "승인거절", "환불완료"];
 const B2B_PROGRESS = ["발주요청", "배송중", "입금대기", "입금확인완료"];
 const B2B_DONE = ["배송완료", "취소"];
 
@@ -369,7 +370,7 @@ export default function ConsoleClient({
   b2bOrders: B2BOrder[];
 }) {
   const [topTab, setTopTab] = useState<"b2c" | "b2b">("b2c");
-  const [b2cSubTab, setB2cSubTab] = useState<"progress" | "done">("progress");
+  const [activeB2cStatus, setActiveB2cStatus] = useState<string>(B2C_STATUS_TABS[0]);
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [nicknameQuery, setNicknameQuery] = useState("");
@@ -442,12 +443,11 @@ export default function ConsoleClient({
     router.refresh();
   }
 
-  const b2cProgress = visibleB2cOrders.filter((o) => PROGRESS_STATUSES.includes(o.status));
-  const b2cOverflow = b2cProgress.filter((o) => o.is_overflow);
+  const b2cByStatus = B2C_STATUS_TABS.reduce<Record<string, B2COrder[]>>((acc, status) => {
+    acc[status] = visibleB2cOrders.filter((o) => o.status === status);
+    return acc;
+  }, {});
   const b2bProgress = b2bOrders.filter((o) => B2B_PROGRESS.includes(o.status));
-
-  const progressCountB2c = b2cProgress.length;
-  const doneCountB2c = visibleB2cOrders.filter((o) => DONE_STATUSES.includes(o.status)).length;
   const progressCountB2b = b2bProgress.length;
   const doneCountB2b = b2bOrders.filter((o) => B2B_DONE.includes(o.status)).length;
 
@@ -513,57 +513,47 @@ export default function ConsoleClient({
             </div>
           )}
 
-          <div className="mb-4 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setB2cSubTab("progress")}
-              className={`rounded-lg border py-2.5 text-center ${
-                b2cSubTab === "progress" ? "border-primary bg-primary-bg" : "border-neutral-200"
-              }`}
-            >
-              <p className={`text-sm font-medium ${b2cSubTab === "progress" ? "text-primary" : ""}`}>
-                진행중 {progressCountB2c}
-              </p>
-            </button>
-            <button
-              onClick={() => setB2cSubTab("done")}
-              className={`rounded-lg border py-2.5 text-center ${
-                b2cSubTab === "done" ? "border-primary bg-primary-bg" : "border-neutral-200"
-              }`}
-            >
-              <p className={`text-sm font-medium ${b2cSubTab === "done" ? "text-primary" : ""}`}>
-                완료·취소 {doneCountB2c}
-              </p>
-            </button>
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            {B2C_STATUS_TABS.map((status) => (
+              <button
+                key={status}
+                onClick={() => setActiveB2cStatus(status)}
+                className={`shrink-0 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap ${
+                  activeB2cStatus === status
+                    ? "border-primary bg-primary-bg text-primary font-medium"
+                    : "border-neutral-200 text-neutral-500"
+                }`}
+              >
+                {status} {b2cByStatus[status]?.length ?? 0}
+              </button>
+            ))}
           </div>
 
-          {b2cSubTab === "progress" ? (
-            <>
-              {b2cOverflow.length > 0 && (
-                <CollapsibleSection title="초과승인대기" count={b2cOverflow.length}>
-                  {b2cOverflow.map((o) => (
-                    <B2COrderCard key={o.id} order={o} />
-                  ))}
-                </CollapsibleSection>
-              )}
-              {PROGRESS_STATUSES.map((status) => {
-                const list = b2cProgress.filter((o) => o.status === status && !o.is_overflow);
-                const isBulkable = status === "입금확인완료";
-                return (
-                  <CollapsibleSection key={status} title={status} count={list.length}>
-                    {isBulkable && list.length > 0 && (
-                      <div className="mb-2 flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
-                        <span className="text-xs text-neutral-500">
-                          {selectedForDelivery.size}건 선택됨
-                        </span>
-                        <button
-                          disabled={selectedForDelivery.size === 0 || bulkPending}
-                          onClick={handleBulkStart}
-                          className="rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50"
-                        >
-                          {bulkPending ? "처리 중..." : "선택 일괄 배송중 처리"}
-                        </button>
-                      </div>
-                    )}
+          {(() => {
+            const list = b2cByStatus[activeB2cStatus] ?? [];
+            const isBulkable = activeB2cStatus === "입금확인완료";
+            return (
+              <>
+                {isBulkable && list.length > 0 && (
+                  <div className="mb-2 flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
+                    <span className="text-xs text-neutral-500">
+                      {selectedForDelivery.size}건 선택됨
+                    </span>
+                    <button
+                      disabled={selectedForDelivery.size === 0 || bulkPending}
+                      onClick={handleBulkStart}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                    >
+                      {bulkPending ? "처리 중..." : "선택 일괄 배송중 처리"}
+                    </button>
+                  </div>
+                )}
+                {list.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-neutral-400">
+                    "{activeB2cStatus}" 상태인 주문이 없어요
+                  </p>
+                ) : (
+                  <div className="space-y-2">
                     {list.map((o) => (
                       <B2COrderCard
                         key={o.id}
@@ -573,20 +563,11 @@ export default function ConsoleClient({
                         onToggleSelect={() => toggleSelectForDelivery(o.id)}
                       />
                     ))}
-                  </CollapsibleSection>
-                );
-              })}
-              {progressCountB2c === 0 && (
-                <p className="py-6 text-center text-sm text-neutral-400">진행중인 주문이 없어요</p>
-              )}
-            </>
-          ) : (
-            <DoneTab
-              orders={visibleB2cOrders}
-              statuses={DONE_STATUSES}
-              renderCard={(o) => <B2COrderCard order={o} />}
-            />
-          )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>
       ) : (
         <>

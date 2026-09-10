@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import OrderJourney from "@/components/OrderJourney";
 import QuantityStepper from "@/components/QuantityStepper";
-import { updateOrderQuantities, cancelOrder, type RefundAccount } from "./actions";
+import { updateOrderQuantities, cancelOrder, addOrderItem, type RefundAccount } from "./actions";
 
 type OrderItem = {
   id: string;
@@ -15,6 +15,13 @@ type OrderItem = {
   product: { name: string; photo_url: string | null } | null;
   maxQty?: number;
   perPersonLimit?: number | null;
+};
+type AddableProduct = {
+  id: string;
+  name: string;
+  base_price: number;
+  remainingStock: number;
+  perPersonLimit: number | null;
 };
 type Order = {
   id: string;
@@ -27,6 +34,7 @@ type Order = {
   created_at: string;
   campaign: { delivery_date: string | null } | null;
   b2c_order_item: OrderItem[];
+  addableProducts?: AddableProduct[];
 };
 
 const STATUS_GROUPS: { key: string; label: string; statuses: string[] }[] = [
@@ -65,7 +73,25 @@ function OrderDetail({ order }: { order: Order }) {
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const router = useRouter();
+
+  async function handleAddProduct(productId: string) {
+    setAddingProductId(productId);
+    setError(null);
+    try {
+      const result = await addOrderItem(order.id, productId, 1);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("상품 추가 중 알 수 없는 오류가 발생했어요");
+    } finally {
+      setAddingProductId(null);
+    }
+  }
 
   const canEdit = order.status === "입금대기";
   const canCancelFree = order.status === "입금대기";
@@ -248,6 +274,36 @@ function OrderDetail({ order }: { order: Order }) {
               );
             })}
           </div>
+
+          {order.addableProducts && order.addableProducts.length > 0 && (
+            <div className="mb-3 border-t border-neutral-100 pt-3">
+              <p className="mb-2 text-xs font-medium text-neutral-500">상품 추가</p>
+              <div className="space-y-2">
+                {order.addableProducts.map((p) => {
+                  const soldOut = p.remainingStock <= 0;
+                  return (
+                    <div key={p.id} className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm">{p.name}</p>
+                        <p className="text-xs text-neutral-400">
+                          {p.base_price.toLocaleString()}원/판
+                          {!soldOut && ` · 잔여 ${p.remainingStock}판`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAddProduct(p.id)}
+                        disabled={soldOut || addingProductId === p.id}
+                        className="shrink-0 rounded-md border border-primary px-3 py-1.5 text-xs text-primary disabled:opacity-40"
+                      >
+                        {soldOut ? "품절" : addingProductId === p.id ? "담는 중..." : "+ 담기"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="mb-3 flex items-baseline justify-between border-t border-neutral-100 pt-2">
             <span className="text-xs text-neutral-500">변경 후 금액</span>
             <span className="text-sm font-medium">{newTotal.toLocaleString()}원</span>

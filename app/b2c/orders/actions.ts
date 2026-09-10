@@ -2,7 +2,12 @@
 
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
-import { getCampaignProductLimits, checkCampaignQuantityChange } from "@/lib/campaign";
+import {
+  getCampaignProductLimits,
+  checkCampaignQuantityChange,
+  checkCampaignLimit,
+  calculateDeliveryFee,
+} from "@/lib/campaign";
 import { logStatusChange } from "@/lib/statusLog";
 
 type Result = { success: true } | { success: false; error: string };
@@ -109,15 +114,111 @@ export async function updateOrderQuantities(
       if (error) throw new Error(error.message);
     }
 
-    const newTotal = items.reduce((sum, i) => sum + i.newQty * i.unitPrice, 0);
+    // 배송비는 총 판수 기준이라, 수량이 바뀌면 무료배송 기준을 넘나들 수 있어 다시 계산해야 함
+    const { data: allItems } = await supabase
+      .from("b2c_order_item")
+      .select("quantity, subtotal")
+      .eq("order_id", orderId);
+    const productTotal = (allItems ?? []).reduce((sum, i) => sum + i.subtotal, 0);
+    const totalQty = (allItems ?? []).reduce((sum, i) => sum + i.quantity, 0);
+
+    let deliveryFee = 0;
+    if (order.campaign_id) {
+      const { data: campaign } = await supabase
+        .from("campaign")
+        .select("delivery_fee, free_shipping_min_qty")
+        .eq("id", order.campaign_id)
+        .single();
+      if (campaign) deliveryFee = calculateDeliveryFee(campaign, totalQty);
+    }
+
     const { error: totalError } = await supabase
       .from("b2c_order")
-      .update({ total_amount: newTotal })
+      .update({ total_amount: productTotal + deliveryFee, delivery_fee: deliveryFee })
       .eq("id", orderId);
     if (totalError) throw new Error(totalError.message);
 
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "수정 중 오류가 발생했어요" };
+  }
+}
+
+// 입금 전(입금대기) 주문에 새 상품을 추가로 담기
+export async function addOrderItem(
+  orderId: string,
+  productId: string,
+  quantity: number
+): Promise<Result> {
+  try {
+    const accountId = await getAccountId("b2c");
+
+    const { data: order, error: orderError } = await supabase
+      .from("b2c_order")
+      .select("id, account_id, status, campaign_id")
+      .eq("id", orderId)
+      .single();
+    if (orderError || !order) throw new Error("주문을 찾을 수 없어요");
+    if (order.account_id !== accountId) throw new Error("본인 주문만 수정할 수 있어요");
+    if (order.status !== "입금대기") {
+      throw new Error("입금 확인 전에만 상품을 추가할 수 있어요");
+    }
+    if (!order.campaign_id) throw new Error("캠페인 정보가 없는 주문이에요");
+    if (quantity < 1) throw new Error("수량은 최소 1판 이상이어야 해요");
+
+    const { data: existing } = await supabase
+      .from("b2c_order_item")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("product_id", productId)
+      .maybeSingle();
+    if (existing) throw new Error("이미 담긴 상품이에요. 수량을 조절해주세요");
+
+    const productLimits = await getCampaignProductLimits(order.campaign_id);
+    const limit = productLimits.find((l) => l.product_id === productId);
+    if (!limit) throw new Error("이 캠페인에 없는 상품이에요");
+
+    const result = await checkCampaignLimit(order.campaign_id, limit, quantity);
+    if (!result.allowed) throw new Error(result.reason ?? "추가할 수 없어요");
+
+    const { data: product } = await supabase
+      .from("product")
+      .select("name, base_price")
+      .eq("id", productId)
+      .single();
+    if (!product) throw new Error("상품 정보를 찾을 수 없어요");
+
+    const { error: insertError } = await supabase.from("b2c_order_item").insert({
+      order_id: orderId,
+      product_id: productId,
+      quantity,
+      unit_price: product.base_price,
+      subtotal: quantity * product.base_price,
+    });
+    if (insertError) throw new Error(insertError.message);
+
+    const { data: allItems } = await supabase
+      .from("b2c_order_item")
+      .select("quantity, subtotal")
+      .eq("order_id", orderId);
+    const productTotal = (allItems ?? []).reduce((sum, i) => sum + i.subtotal, 0);
+    const totalQty = (allItems ?? []).reduce((sum, i) => sum + i.quantity, 0);
+
+    const { data: campaign } = await supabase
+      .from("campaign")
+      .select("delivery_fee, free_shipping_min_qty")
+      .eq("id", order.campaign_id)
+      .single();
+    const deliveryFee = campaign ? calculateDeliveryFee(campaign, totalQty) : 0;
+
+    const { error: totalError } = await supabase
+      .from("b2c_order")
+      .update({ total_amount: productTotal + deliveryFee, delivery_fee: deliveryFee })
+      .eq("id", orderId);
+    if (totalError) throw new Error(totalError.message);
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "상품 추가 중 오류가 발생했어요" };
   }
 }
