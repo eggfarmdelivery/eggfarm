@@ -1,0 +1,22 @@
+{
+  "name": "에그팜 관리자",
+  "short_name": "에그팜 관리자",
+  "description": "에그팜 관리자 콘솔",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#E8940C",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

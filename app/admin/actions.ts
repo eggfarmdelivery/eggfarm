@@ -232,3 +232,50 @@ export async function confirmRefund(orderId: string): Promise<Result> {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
   }
 }
+
+// ---------------------------------------------------------
+// 관리자가 직접 주문을 취소(전화문의 등으로 대신 취소해주는 경우)
+// - 입금대기: 그냥 취소
+// - 입금확인완료: 관리자가 환불계좌 정보를 입력해서 환불대기로 전환(이후 confirmRefund로 마무리)
+// ---------------------------------------------------------
+export async function adminCancelOrder(
+  orderId: string,
+  refundAccount?: { bankName: string; accountNumber: string; holderName: string }
+): Promise<Result> {
+  try {
+    await requireAdmin();
+    const { data: order, error: fetchError } = await supabase
+      .from("b2c_order")
+      .select("status")
+      .eq("id", orderId)
+      .single();
+    if (fetchError || !order) throw new Error("주문을 찾을 수 없어요");
+
+    if (order.status === "입금대기") {
+      await updateB2CStatus(orderId, "입금대기", "취소");
+      return { success: true };
+    }
+
+    if (order.status === "입금확인완료") {
+      if (!refundAccount?.bankName || !refundAccount?.accountNumber || !refundAccount?.holderName) {
+        throw new Error("환불받을 계좌 정보를 입력해주세요");
+      }
+      const { error } = await supabase
+        .from("b2c_order")
+        .update({
+          status: "환불대기",
+          refund_bank_name: refundAccount.bankName,
+          refund_account_number: refundAccount.accountNumber,
+          refund_holder_name: refundAccount.holderName,
+        })
+        .eq("id", orderId);
+      if (error) throw new Error(error.message);
+      await logStatusChange("b2c_order", orderId, "입금확인완료", "환불대기");
+      return { success: true };
+    }
+
+    throw new Error("이 상태에서는 취소할 수 없어요");
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "취소 중 오류가 발생했어요" };
+  }
+}

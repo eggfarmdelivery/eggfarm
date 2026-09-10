@@ -11,6 +11,7 @@ import {
   History,
   Settings,
   ChevronRight,
+  LayoutDashboard,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
@@ -35,6 +36,10 @@ export default async function AdminConsole() {
     .order("created_at", { ascending: false });
 
   const menuGroups = [
+    {
+      label: "현황",
+      items: [{ href: "/admin/dashboard", label: "가입자·주문·매출 현황", icon: LayoutDashboard }],
+    },
     {
       label: "운영",
       items: [

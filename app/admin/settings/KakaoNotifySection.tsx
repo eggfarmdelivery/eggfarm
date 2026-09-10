@@ -59,19 +59,25 @@ export default function KakaoNotifySection({
             type="button"
             onClick={handleTest}
             disabled={testing}
-            className="w-full rounded-lg border border-neutral-300 py-2.5 text-sm disabled:opacity-60"
+            className="mb-2 w-full rounded-lg border border-neutral-300 py-2.5 text-sm disabled:opacity-60"
           >
             {testing ? "발송 중..." : "테스트 발송"}
           </button>
           {testResult && (
             <p
-              className={`mt-2 whitespace-pre-wrap break-all rounded-md px-3 py-2 text-xs ${
+              className={`mb-2 whitespace-pre-wrap break-all rounded-md px-3 py-2 text-xs ${
                 testResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
               }`}
             >
               {testResult.message}
             </p>
           )}
+          <a
+            href="/api/kakao/connect"
+            className="flex w-full items-center justify-center rounded-lg border border-neutral-200 py-2.5 text-xs text-neutral-500"
+          >
+            문제가 있나요? 다시 연동하기
+          </a>
         </>
       ) : (
         <a

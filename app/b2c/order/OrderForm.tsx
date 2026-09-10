@@ -38,6 +38,8 @@ export default function OrderForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
+  const [justSucceeded, setJustSucceeded] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const submittingRef = useRef(false);
   const router = useRouter();
 
@@ -56,16 +58,28 @@ export default function OrderForm({
     submittingRef.current = true;
     setError(null);
     setPending(true);
+    const startedAt = Date.now();
     try {
       formData.set("campaign_id", campaignId);
       formData.set("delivery_fee_charged", String(appliedDeliveryFee));
       const result = await createGeneralOrder(formData);
+
+      // 응답이 너무 빨리 오면 "눌렸다"는 느낌 자체가 안 들 수 있어서, 최소 500ms는
+      // 처리중 상태를 눈에 보이게 유지함
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < 500) {
+        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+      }
+
       if (!result.success) {
         setError(result.error);
         setPending(false);
         submittingRef.current = false;
         return;
       }
+      // 성공 시 짧게 "접수완료" 표시를 보여준 뒤 입금안내 팝업을 열어서, 눌림→처리→완료 흐름이 확실히 느껴지게 함
+      setJustSucceeded(true);
+      await new Promise((resolve) => setTimeout(resolve, 400));
       setPaidTotal(result.remainingAmount);
     } catch {
       setError("주문 처리 중 알 수 없는 오류가 발생했어요");
@@ -173,12 +187,18 @@ export default function OrderForm({
       <button
         type="submit"
         disabled={pending || total === 0}
-        className={`flex w-full items-center justify-center gap-2 rounded-lg py-3 font-medium text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-70 ${
-          pending ? "bg-primary-dark" : "bg-primary"
-        }`}
+        onTouchStart={() => setPressed(true)}
+        onTouchEnd={() => setPressed(false)}
+        onTouchCancel={() => setPressed(false)}
+        onMouseDown={() => setPressed(true)}
+        onMouseUp={() => setPressed(false)}
+        onMouseLeave={() => setPressed(false)}
+        className={`flex w-full items-center justify-center gap-2 rounded-lg py-3 font-medium text-white transition-transform duration-100 disabled:opacity-70 ${
+          pressed ? "scale-[0.96]" : "scale-100"
+        } ${justSucceeded ? "bg-green-600" : pending ? "bg-primary-dark" : "bg-primary"}`}
       >
         {pending && <Spinner className="h-5 w-5" />}
-        {pending ? "주문 접수 중이에요..." : "주문하기"}
+        {justSucceeded ? "접수완료!" : pending ? "주문 접수 중이에요..." : "주문하기"}
       </button>
 
       {paidTotal !== null && (

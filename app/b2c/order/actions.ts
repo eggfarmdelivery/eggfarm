@@ -132,7 +132,8 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       })
       .join(", ");
     await sendKakaoMemoToAdmin(
-      `[새 주문] ${account?.nickname ?? "회원"}님 - ${itemsSummary} - ${totalAmount.toLocaleString()}원 (입금대기)`
+      `[새 주문] ${account?.nickname ?? "회원"}님 - ${itemsSummary} - ${totalAmount.toLocaleString()}원 (입금대기)`,
+      "https://eggfarm.shop/admin"
     );
 
     return { success: true, remainingAmount: totalAmount };

@@ -15,6 +15,7 @@ import {
   revertB2CStatus,
   revertB2BStatus,
   confirmRefund,
+  adminCancelOrder,
 } from "./actions";
 import Spinner from "@/components/Spinner";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
@@ -187,6 +188,27 @@ function B2COrderCard({
               .join(", ")}
             onSubmit={markB2CDelivered}
           />
+        )}
+        {(order.status === "입금대기" || order.status === "입금확인완료") && (
+          <button
+            disabled={busy}
+            onClick={() => {
+              if (order.status === "입금대기") {
+                if (confirm("이 주문을 취소할까요?")) run(() => adminCancelOrder(order.id));
+                return;
+              }
+              const bankName = prompt("환불받을 은행명을 입력해주세요");
+              if (!bankName) return;
+              const accountNumber = prompt("환불받을 계좌번호를 입력해주세요");
+              if (!accountNumber) return;
+              const holderName = prompt("예금주명을 입력해주세요");
+              if (!holderName) return;
+              run(() => adminCancelOrder(order.id, { bankName, accountNumber, holderName }));
+            }}
+            className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
+          >
+            주문취소
+          </button>
         )}
         {order.status === "환불대기" && (
           <button
