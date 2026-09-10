@@ -30,10 +30,15 @@ export default async function Home({
         </p>
       )}
       <HomeLoginButton />
-      {error && (
+      {error && error !== "no_session" && (
         <p className="max-w-xs rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 break-all">
           로그인 오류: {error}
           {detail ? ` (${detail})` : ""}
+        </p>
+      )}
+      {error === "no_session" && (
+        <p className="max-w-xs rounded-md bg-primary-bg px-3 py-2 text-xs text-primary-dark">
+          아래 버튼으로 카카오 로그인 후 이용해주세요
         </p>
       )}
     </div>
