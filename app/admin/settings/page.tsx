@@ -3,11 +3,18 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getConfigs } from "@/lib/settings";
+import { isAdminKakaoConnected } from "@/lib/kakao";
 import SettingsClient from "./SettingsClient";
 import TestAccountReset from "./TestAccountReset";
+import KakaoNotifySection from "./KakaoNotifySection";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kakao_connected?: string; kakao_error?: string }>;
+}) {
   await requireAdmin();
+  const { kakao_connected, kakao_error } = await searchParams;
   const config = await getConfigs([
     "bank_name",
     "bank_account",
@@ -16,6 +23,7 @@ export default async function SettingsPage() {
     "notice_enabled",
     "notice_text",
   ]);
+  const connected = await isAdminKakaoConnected();
 
   return (
     <div className="pb-10">
@@ -27,6 +35,11 @@ export default async function SettingsPage() {
       </header>
       <SettingsClient config={config} />
       <div className="px-5">
+        <KakaoNotifySection
+          connected={connected}
+          justConnected={kakao_connected === "1"}
+          error={kakao_error}
+        />
         <TestAccountReset />
       </div>
     </div>

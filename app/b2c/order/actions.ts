@@ -9,6 +9,7 @@ import {
   getCampaignZoneIds,
   calculateDeliveryFee,
 } from "@/lib/campaign";
+import { sendKakaoMemoToAdmin } from "@/lib/kakao";
 
 type Result =
   | { success: true; remainingAmount: number }
@@ -25,7 +26,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const sessionSupabase = await createClient();
     const { data: account } = await sessionSupabase
       .from("account")
-      .select("delivery_zone_id")
+      .select("delivery_zone_id, nickname")
       .eq("id", accountId)
       .single();
     const zoneIds = await getCampaignZoneIds(campaignId);
@@ -103,6 +104,17 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
     const itemsWithOrderId = items.map((i) => ({ ...i, order_id: order.id }));
     const { error: itemError } = await supabase.from("b2c_order_item").insert(itemsWithOrderId);
     if (itemError) throw new Error(itemError.message);
+
+    const itemsSummary = products
+      .filter((p) => items.some((i) => i.product_id === p.id))
+      .map((p) => {
+        const qty = items.find((i) => i.product_id === p.id)?.quantity ?? 0;
+        return `${p.name} ${qty}판`;
+      })
+      .join(", ");
+    await sendKakaoMemoToAdmin(
+      `[새 주문] ${account?.nickname ?? "회원"}님 - ${itemsSummary} - ${totalAmount.toLocaleString()}원 (입금대기)`
+    );
 
     return { success: true, remainingAmount: totalAmount };
   } catch (e) {
