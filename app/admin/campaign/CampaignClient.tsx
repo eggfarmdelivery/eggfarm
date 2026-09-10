@@ -55,6 +55,8 @@ function CampaignForm({
     opensAt: string;
     closesAt: string;
     deliveryDate: string;
+    deliveryFee: number;
+    freeShippingMinQty: number;
     limitsByProduct: Record<string, { stockLimit: number; perPersonLimit: number | null }>;
     zoneIds: string[];
   };
@@ -79,6 +81,10 @@ function CampaignForm({
         d.setDate(d.getDate() + 2);
         return toDateInputValue(d);
       })()
+  );
+  const [deliveryFee, setDeliveryFee] = useState(String(initial?.deliveryFee ?? 1000));
+  const [freeShippingMinQty, setFreeShippingMinQty] = useState(
+    String(initial?.freeShippingMinQty ?? 2)
   );
   const [productState, setProductState] = useState<Record<string, ProductLimitState>>(() => {
     const state: Record<string, ProductLimitState> = {};
@@ -118,6 +124,8 @@ function CampaignForm({
     formData.set("opens_at", new Date(opensAt).toISOString());
     formData.set("closes_at", new Date(closesAt).toISOString());
     formData.set("delivery_date", deliveryDate);
+    formData.set("delivery_fee", deliveryFee);
+    formData.set("free_shipping_min_qty", freeShippingMinQty);
     for (const p of products) {
       const state = productState[p.id];
       if (!state?.selected) continue;
@@ -190,6 +198,29 @@ function CampaignForm({
           onChange={(e) => setDeliveryDate(e.target.value)}
           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">배송비 (건당)</label>
+          <input
+            value={deliveryFee}
+            onChange={(e) => setDeliveryFee(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            placeholder="1000"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">무료배송 기준(판수↑)</label>
+          <input
+            value={freeShippingMinQty}
+            onChange={(e) => setFreeShippingMinQty(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            placeholder="2"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+          />
+        </div>
       </div>
 
       <div>
@@ -381,6 +412,8 @@ export default function CampaignClient({
               deliveryDate: editingInfo.campaign.delivery_date
                 ? editingInfo.campaign.delivery_date
                 : toDateInputValue(new Date()),
+              deliveryFee: editingInfo.campaign.delivery_fee,
+              freeShippingMinQty: editingInfo.campaign.free_shipping_min_qty,
               limitsByProduct: Object.fromEntries(
                 editingInfo.productLimits.map((l) => [
                   l.product_id,

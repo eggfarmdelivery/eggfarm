@@ -21,6 +21,7 @@ type Order = {
   order_type: string;
   status: string;
   total_amount: number;
+  delivery_fee: number | null;
   delivery_photo_url: string | null;
   payment_confirmed_at: string | null;
   created_at: string;
@@ -434,6 +435,9 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {new Date(o.created_at).toLocaleDateString("ko-KR")} ·{" "}
                     {o.total_amount.toLocaleString()}원
+                    {(o.delivery_fee ?? 0) > 0 && (
+                      <span> (배송비 {o.delivery_fee!.toLocaleString()}원 포함)</span>
+                    )}
                   </p>
                   {o.payment_confirmed_at && (
                     <p className="mt-0.5 text-[11px] text-neutral-400">

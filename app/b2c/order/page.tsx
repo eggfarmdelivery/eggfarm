@@ -119,6 +119,8 @@ export default async function GeneralOrderPage({
           address={account?.address ?? null}
           bankInfo={bankInfo}
           depositorName={depositorName}
+          deliveryFee={campaign.delivery_fee}
+          freeShippingMinQty={campaign.free_shipping_min_qty}
         />
       ) : (
         <CampaignClosedView products={productsWithStock} status={campaignStatus} campaign={campaign} />

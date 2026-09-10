@@ -32,7 +32,7 @@ export default async function MyPage() {
   const { data: rawOrders } = await supabase
     .from("b2c_order")
     .select(
-      "id, order_type, status, total_amount, delivery_photo_url, payment_confirmed_at, created_at, campaign_id, campaign(delivery_date), b2c_order_item(id, quantity, unit_price, product_id, product(name, photo_url))"
+      "id, order_type, status, total_amount, delivery_fee, delivery_photo_url, payment_confirmed_at, created_at, campaign_id, campaign(delivery_date), b2c_order_item(id, quantity, unit_price, product_id, product(name, photo_url))"
     )
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });

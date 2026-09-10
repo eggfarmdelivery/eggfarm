@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { markQuoteReplied } from "./actions";
+import Badge from "@/components/Badge";
 
 type Quote = {
   id: string;
@@ -42,15 +43,7 @@ export default function QuotesClient({ quotes }: { quotes: Quote[] }) {
         <div key={q.id} className="rounded-lg border border-neutral-200 p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium">{q.business_name}</span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                q.status === "신규"
-                  ? "bg-yellow-50 text-yellow-700"
-                  : "bg-green-50 text-green-700"
-              }`}
-            >
-              {q.status}
-            </span>
+            <Badge tone={q.status === "신규" ? "red" : "green"}>{q.status}</Badge>
           </div>
           <p className="text-xs text-neutral-500 mb-1">{q.contact_phone}</p>
           <p className="text-sm mb-2">{q.content}</p>

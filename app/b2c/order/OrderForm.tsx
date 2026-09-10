@@ -23,12 +23,16 @@ export default function OrderForm({
   address,
   bankInfo,
   depositorName,
+  deliveryFee,
+  freeShippingMinQty,
 }: {
   campaignId: string;
   products: Product[];
   address: string | null;
   bankInfo: Record<string, string>;
   depositorName: string | null;
+  deliveryFee: number;
+  freeShippingMinQty: number;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -36,16 +40,20 @@ export default function OrderForm({
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
   const router = useRouter();
 
-  const total = products.reduce(
+  const totalQty = Object.values(qty).reduce((s, v) => s + v, 0);
+  const productTotal = products.reduce(
     (sum, p) => sum + (qty[p.id] ?? 0) * p.base_price,
     0
   );
+  const appliedDeliveryFee = totalQty >= freeShippingMinQty ? 0 : deliveryFee;
+  const total = productTotal + appliedDeliveryFee;
 
   async function handleSubmit(formData: FormData) {
     setError(null);
     setPending(true);
     try {
       formData.set("campaign_id", campaignId);
+      formData.set("delivery_fee_charged", String(appliedDeliveryFee));
       const result = await createGeneralOrder(formData);
       if (!result.success) {
         setError(result.error);
@@ -134,9 +142,19 @@ export default function OrderForm({
         ))}
       </div>
 
-      <div className="mb-4 flex items-baseline justify-between rounded-lg bg-neutral-50 p-3">
-        <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
-        <span className="text-xl font-semibold text-red-500">{total.toLocaleString()}원</span>
+      <div className="mb-4 space-y-1 rounded-lg bg-neutral-50 p-3">
+        <div className="flex items-baseline justify-between text-sm text-neutral-500">
+          <span>상품 금액</span>
+          <span>{productTotal.toLocaleString()}원</span>
+        </div>
+        <div className="flex items-baseline justify-between text-sm text-neutral-500">
+          <span>배송비{appliedDeliveryFee === 0 && totalQty > 0 ? ` (${freeShippingMinQty}판 이상 무료)` : ""}</span>
+          <span>{appliedDeliveryFee === 0 ? "무료" : `${appliedDeliveryFee.toLocaleString()}원`}</span>
+        </div>
+        <div className="flex items-baseline justify-between border-t border-neutral-200 pt-1.5">
+          <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
+          <span className="text-xl font-semibold text-red-500">{total.toLocaleString()}원</span>
+        </div>
       </div>
 
       {error && (

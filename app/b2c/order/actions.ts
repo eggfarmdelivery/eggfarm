@@ -3,7 +3,12 @@
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
-import { checkCampaignLimit, getCampaignProductLimits, getCampaignZoneIds } from "@/lib/campaign";
+import {
+  checkCampaignLimit,
+  getCampaignProductLimits,
+  getCampaignZoneIds,
+  calculateDeliveryFee,
+} from "@/lib/campaign";
 
 type Result =
   | { success: true; remainingAmount: number }
@@ -65,7 +70,17 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     if (items.length === 0) throw new Error("주문할 상품을 선택해주세요");
 
-    const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
+    const { data: campaign } = await supabase
+      .from("campaign")
+      .select("delivery_fee, free_shipping_min_qty")
+      .eq("id", campaignId)
+      .single();
+    if (!campaign) throw new Error("캠페인 정보를 찾을 수 없어요");
+
+    const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+    const deliveryFee = calculateDeliveryFee(campaign, totalQty);
+
+    const totalAmount = items.reduce((s, i) => s + i.subtotal, 0) + deliveryFee;
 
     // 크레딧 기능은 당분간 보류 - 항상 무통장입금(전액 입금대기)으로 처리
     const { data: order, error } = await supabase
@@ -77,6 +92,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
         status: "입금대기",
         is_overflow: false,
         total_amount: totalAmount,
+        delivery_fee: deliveryFee,
         credit_used: 0,
       })
       .select("id")

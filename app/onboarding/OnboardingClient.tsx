@@ -150,7 +150,7 @@ export default function OnboardingClient({ zones }: { zones: Zone[] }) {
               onChange={(e) => setDong(digitsOnly(e.target.value).slice(0, 4))}
               required
               inputMode="numeric"
-              placeholder="0"
+              placeholder="101"
               className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 pr-8 text-sm"
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">

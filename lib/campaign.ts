@@ -8,6 +8,8 @@ export type Campaign = {
   closes_at: string;
   closed_early_at: string | null;
   delivery_date: string | null;
+  delivery_fee: number;
+  free_shipping_min_qty: number;
   created_at: string;
 };
 
@@ -29,7 +31,7 @@ export async function getAllCampaigns(): Promise<Campaign[]> {
   const { data } = await supabase
     .from("campaign")
     .select(
-      "id, title, photo_url, opens_at, closes_at, closed_early_at, delivery_date, created_at"
+      "id, title, photo_url, opens_at, closes_at, closed_early_at, delivery_date, delivery_fee, free_shipping_min_qty, created_at"
     )
     .order("created_at", { ascending: false });
   return data ?? [];
@@ -39,7 +41,7 @@ export async function getCampaignById(id: string): Promise<Campaign | null> {
   const { data } = await supabase
     .from("campaign")
     .select(
-      "id, title, photo_url, opens_at, closes_at, closed_early_at, delivery_date, created_at"
+      "id, title, photo_url, opens_at, closes_at, closed_early_at, delivery_date, delivery_fee, free_shipping_min_qty, created_at"
     )
     .eq("id", id)
     .maybeSingle();
@@ -47,6 +49,14 @@ export async function getCampaignById(id: string): Promise<Campaign | null> {
 }
 
 // 캠페인에 포함된 상품 + 그 캠페인 전용 재고상한/인당제한
+export function calculateDeliveryFee(
+  campaign: { delivery_fee: number; free_shipping_min_qty: number },
+  totalQty: number
+): number {
+  if (totalQty >= campaign.free_shipping_min_qty) return 0;
+  return campaign.delivery_fee;
+}
+
 export async function getCampaignProductLimits(
   campaignId: string
 ): Promise<CampaignProductLimit[]> {

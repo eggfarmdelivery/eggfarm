@@ -5,6 +5,7 @@ import {
   Megaphone,
   Building2,
   Package,
+  Truck,
   Wallet,
   FileText,
   History,
@@ -38,6 +39,7 @@ export default async function AdminConsole() {
       label: "운영",
       items: [
         { href: "/admin/campaign", label: "캠페인 관리", icon: Megaphone },
+        { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
         { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
         { href: "/admin/products", label: "상품관리", icon: Package },
       ],

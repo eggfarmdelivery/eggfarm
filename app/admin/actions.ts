@@ -98,7 +98,13 @@ export async function markB2CDelivered(formData: FormData): Promise<Result> {
     const file = formData.get("photo") as File | null;
     const photoUrl = file ? await uploadDeliveryPhoto(orderId, file) : null;
 
-    await updateB2CStatus(orderId, "배송준비", "배송완료", {
+    const { data: current } = await supabase
+      .from("b2c_order")
+      .select("status")
+      .eq("id", orderId)
+      .single();
+
+    await updateB2CStatus(orderId, current?.status ?? null, "배송완료", {
       delivery_photo_url: photoUrl,
       delivery_completed_at: new Date().toISOString(),
     });

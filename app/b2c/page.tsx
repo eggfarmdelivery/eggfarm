@@ -6,6 +6,7 @@ import { getRecentCampaigns, isOpenStatus, statusLabel } from "@/lib/campaign";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import BottomNav from "@/components/BottomNav";
+import KakaoShareButton from "@/components/KakaoShareButton";
 
 function formatTimeLeft(closesAt: string): string {
   const diffMs = new Date(closesAt).getTime() - Date.now();
@@ -36,7 +37,17 @@ export default async function B2CHome() {
     <div className="pb-32">
       <header className="flex items-center justify-between px-5 py-4">
         <img src="/logo.png" alt="에그팜" className="h-7 w-auto" />
-        <button aria-label="알림">🔔</button>
+        <div className="flex items-center gap-3">
+          <KakaoShareButton
+            title="에그팜 - 신선한 계란 배송"
+            description="우리 동네 신선한 계란, 에그팜에서 만나보세요"
+            imageUrl="https://eggfarm.vercel.app/icon.png"
+            path="/"
+            label=""
+            className="p-1"
+          />
+          <button aria-label="알림">🔔</button>
+        </div>
       </header>
 
       {showNotice && (
@@ -55,6 +66,22 @@ export default async function B2CHome() {
                 className="block overflow-hidden rounded-xl border border-neutral-200"
               >
                 <div className="relative h-32 w-full bg-neutral-100">
+                  <div
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    className="absolute right-1.5 top-1.5 z-10 rounded-full bg-black/50 p-1.5"
+                  >
+                    <KakaoShareButton
+                      title={campaign.title ?? "일반배송 캠페인"}
+                      description="에그팜에서 같이 주문해요"
+                      imageUrl={campaign.photo_url ?? "https://eggfarm.vercel.app/icon.png"}
+                      path={`/b2c/order?campaign=${campaign.id}`}
+                      label=""
+                      className="text-white"
+                    />
+                  </div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={campaign.photo_url ?? "/icon.png"}

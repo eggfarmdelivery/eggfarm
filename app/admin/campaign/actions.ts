@@ -30,6 +30,16 @@ function parseCampaignForm(formData: FormData) {
   const opensAtIso = String(formData.get("opens_at") ?? "").trim();
   const closesAtIso = String(formData.get("closes_at") ?? "").trim();
   const deliveryDate = String(formData.get("delivery_date") ?? "").trim();
+  const deliveryFeeRaw = String(formData.get("delivery_fee") ?? "").trim();
+  const freeShippingMinQtyRaw = String(formData.get("free_shipping_min_qty") ?? "").trim();
+  const deliveryFee = deliveryFeeRaw ? Number(deliveryFeeRaw) : 0;
+  const freeShippingMinQty = freeShippingMinQtyRaw ? Number(freeShippingMinQtyRaw) : 0;
+  if (!Number.isFinite(deliveryFee) || deliveryFee < 0) {
+    throw new Error("배송비는 0 이상의 숫자로 입력해주세요");
+  }
+  if (!Number.isFinite(freeShippingMinQty) || freeShippingMinQty < 1) {
+    throw new Error("무료배송 기준 판수는 1 이상의 숫자로 입력해주세요");
+  }
   const productIds = formData.getAll("product_ids").map(String);
   const zoneIds = formData.getAll("zone_ids").map(String);
 
@@ -67,6 +77,8 @@ function parseCampaignForm(formData: FormData) {
     opensAt,
     closesAt,
     deliveryDate: deliveryDate || null,
+    deliveryFee,
+    freeShippingMinQty,
     productLimits,
     zoneIds,
   };
@@ -76,7 +88,7 @@ function parseCampaignForm(formData: FormData) {
 export async function openCampaign(formData: FormData): Promise<Result> {
   try {
     await requireAdmin();
-    const { title, opensAt, closesAt, deliveryDate, productLimits, zoneIds } =
+    const { title, opensAt, closesAt, deliveryDate, deliveryFee, freeShippingMinQty, productLimits, zoneIds } =
       parseCampaignForm(formData);
     const photo = formData.get("photo") as File | null;
     const photoUrl = photo && photo.size > 0 ? await uploadCampaignPhoto(photo) : null;
@@ -89,6 +101,8 @@ export async function openCampaign(formData: FormData): Promise<Result> {
         opens_at: opensAt.toISOString(),
         closes_at: closesAt.toISOString(),
         delivery_date: deliveryDate,
+        delivery_fee: deliveryFee,
+        free_shipping_min_qty: freeShippingMinQty,
       })
       .select("id")
       .single();
@@ -119,7 +133,7 @@ export async function openCampaign(formData: FormData): Promise<Result> {
 export async function updateCampaign(campaignId: string, formData: FormData): Promise<Result> {
   try {
     await requireAdmin();
-    const { title, opensAt, closesAt, deliveryDate, productLimits, zoneIds } =
+    const { title, opensAt, closesAt, deliveryDate, deliveryFee, freeShippingMinQty, productLimits, zoneIds } =
       parseCampaignForm(formData);
     const photo = formData.get("photo") as File | null;
 
@@ -128,6 +142,8 @@ export async function updateCampaign(campaignId: string, formData: FormData): Pr
       opens_at: opensAt.toISOString(),
       closes_at: closesAt.toISOString(),
       delivery_date: deliveryDate,
+      delivery_fee: deliveryFee,
+      free_shipping_min_qty: freeShippingMinQty,
     };
     if (photo && photo.size > 0) {
       update.photo_url = await uploadCampaignPhoto(photo);
