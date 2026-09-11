@@ -32,7 +32,14 @@ type B2COrder = {
   created_at: string;
   campaign_id: string | null;
   campaign: { title: string | null } | null;
-  account: { name: string | null; phone: string | null; nickname: string | null; address: string | null } | null;
+  account: {
+    name: string | null;
+    phone: string | null;
+    nickname: string | null;
+    address: string | null;
+    entrance_password: string | null;
+    is_test: boolean;
+  } | null;
   b2c_order_item: { quantity: number; product: { name: string } | null }[];
 };
 
@@ -166,6 +173,9 @@ function B2COrderCard({
           )}
           {order.account?.nickname ?? order.account?.name ?? "이름없음"}
           {order.account?.phone ? ` · ${order.account.phone.slice(-4)}` : ""}
+          {order.account?.is_test && (
+            <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-white">테스트</span>
+          )}
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
@@ -183,6 +193,24 @@ function B2COrderCard({
         </p>
       )}
       <p className="text-xs text-neutral-400 mb-1">{formatTime(order.created_at)}</p>
+      {(order.status === "입금확인완료" || order.status === "배송중" || order.status === "배송완료") &&
+        order.account?.address && (
+          <div className="mb-2 rounded-md bg-blue-50 px-2.5 py-2 text-xs text-blue-700">
+            <div className="flex items-center gap-1.5">
+              <p className="flex-1">📍 {order.account.address}</p>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(order.account?.address ?? "")}
+                className="shrink-0 rounded border border-blue-300 px-1.5 py-0.5 text-[10px] text-blue-700"
+              >
+                복사
+              </button>
+            </div>
+            {order.account?.entrance_password && (
+              <p className="mt-1">🔑 공동현관 비밀번호 {order.account.entrance_password}</p>
+            )}
+          </div>
+        )}
       {order.status === "환불대기" && (
         <div className="mb-2 rounded-md bg-orange-50 px-2.5 py-2 text-xs text-orange-700">
           <p>환불할 금액 {order.total_amount.toLocaleString()}원</p>

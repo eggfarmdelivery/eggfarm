@@ -22,6 +22,7 @@ export type AccountSearchResult = {
   name: string | null;
   nickname: string | null;
   phone: string | null;
+  is_test: boolean;
 };
 
 export async function searchAccounts(query: string): Promise<AccountSearchResult[] | { error: string }> {
@@ -32,13 +33,26 @@ export async function searchAccounts(query: string): Promise<AccountSearchResult
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("account")
-      .select("id, name, nickname, phone")
+      .select("id, name, nickname, phone, is_test")
       .or(`nickname.ilike.%${q}%,phone.ilike.%${q}%,name.ilike.%${q}%`)
       .limit(10);
     if (error) throw new Error(error.message);
     return data ?? [];
   } catch (e) {
     return { error: e instanceof Error ? e.message : "검색 중 오류가 발생했어요" };
+  }
+}
+
+// 반복 테스트용 계정 지정/해제 - 지정된 계정의 주문은 캠페인 재고·대시보드 통계에서 제외됨
+export async function setTestAccount(accountId: string, isTest: boolean): Promise<Result> {
+  try {
+    await requireAdmin();
+    const admin = createAdminClient();
+    const { error } = await admin.from("account").update({ is_test: isTest }).eq("id", accountId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
   }
 }
 

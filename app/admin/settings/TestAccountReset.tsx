@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { searchAccounts, resetTestAccount, type AccountSearchResult } from "./actions";
+import { searchAccounts, resetTestAccount, setTestAccount, type AccountSearchResult } from "./actions";
 import Spinner from "@/components/Spinner";
 
 export default function TestAccountReset() {
@@ -10,6 +10,7 @@ export default function TestAccountReset() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   async function handleSearch() {
@@ -40,11 +41,26 @@ export default function TestAccountReset() {
     setDoneMessage(`"${label}" 계정을 초기화했어요`);
   }
 
+  async function handleToggleTest(account: AccountSearchResult) {
+    const nextValue = !account.is_test;
+    setTogglingId(account.id);
+    setError(null);
+    const result = await setTestAccount(account.id, nextValue);
+    setTogglingId(null);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setResults((prev) => prev.map((r) => (r.id === account.id ? { ...r, is_test: nextValue } : r)));
+    setDoneMessage(nextValue ? "테스트계정으로 지정했어요" : "테스트계정 지정을 해제했어요");
+  }
+
   return (
     <section className="mt-8 border-t border-neutral-200 pt-6">
-      <p className="mb-1 text-sm font-medium">테스트 계정 초기화</p>
+      <p className="mb-1 text-sm font-medium">테스트 계정 관리</p>
       <p className="mb-3 text-xs text-neutral-400">
-        닉네임/이름/전화번호로 검색 후 계정과 관련 데이터(크레딧, 주문 등)를 전부 삭제해요
+        닉네임/이름/전화번호로 검색 후, 반복 테스트용으로 쓸 계정을 지정하거나(캠페인 재고·대시보드
+        통계에서 제외됨) 계정과 관련 데이터를 완전히 삭제할 수 있어요
       </p>
       <div className="mb-3 flex gap-2">
         <input
@@ -79,17 +95,34 @@ export default function TestAccountReset() {
             className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2.5"
           >
             <div className="text-sm">
-              <p>{r.nickname ?? r.name ?? "이름없음"}</p>
+              <p className="flex items-center gap-1.5">
+                {r.nickname ?? r.name ?? "이름없음"}
+                {r.is_test && (
+                  <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-white">
+                    테스트
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-neutral-400">{r.phone ?? "-"}</p>
             </div>
-            <button
-              type="button"
-              disabled={resettingId === r.id}
-              onClick={() => handleReset(r)}
-              className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-500 disabled:opacity-50"
-            >
-              {resettingId === r.id ? "처리 중..." : "초기화"}
-            </button>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                disabled={togglingId === r.id}
+                onClick={() => handleToggleTest(r)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 disabled:opacity-50"
+              >
+                {togglingId === r.id ? "처리 중..." : r.is_test ? "테스트 해제" : "테스트로 지정"}
+              </button>
+              <button
+                type="button"
+                disabled={resettingId === r.id}
+                onClick={() => handleReset(r)}
+                className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-500 disabled:opacity-50"
+              >
+                {resettingId === r.id ? "처리 중..." : "초기화"}
+              </button>
+            </div>
           </div>
         ))}
       </div>

@@ -17,6 +17,7 @@ type Order = {
     address: string | null;
     address_dong: string | null;
     address_ho: string | null;
+    entrance_password: string | null;
   } | null;
   b2c_order_item: { quantity: number; product: { name: string } | null }[];
 };
@@ -34,7 +35,9 @@ export default function DeliveryClient({
 
   const deliverySummary = useMemo(() => {
     const map = new Map<string, number>();
+    // 배송완료 건은 더이상 배송해야 할 수량에서 빼줌(완료돼도 목록엔 남겨두되 집계에서만 제외)
     for (const o of orders) {
+      if (o.status === "배송완료") continue;
       for (const item of o.b2c_order_item ?? []) {
         const name = item.product?.name ?? "상품";
         map.set(name, (map.get(name) ?? 0) + item.quantity);
@@ -42,6 +45,9 @@ export default function DeliveryClient({
     }
     return Array.from(map.entries());
   }, [orders]);
+
+  const remainingCount = orders.filter((o) => o.status !== "배송완료").length;
+  const doneCount = orders.length - remainingCount;
 
   return (
     <div className="px-5">
@@ -85,7 +91,7 @@ export default function DeliveryClient({
           )}
 
           <p className="mb-2 text-xs text-neutral-500">
-            동/호수 순 · 총 {orders.length}건
+            동/호수 순 · 남은 배송 {remainingCount}건{doneCount > 0 && ` · 완료 ${doneCount}건`}
           </p>
 
           <div className="space-y-2">
@@ -98,28 +104,44 @@ export default function DeliveryClient({
               const itemsSummary = (o.b2c_order_item ?? [])
                 .map((i) => `${i.product?.name ?? "상품"} ${i.quantity}판`)
                 .join(", ");
+              const isDone = o.status === "배송완료";
               return (
-                <div key={o.id} className="rounded-lg border border-neutral-200 p-3">
+                <div
+                  key={o.id}
+                  className={`rounded-lg border p-3 ${
+                    isDone ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                  }`}
+                >
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">
                       {o.account?.address_dong}동 {o.account?.address_ho}호
                     </span>
-                    <span className="text-xs text-neutral-500">{o.status}</span>
+                    <span className={`text-xs ${isDone ? "font-medium text-green-600" : "text-neutral-500"}`}>
+                      {isDone ? "배송완료 ✓" : o.status}
+                    </span>
                   </div>
                   <p className="text-xs text-neutral-500">
                     {o.account?.nickname ?? "이름없음"}
                     {o.account?.phone ? ` · ${o.account.phone}` : ""}
                   </p>
+                  {o.account?.address && (
+                    <p className="mt-1 text-xs text-blue-700">📍 {o.account.address}</p>
+                  )}
+                  {o.account?.entrance_password && (
+                    <p className="text-xs text-blue-700">🔑 공동현관 비밀번호 {o.account.entrance_password}</p>
+                  )}
                   <p className="mt-0.5 text-xs text-neutral-400">{itemsSummary}</p>
-                  <div className="mt-2">
-                    <PhotoUploadButton
-                      orderId={o.id}
-                      label="배송완료 사진"
-                      confirmAddress={o.account?.address}
-                      confirmItemsSummary={itemsSummary}
-                      onSubmit={markB2CDelivered}
-                    />
-                  </div>
+                  {!isDone && (
+                    <div className="mt-2">
+                      <PhotoUploadButton
+                        orderId={o.id}
+                        label="배송완료 사진"
+                        confirmAddress={o.account?.address}
+                        confirmItemsSummary={itemsSummary}
+                        onSubmit={markB2CDelivered}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

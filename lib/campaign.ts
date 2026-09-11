@@ -56,10 +56,12 @@ export async function getCampaignProductIds(campaignId: string): Promise<string[
 // 이 캠페인 안에서 지금까지 팔린 수량(취소 제외) - 재고/한도는 캠페인별로 완전히 독립
 // (조인된 테이블 컬럼으로 필터링하는 대신, 이 캠페인의 주문id를 먼저 뽑아 명확하게 필터링)
 export async function getCampaignSold(campaignId: string, productId: string): Promise<number> {
+  // 테스트계정 주문은 재고 계산에서 제외해서, 테스트용 주문이 실제 재고를 깎지 않게 함
   const { data: orders } = await supabase
     .from("b2c_order")
-    .select("id")
+    .select("id, account!inner(is_test)")
     .eq("campaign_id", campaignId)
+    .eq("account.is_test", false)
     .neq("status", "취소")
     .neq("status", "환불대기")
     .neq("status", "환불완료");

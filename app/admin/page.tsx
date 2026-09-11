@@ -30,26 +30,31 @@ export default async function AdminHome() {
   const { count: totalAccounts } = await admin
     .from("account")
     .select("id", { count: "exact", head: true })
-    .eq("role", "b2c");
+    .eq("role", "b2c")
+    .eq("is_test", false);
   const { count: todayAccounts } = await admin
     .from("account")
     .select("id", { count: "exact", head: true })
     .eq("role", "b2c")
+    .eq("is_test", false)
     .gte("created_at", startOfDay(now).toISOString());
   const { count: weekAccounts } = await admin
     .from("account")
     .select("id", { count: "exact", head: true })
     .eq("role", "b2c")
+    .eq("is_test", false)
     .gte("created_at", weekStart.toISOString());
   const { count: monthAccounts } = await admin
     .from("account")
     .select("id", { count: "exact", head: true })
     .eq("role", "b2c")
+    .eq("is_test", false)
     .gte("created_at", monthStart.toISOString());
   const { count: noZoneAccounts } = await admin
     .from("account")
     .select("id", { count: "exact", head: true })
     .eq("role", "b2c")
+    .eq("is_test", false)
     .is("delivery_zone_id", null);
 
   // ---------- 주문 ----------

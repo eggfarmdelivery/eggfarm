@@ -14,7 +14,7 @@ export default async function AdminOrdersPage() {
   const { data: b2cOrders } = await admin
     .from("b2c_order")
     .select(
-      "id, order_type, status, is_overflow, total_amount, created_at, campaign_id, campaign(title), account(name, phone, nickname, address), b2c_order_item(quantity, product(name)), refund_bank_name, refund_account_number, refund_holder_name"
+      "id, order_type, status, is_overflow, total_amount, created_at, campaign_id, campaign(title), account(name, phone, nickname, address, entrance_password, is_test), b2c_order_item(quantity, product(name)), refund_bank_name, refund_account_number, refund_holder_name"
     )
     .order("created_at", { ascending: false });
 

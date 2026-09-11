@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { getAllCampaigns } from "@/lib/campaign";
 import DeliveryClient from "./DeliveryClient";
 
-const DELIVERABLE_STATUSES = ["입금확인완료", "배송중", "배송위임"];
+const DELIVERABLE_STATUSES = ["입금확인완료", "배송중", "배송위임", "배송완료"];
 
 export default async function DeliveryPage({
   searchParams,
@@ -24,7 +24,7 @@ export default async function DeliveryPage({
     const { data } = await admin
       .from("b2c_order")
       .select(
-        "id, status, total_amount, created_at, account(nickname, phone, address, address_dong, address_ho), b2c_order_item(quantity, product(name))"
+        "id, status, total_amount, created_at, account(nickname, phone, address, address_dong, address_ho, entrance_password), b2c_order_item(quantity, product(name))"
       )
       .eq("campaign_id", campaignId)
       .in("status", DELIVERABLE_STATUSES);
