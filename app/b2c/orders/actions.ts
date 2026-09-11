@@ -68,6 +68,41 @@ export async function cancelOrder(
   }
 }
 
+// 관리자가 먼저 취소해서 환불대기로 바뀐 주문은 환불계좌 정보가 비어있을 수 있음 -
+// 이 경우 구매자가 직접 환불계좌를 입력할 수 있게 해줌
+export async function submitRefundAccount(
+  orderId: string,
+  refundAccount: RefundAccount
+): Promise<Result> {
+  try {
+    const accountId = await getAccountId("b2c");
+    const { data: order, error: orderError } = await supabase
+      .from("b2c_order")
+      .select("id, account_id, status")
+      .eq("id", orderId)
+      .single();
+    if (orderError || !order) throw new Error("주문을 찾을 수 없어요");
+    if (order.account_id !== accountId) throw new Error("본인 주문만 처리할 수 있어요");
+    if (order.status !== "환불대기") throw new Error("환불대기 상태의 주문만 입력할 수 있어요");
+    if (!refundAccount.bankName || !refundAccount.accountNumber || !refundAccount.holderName) {
+      throw new Error("환불받을 계좌 정보를 모두 입력해주세요");
+    }
+
+    const { error } = await supabase
+      .from("b2c_order")
+      .update({
+        refund_bank_name: refundAccount.bankName,
+        refund_account_number: refundAccount.accountNumber,
+        refund_holder_name: refundAccount.holderName,
+      })
+      .eq("id", orderId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "저장 중 오류가 발생했어요" };
+  }
+}
+
 export async function updateOrderQuantities(
   orderId: string,
   items: { itemId: string; productId: string; unitPrice: number; oldQty: number; newQty: number }[]

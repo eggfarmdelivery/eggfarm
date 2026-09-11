@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import OrderJourney from "@/components/OrderJourney";
 import QuantityStepper from "@/components/QuantityStepper";
-import { updateOrderQuantities, cancelOrder, addOrderItem, type RefundAccount } from "./actions";
+import { updateOrderQuantities, cancelOrder, addOrderItem, submitRefundAccount, type RefundAccount } from "./actions";
 
 type OrderItem = {
   id: string;
@@ -33,6 +33,7 @@ type Order = {
   payment_confirmed_at: string | null;
   created_at: string;
   cancel_reason: string | null;
+  refund_bank_name: string | null;
   campaign: { delivery_date: string | null } | null;
   b2c_order_item: OrderItem[];
   addableProducts?: AddableProduct[];
@@ -69,6 +70,7 @@ function OrderDetail({ order }: { order: Order }) {
   const [refundBankName, setRefundBankName] = useState("");
   const [refundAccountNumber, setRefundAccountNumber] = useState("");
   const [refundHolderName, setRefundHolderName] = useState("");
+  const [enteringRefundAccount, setEnteringRefundAccount] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>(
     Object.fromEntries((order.b2c_order_item ?? []).map((i) => [i.id, i.quantity]))
   );
@@ -98,6 +100,7 @@ function OrderDetail({ order }: { order: Order }) {
   const canCancelFree = order.status === "입금대기";
   const canCancelWithRefund = ["입금확인완료"].includes(order.status);
   const canCancel = canCancelFree || canCancelWithRefund;
+  const needsRefundAccountInput = order.status === "환불대기" && !order.refund_bank_name;
   const newTotal = (order.b2c_order_item ?? []).reduce(
     (sum, i) => sum + (qty[i.id] ?? i.quantity) * i.unit_price,
     0
@@ -155,6 +158,85 @@ function OrderDetail({ order }: { order: Order }) {
     } finally {
       setPending(false);
     }
+  }
+
+  async function handleSubmitRefundAccount() {
+    if (!refundBankName || !refundAccountNumber || !refundHolderName) {
+      setError("환불받을 계좌 정보를 모두 입력해주세요");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const result = await submitRefundAccount(order.id, {
+        bankName: refundBankName,
+        accountNumber: refundAccountNumber,
+        holderName: refundHolderName,
+      });
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setEnteringRefundAccount(false);
+      router.refresh();
+    } catch {
+      setError("저장 중 알 수 없는 오류가 발생했어요");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (enteringRefundAccount) {
+    return (
+      <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
+        <div className="mb-3 space-y-2 rounded-xl bg-neutral-50 p-3">
+          <p className="whitespace-nowrap text-xs font-medium text-neutral-600">
+            {order.total_amount.toLocaleString()}원을 환불받을 계좌를 입력해주세요
+          </p>
+          <input
+            value={refundBankName}
+            onChange={(e) => setRefundBankName(e.target.value)}
+            placeholder="은행명 (예: 국민은행)"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+          />
+          <input
+            value={refundAccountNumber}
+            onChange={(e) => setRefundAccountNumber(e.target.value.replace(/[^0-9-]/g, ""))}
+            inputMode="numeric"
+            placeholder="계좌번호"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+          />
+          <input
+            value={refundHolderName}
+            onChange={(e) => setRefundHolderName(e.target.value)}
+            placeholder="예금주명"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </div>
+        {error && (
+          <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setEnteringRefundAccount(false);
+              setError(null);
+            }}
+            disabled={pending}
+            className="flex-1 rounded-lg border border-neutral-300 py-2 text-xs"
+          >
+            나중에
+          </button>
+          <button
+            onClick={handleSubmitRefundAccount}
+            disabled={pending}
+            className="flex-1 rounded-lg bg-primary py-2 text-xs font-medium text-white disabled:opacity-60"
+          >
+            {pending ? "저장 중..." : "환불계좌 저장"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (cancelling) {
@@ -249,6 +331,17 @@ function OrderDetail({ order }: { order: Order }) {
                 취소 사유: {order.cancel_reason}
               </div>
             )}
+          {needsRefundAccountInput && (
+            <div className="mt-2 rounded-md bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+              <p className="mb-1.5 font-medium">환불받을 계좌 정보를 아직 입력하지 않으셨어요</p>
+              <button
+                onClick={() => setEnteringRefundAccount(true)}
+                className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white"
+              >
+                환불계좌 입력하기
+              </button>
+            </div>
+          )}
           {order.status === "배송완료" && order.delivery_photo_url && (
             <img
               src={order.delivery_photo_url}
