@@ -244,9 +244,10 @@ export async function confirmRefund(orderId: string): Promise<Result> {
 // - 입금확인완료: 환불대기로 전환(환불계좌 정보는 고객이 주문내역에서 직접 입력하거나,
 //   관리자가 전화로 확인해서 별도로 채워줌 - 취소 자체는 경고만 주고 데이터 입력을 요구하지 않음)
 // ---------------------------------------------------------
-export async function adminCancelOrder(orderId: string): Promise<Result> {
+export async function adminCancelOrder(orderId: string, cancelReason: string): Promise<Result> {
   try {
     await requireAdmin();
+    if (!cancelReason.trim()) throw new Error("취소 사유를 입력해주세요");
     const { data: order, error: fetchError } = await supabase
       .from("b2c_order")
       .select("status")
@@ -255,12 +256,12 @@ export async function adminCancelOrder(orderId: string): Promise<Result> {
     if (fetchError || !order) throw new Error("주문을 찾을 수 없어요");
 
     if (order.status === "입금대기") {
-      await updateB2CStatus(orderId, "입금대기", "취소");
+      await updateB2CStatus(orderId, "입금대기", "취소", { cancel_reason: cancelReason.trim() });
       return { success: true };
     }
 
     if (order.status === "입금확인완료") {
-      await updateB2CStatus(orderId, "입금확인완료", "환불대기");
+      await updateB2CStatus(orderId, "입금확인완료", "환불대기", { cancel_reason: cancelReason.trim() });
       return { success: true };
     }
 

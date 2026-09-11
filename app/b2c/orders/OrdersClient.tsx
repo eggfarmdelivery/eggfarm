@@ -32,6 +32,7 @@ type Order = {
   delivery_photo_url: string | null;
   payment_confirmed_at: string | null;
   created_at: string;
+  cancel_reason: string | null;
   campaign: { delivery_date: string | null } | null;
   b2c_order_item: OrderItem[];
   addableProducts?: AddableProduct[];
@@ -242,6 +243,12 @@ function OrderDetail({ order }: { order: Order }) {
             </div>
           </div>
           <OrderJourney status={order.status} />
+          {(order.status === "취소" || order.status === "환불대기" || order.status === "환불완료") &&
+            order.cancel_reason && (
+              <div className="mt-2 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+                취소 사유: {order.cancel_reason}
+              </div>
+            )}
           {order.status === "배송완료" && order.delivery_photo_url && (
             <img
               src={order.delivery_photo_url}

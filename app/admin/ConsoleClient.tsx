@@ -92,11 +92,12 @@ function CancelOrderModal({
 }: {
   order: B2COrder;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
   busy: boolean;
 }) {
   const isPaid = order.status === "입금확인완료";
   const hasRefundAccount = order.refund_bank_name && order.refund_account_number;
+  const [reason, setReason] = useState("");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
@@ -107,6 +108,19 @@ function CancelOrderModal({
           {order.total_amount.toLocaleString()}원 주문이{" "}
           {isPaid ? "환불대기 상태로 전환" : "취소"}됩니다. 이 작업은 되돌릴 수 없어요.
         </p>
+
+        <div className="mb-4">
+          <label className="mb-1 block text-xs font-medium text-neutral-600">
+            취소 사유 (구매자에게 표시돼요)
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            placeholder="예: 재고 부족으로 취소합니다"
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </div>
 
         {isPaid && (
           <div className="mb-4 rounded-md bg-neutral-50 px-3 py-2.5 text-xs text-neutral-600">
@@ -134,8 +148,8 @@ function CancelOrderModal({
           </button>
           <button
             type="button"
-            disabled={busy}
-            onClick={onConfirm}
+            disabled={busy || !reason.trim()}
+            onClick={() => onConfirm(reason.trim())}
             className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {busy ? "처리 중..." : "취소 확정"}
@@ -322,8 +336,8 @@ function B2COrderCard({
           order={cancelTarget}
           busy={busy}
           onClose={() => setCancelTarget(null)}
-          onConfirm={() => {
-            run(() => adminCancelOrder(order.id)).then(() => setCancelTarget(null));
+          onConfirm={(reason) => {
+            run(() => adminCancelOrder(order.id, reason)).then(() => setCancelTarget(null));
           }}
         />
       )}
