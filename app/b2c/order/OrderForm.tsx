@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createGeneralOrder } from "./actions";
 import Spinner from "@/components/Spinner";
@@ -58,8 +59,13 @@ export default function OrderForm({
     // ref는 즉시(동기적으로) 갱신되므로 이걸로 확실하게 중복 제출을 막음
     if (submittingRef.current) return;
     submittingRef.current = true;
-    setError(null);
-    setPending(true);
+    // <form action={fn}> 방식은 내부적으로 트랜지션으로 처리돼서, 처리중 상태(pending) 렌더링이
+    // 화면에 그려지기도 전에 응답이 와버리면 "주문접수중" 카드가 안 보이고 그냥 넘어가는 문제가 있었음.
+    // flushSync로 강제로 즉시 렌더링해서 오버레이가 반드시 먼저 그려지도록 함
+    flushSync(() => {
+      setError(null);
+      setPending(true);
+    });
     const startedAt = Date.now();
     try {
       formData.set("campaign_id", campaignId);
@@ -91,7 +97,13 @@ export default function OrderForm({
   }
 
   return (
-    <form action={handleSubmit} className="px-5">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(new FormData(e.currentTarget));
+      }}
+      className="px-5"
+    >
       <p className="text-xs text-neutral-500 mb-1">배송 주소</p>
       <div className="mb-4 rounded-md border border-neutral-200 px-3 py-2 text-sm text-neutral-600">
         {address ?? "등록된 주소가 없어요 (마이페이지에서 입력해주세요)"}
