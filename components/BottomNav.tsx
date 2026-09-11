@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Home, ClipboardList, User, Info } from "lucide-react";
+import { useViewportBottomInset } from "@/lib/useViewportBottomInset";
 
 const items = [
   { href: "/b2c", label: "홈", Icon: Home },
@@ -9,10 +12,11 @@ const items = [
 ];
 
 export default function BottomNav({ active }: { active: string }) {
+  const extraInset = useViewportBottomInset();
   return (
     <nav
       className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}
+      style={{ paddingBottom: `max(env(safe-area-inset-bottom), 14px)`, bottom: extraInset }}
     >
       <ul className="flex justify-around py-1.5">
         {items.map((item) => {

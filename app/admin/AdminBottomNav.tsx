@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, ClipboardList, Wallet, Settings } from "lucide-react";
+import { useViewportBottomInset } from "@/lib/useViewportBottomInset";
 
 const TABS = [
   { key: "status", href: "/admin", label: "현황", Icon: LayoutDashboard, match: ["/admin"] },
@@ -38,13 +39,14 @@ const TABS = [
 
 export default function AdminBottomNav() {
   const pathname = usePathname();
+  const extraInset = useViewportBottomInset();
 
   if (pathname.startsWith("/admin/login")) return null;
 
   return (
     <nav
       className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)", bottom: extraInset }}
     >
       <ul className="flex justify-around py-1.5">
         {TABS.map((tab) => {
