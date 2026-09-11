@@ -1,5 +1,3 @@
-import LoginForm from "./LoginForm";
-
 export default async function AdminLoginPage({
   searchParams,
 }: {
@@ -35,14 +33,6 @@ export default async function AdminLoginPage({
       >
         카카오로 로그인
       </a>
-
-      <div className="flex w-full max-w-xs items-center gap-2 text-xs text-neutral-400">
-        <div className="h-px flex-1 bg-neutral-200" />
-        또는
-        <div className="h-px flex-1 bg-neutral-200" />
-      </div>
-
-      <LoginForm />
     </div>
   );
 }

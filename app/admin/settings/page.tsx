@@ -7,6 +7,7 @@ import { isAdminKakaoConnected } from "@/lib/kakao";
 import SettingsClient from "./SettingsClient";
 import TestAccountReset from "./TestAccountReset";
 import KakaoNotifySection from "./KakaoNotifySection";
+import AdminLogoutButton from "./AdminLogoutButton";
 
 export default async function SettingsPage({
   searchParams,
@@ -26,7 +27,7 @@ export default async function SettingsPage({
   const connected = await isAdminKakaoConnected();
 
   return (
-    <div className="pb-10">
+    <div className="pb-24">
       <header className="flex items-center gap-2 px-5 py-4">
         <Link href="/admin" aria-label="뒤로가기" className="text-lg">
           ←
@@ -41,6 +42,9 @@ export default async function SettingsPage({
           error={kakao_error}
         />
         <TestAccountReset />
+        <div className="mt-6">
+          <AdminLogoutButton />
+        </div>
       </div>
     </div>
   );

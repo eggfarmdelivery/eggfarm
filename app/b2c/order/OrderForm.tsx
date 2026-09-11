@@ -22,7 +22,8 @@ export default function OrderForm({
   products,
   address,
   bankInfo,
-  depositorName,
+  depositorNickname,
+  depositorPhoneSuffix,
   deliveryFee,
   freeShippingMinQty,
 }: {
@@ -30,7 +31,8 @@ export default function OrderForm({
   products: Product[];
   address: string | null;
   bankInfo: Record<string, string>;
-  depositorName: string | null;
+  depositorNickname: string | null;
+  depositorPhoneSuffix: string | null;
   deliveryFee: number;
   freeShippingMinQty: number;
 }) {
@@ -205,8 +207,9 @@ export default function OrderForm({
         <PaymentInfoModal
           bankInfo={bankInfo as BankInfo}
           amount={paidTotal}
-          depositorName={depositorName}
-          onClose={() => router.push("/b2c/mypage")}
+          depositorNickname={depositorNickname}
+          depositorPhoneSuffix={depositorPhoneSuffix}
+          onClose={() => router.push("/b2c/orders")}
         />
       )}
     </form>

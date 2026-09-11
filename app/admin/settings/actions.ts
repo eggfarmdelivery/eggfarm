@@ -1,9 +1,15 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireAdmin, clearAdminCookie } from "@/lib/adminAuth";
 import { sendKakaoMemoRaw } from "@/lib/kakao";
+
+export async function adminLogout() {
+  await clearAdminCookie();
+  redirect("/admin/login");
+}
 
 type Result = { success: true } | { success: false; error: string };
 

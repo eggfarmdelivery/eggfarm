@@ -19,7 +19,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
   try {
     const accountId = await getAccountId("b2c");
     const campaignId = String(formData.get("campaign_id") ?? "").trim();
-    if (!campaignId) throw new Error("캠페인 정보가 없어요. 다시 시도해주세요");
+    if (!campaignId) throw new Error("판매기간 정보가 없어요. 다시 시도해주세요");
 
     // account 테이블은 RLS가 걸려있어 세션(로그인 쿠키) 있는 클라이언트로 조회해야 함
     // (anon 클라이언트로 조회하면 항상 null이 되어 매번 단지 불일치로 잘못 처리되던 버그 수정)
@@ -31,11 +31,11 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       .single();
     const zoneIds = await getCampaignZoneIds(campaignId);
     if (!account?.delivery_zone_id || !zoneIds.includes(account.delivery_zone_id)) {
-      throw new Error("이 캠페인은 회원님의 단지에서는 이용할 수 없어요");
+      throw new Error("이 판매기간은 회원님의 단지에서는 이용할 수 없어요");
     }
 
     const productLimits = await getCampaignProductLimits(campaignId);
-    if (productLimits.length === 0) throw new Error("이 캠페인에 포함된 상품이 없어요");
+    if (productLimits.length === 0) throw new Error("이 판매기간에 포함된 상품이 없어요");
 
     const { data: products } = await supabase
       .from("product")
@@ -76,7 +76,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       .select("delivery_fee, free_shipping_min_qty")
       .eq("id", campaignId)
       .single();
-    if (!campaign) throw new Error("캠페인 정보를 찾을 수 없어요");
+    if (!campaign) throw new Error("판매기간 정보를 찾을 수 없어요");
 
     const totalQty = items.reduce((s, i) => s + i.quantity, 0);
     const deliveryFee = calculateDeliveryFee(campaign, totalQty);

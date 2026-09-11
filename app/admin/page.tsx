@@ -1,104 +1,270 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import {
-  Megaphone,
-  Building2,
-  Package,
-  Truck,
-  Wallet,
-  FileText,
-  History,
-  Settings,
-  ChevronRight,
-  LayoutDashboard,
-} from "lucide-react";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
-import ConsoleClient from "./ConsoleClient";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getOpenCampaigns, getCampaignSold } from "@/lib/campaign";
+import { isAdminKakaoConnected } from "@/lib/kakao";
+import AdminDashboardCards, { type DashboardCard } from "./AdminDashboardCards";
 
-export default async function AdminConsole() {
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function daysAgo(n: number) {
+  const d = startOfDay(new Date());
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+export default async function AdminHome() {
   await requireAdmin();
-  // 관리자는 일반 로그인 사용자가 아니라 RLS(auth.uid())를 못 타므로,
-  // 회원 이름/전화번호처럼 RLS가 걸린 정보를 보려면 서비스롤 클라이언트가 필요함
   const admin = createAdminClient();
 
-  const { data: b2cOrders } = await admin
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const weekStart = daysAgo(now.getDay() === 0 ? 6 : now.getDay() - 1); // 이번주 월요일 0시
+
+  // ---------- 가입자 ----------
+  const { count: totalAccounts } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2c");
+  const { count: todayAccounts } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2c")
+    .gte("created_at", startOfDay(now).toISOString());
+  const { count: weekAccounts } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2c")
+    .gte("created_at", weekStart.toISOString());
+  const { count: monthAccounts } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2c")
+    .gte("created_at", monthStart.toISOString());
+  const { count: noZoneAccounts } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2c")
+    .is("delivery_zone_id", null);
+
+  // ---------- 주문 ----------
+  const { count: weekOrders } = await admin
     .from("b2c_order")
-    .select(
-      "id, order_type, status, is_overflow, total_amount, created_at, campaign_id, campaign(title), account(name, phone, nickname, address), b2c_order_item(quantity, product(name)), refund_bank_name, refund_account_number, refund_holder_name"
-    )
-    .order("created_at", { ascending: false });
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", weekStart.toISOString());
+  const { count: pendingPaymentOrders } = await admin
+    .from("b2c_order")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "입금대기");
+  const orderStatusCounts: Record<string, number> = {};
+  for (const status of ["입금대기", "입금확인완료", "배송중", "배송완료"]) {
+    const { count } = await admin
+      .from("b2c_order")
+      .select("id", { count: "exact", head: true })
+      .eq("status", status);
+    orderStatusCounts[status] = count ?? 0;
+  }
 
-  const { data: b2bOrders } = await admin
-    .from("b2b_order")
-    .select("id, status, total_amount, created_at, account(business_name)")
-    .order("created_at", { ascending: false });
+  // ---------- 매출 ----------
+  const { data: deliveredThisMonth } = await admin
+    .from("b2c_order")
+    .select("total_amount")
+    .eq("status", "배송완료")
+    .gte("created_at", monthStart.toISOString());
+  const { data: deliveredLastMonth } = await admin
+    .from("b2c_order")
+    .select("total_amount")
+    .eq("status", "배송완료")
+    .gte("created_at", lastMonthStart.toISOString())
+    .lt("created_at", monthStart.toISOString());
+  const revenueThisMonth = (deliveredThisMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
+  const revenueLastMonth = (deliveredLastMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
+  const avgOrderValue =
+    (deliveredThisMonth?.length ?? 0) > 0
+      ? Math.round(revenueThisMonth / (deliveredThisMonth?.length ?? 1))
+      : 0;
+  const revenueChangePct =
+    revenueLastMonth > 0
+      ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
+      : null;
 
-  const menuGroups = [
+  // ---------- 진행중 판매기간(캠페인) ----------
+  const openCampaigns = await getOpenCampaigns();
+  const campaignDetail: { label: string; value: string }[] = [];
+  let totalStock = 0;
+  let totalSold = 0;
+  for (const { campaign, productLimits } of openCampaigns) {
+    let campaignStock = 0;
+    let campaignSold = 0;
+    for (const limit of productLimits) {
+      campaignStock += limit.stock_limit;
+      campaignSold += await getCampaignSold(campaign.id, limit.product_id);
+    }
+    totalStock += campaignStock;
+    totalSold += campaignSold;
+    const pct = campaignStock > 0 ? Math.round((campaignSold / campaignStock) * 100) : 0;
+    campaignDetail.push({
+      label: campaign.title ?? "제목없음",
+      value: `재고 ${pct}% 소진 · 마감 ${new Date(campaign.closes_at).toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul",
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })}`,
+    });
+  }
+  const overallStockPct = totalStock > 0 ? Math.round((totalSold / totalStock) * 100) : 0;
+
+  // ---------- 환불대기 ----------
+  const { data: refundOrders } = await admin
+    .from("b2c_order")
+    .select("id, total_amount, created_at, account(nickname)")
+    .eq("status", "환불대기")
+    .order("created_at", { ascending: true });
+  const refundCount = refundOrders?.length ?? 0;
+  const maxRefundDays =
+    refundCount > 0
+      ? Math.floor((now.getTime() - new Date(refundOrders![0].created_at).getTime()) / 86400000)
+      : 0;
+
+  // ---------- 단지별 분포(이번주) ----------
+  const { data: weekOrderZones } = await admin
+    .from("b2c_order")
+    .select("account(delivery_zone_id)")
+    .gte("created_at", weekStart.toISOString());
+  const { data: zones } = await admin.from("delivery_zone").select("id, name");
+  const zoneNameMap = new Map((zones ?? []).map((z) => [z.id, z.name]));
+  const zoneCounts = new Map<string, number>();
+  for (const row of weekOrderZones ?? []) {
+    const zoneId = (row.account as any)?.delivery_zone_id;
+    if (!zoneId) continue;
+    const name = zoneNameMap.get(zoneId) ?? "미지정";
+    zoneCounts.set(name, (zoneCounts.get(name) ?? 0) + 1);
+  }
+  const zoneRows = Array.from(zoneCounts.entries()).sort((a, b) => b[1] - a[1]);
+  const topZone = zoneRows[0];
+
+  // ---------- 카카오 알림 연동 ----------
+  const kakaoConnected = await isAdminKakaoConnected();
+
+  const cards: DashboardCard[] = [
     {
-      label: "현황",
-      items: [{ href: "/admin/dashboard", label: "가입자·주문·매출 현황", icon: LayoutDashboard }],
-    },
-    {
-      label: "운영",
-      items: [
-        { href: "/admin/campaign", label: "캠페인 관리", icon: Megaphone },
-        { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
-        { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
-        { href: "/admin/products", label: "상품관리", icon: Package },
+      key: "members",
+      label: "가입자",
+      icon: "users",
+      value: `${(totalAccounts ?? 0).toLocaleString()}명`,
+      sub: `+${weekAccounts ?? 0} 이번주`,
+      detail: [
+        { label: "오늘 가입", value: `${todayAccounts ?? 0}명` },
+        { label: "이번주 가입", value: `${weekAccounts ?? 0}명` },
+        { label: "이번달 가입", value: `${monthAccounts ?? 0}명` },
+        { label: "배송단지 미지정", value: `${noZoneAccounts ?? 0}명` },
       ],
     },
     {
-      label: "정산 · 기록",
-      items: [
-        { href: "/admin/settlement", label: "정산", icon: Wallet },
-        { href: "/admin/quotes", label: "견적", icon: FileText },
-        { href: "/admin/logs", label: "상태변경 이력", icon: History },
+      key: "orders",
+      label: "이번주 주문",
+      icon: "orders",
+      value: `${weekOrders ?? 0}건`,
+      sub: `입금대기 ${pendingPaymentOrders ?? 0}건`,
+      danger: (pendingPaymentOrders ?? 0) > 0,
+      detail: [
+        { label: "입금대기", value: `${orderStatusCounts["입금대기"]}건` },
+        { label: "입금확인완료", value: `${orderStatusCounts["입금확인완료"]}건` },
+        { label: "배송중", value: `${orderStatusCounts["배송중"]}건` },
+        { label: "배송완료", value: `${orderStatusCounts["배송완료"]}건` },
       ],
     },
     {
-      label: "환경설정",
-      items: [{ href: "/admin/settings", label: "설정", icon: Settings }],
+      key: "revenue",
+      label: "이번달 매출",
+      icon: "revenue",
+      value: `${revenueThisMonth.toLocaleString()}원`,
+      sub: revenueChangePct !== null ? `전월대비 ${revenueChangePct >= 0 ? "+" : ""}${revenueChangePct}%` : "배송완료 기준",
+      detail: [
+        { label: "이번달 매출", value: `${revenueThisMonth.toLocaleString()}원` },
+        { label: "평균 객단가", value: `${avgOrderValue.toLocaleString()}원` },
+        { label: "전월 매출", value: `${revenueLastMonth.toLocaleString()}원` },
+        {
+          label: "전월대비",
+          value: revenueChangePct !== null ? `${revenueChangePct >= 0 ? "+" : ""}${revenueChangePct}%` : "-",
+        },
+      ],
+    },
+    {
+      key: "campaign",
+      label: "진행중 판매기간",
+      icon: "campaign",
+      value: `${openCampaigns.length}개`,
+      sub: openCampaigns.length > 0 ? `재고 ${overallStockPct}% 소진` : "진행중인 판매기간 없음",
+      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "진행중인 판매기간이 없어요" }],
+    },
+    {
+      key: "refund",
+      label: "환불대기",
+      icon: "refund",
+      value: `${refundCount}건`,
+      sub: refundCount > 0 ? `최대 ${maxRefundDays}일 경과` : "없음",
+      danger: refundCount > 0,
+      detail:
+        (refundOrders ?? []).length > 0
+          ? refundOrders!.slice(0, 5).map((o) => ({
+              label: (o.account as any)?.nickname ?? "이름없음",
+              value: `${o.total_amount.toLocaleString()}원 · ${Math.floor(
+                (now.getTime() - new Date(o.created_at).getTime()) / 86400000
+              )}일 경과`,
+            }))
+          : [{ label: "안내", value: "환불대기 건이 없어요" }],
+    },
+    {
+      key: "zones",
+      label: "단지별 분포",
+      icon: "zones",
+      value: topZone ? `${topZone[0]} 1위` : "데이터 없음",
+      sub: topZone ? `이번주 ${topZone[1]}건` : "이번주 주문 없음",
+      detail:
+        zoneRows.length > 0
+          ? zoneRows.slice(0, 5).map(([name, count]) => ({ label: name, value: `${count}건` }))
+          : [{ label: "안내", value: "이번주 주문이 없어요" }],
+    },
+    {
+      key: "kakao",
+      label: "카카오 알림",
+      icon: "kakao",
+      value: kakaoConnected ? "연동됨" : "연동 안 됨",
+      sub: kakaoConnected ? "새 주문 알림 발송중" : "환경설정에서 연동해주세요",
+      danger: !kakaoConnected,
+      detail: [
+        { label: "연동 상태", value: kakaoConnected ? "정상" : "미연동" },
+        { label: "ADMIN_KAKAO_ID", value: process.env.ADMIN_KAKAO_ID ? "등록됨" : "미등록" },
+      ],
+    },
+    {
+      key: "delivery",
+      label: "배송원 위임현황",
+      icon: "delivery",
+      value: "추후연동",
+      muted: true,
+      detail: [{ label: "안내", value: "위임배송 시스템 구현 후 연동 예정이에요" }],
     },
   ];
 
   return (
-    <div className="pb-10">
+    <div className="pb-24">
       <header className="px-5 py-4">
-        <h1 className="text-base font-medium">관리자 콘솔</h1>
+        <h1 className="text-base font-medium">현황</h1>
       </header>
 
-      <div className="mb-5 space-y-4 px-5">
-        {menuGroups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-1.5 text-xs text-neutral-400">{group.label}</p>
-            <div className="overflow-hidden rounded-xl border border-neutral-200">
-              {group.items.map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
-                      idx > 0 ? "border-t border-neutral-200" : ""
-                    }`}
-                  >
-                    <Icon size={18} className="text-neutral-500" />
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRight size={16} className="text-neutral-300" />
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <div className="px-5">
+        <AdminDashboardCards cards={cards} />
       </div>
-
-      <ConsoleClient
-        b2cOrders={(b2cOrders as any) ?? []}
-        b2bOrders={(b2bOrders as any) ?? []}
-      />
     </div>
   );
 }

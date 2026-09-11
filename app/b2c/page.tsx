@@ -68,14 +68,14 @@ export default async function B2CHome() {
               >
                 <div className="relative h-32 w-full bg-neutral-100">
                   <CampaignShareOverlay
-                    title={campaign.title ?? "일반배송 캠페인"}
+                    title={campaign.title ?? "일반배송 판매기간"}
                     imageUrl={campaign.photo_url ?? "https://eggfarm.vercel.app/icon.png"}
                     path={`/b2c/order?campaign=${campaign.id}`}
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={campaign.photo_url ?? "/icon.png"}
-                    alt={campaign.title ?? "캠페인"}
+                    alt={campaign.title ?? "판매기간"}
                     className={`h-full w-full ${
                       campaign.photo_url ? "object-cover" : "object-contain p-4 opacity-70"
                     } ${!isOpenStatus(status) ? "blur-sm" : ""}`}
@@ -90,7 +90,7 @@ export default async function B2CHome() {
                 </div>
                 <div className="p-2.5">
                   <p className="truncate text-xs font-medium">
-                    {campaign.title ?? "일반배송 캠페인"}
+                    {campaign.title ?? "일반배송 판매기간"}
                   </p>
                   {campaign.delivery_date && (
                     <p className="mt-0.5 text-[10px] text-neutral-400">

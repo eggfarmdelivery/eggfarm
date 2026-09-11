@@ -88,10 +88,9 @@ export default async function GeneralOrderPage({
     })
   );
 
-  const depositorName =
-    account?.nickname && account?.phone
-      ? `${account.nickname}${account.phone.replace(/\D/g, "").slice(-4)}`
-      : null;
+  const depositorNickname = account?.nickname && account?.phone ? account.nickname : null;
+  const depositorPhoneSuffix =
+    account?.nickname && account?.phone ? account.phone.replace(/\D/g, "").slice(-4) : null;
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
@@ -108,7 +107,7 @@ export default async function GeneralOrderPage({
         <div className="px-5">
           <div className="rounded-xl bg-neutral-50 px-4 py-8 text-center">
             <p className="text-sm text-neutral-600">
-              이 캠페인은 회원님의 단지에서는 이용할 수 없어요
+              이 판매기간은 회원님의 단지에서는 이용할 수 없어요
             </p>
           </div>
         </div>
@@ -118,7 +117,8 @@ export default async function GeneralOrderPage({
           products={productsWithStock}
           address={account?.address ?? null}
           bankInfo={bankInfo}
-          depositorName={depositorName}
+          depositorNickname={depositorNickname}
+          depositorPhoneSuffix={depositorPhoneSuffix}
           deliveryFee={campaign.delivery_fee}
           freeShippingMinQty={campaign.free_shipping_min_qty}
         />

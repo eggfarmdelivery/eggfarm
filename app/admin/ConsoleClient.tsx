@@ -75,6 +75,90 @@ function useAction() {
   return { busy, run };
 }
 
+// 주문취소 확인 팝업 - 입금대기(단순취소)/입금확인완료(환불계좌 입력) 두 케이스를 하나의 모달로 처리
+function CancelOrderModal({
+  order,
+  onClose,
+  onConfirm,
+  busy,
+}: {
+  order: B2COrder;
+  onClose: () => void;
+  onConfirm: (refundAccount?: { bankName: string; accountNumber: string; holderName: string }) => void;
+  busy: boolean;
+}) {
+  const needsRefundAccount = order.status === "입금확인완료";
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [holderName, setHolderName] = useState("");
+
+  const canConfirm = needsRefundAccount
+    ? bankName.trim() && accountNumber.trim() && holderName.trim()
+    : true;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-1 text-base font-medium text-red-600">⚠ 주문을 취소할까요?</p>
+        <p className="mb-4 text-sm text-neutral-500">
+          {order.account?.nickname ?? order.account?.name ?? "이름없음"}님의{" "}
+          {order.total_amount.toLocaleString()}원 주문이{" "}
+          {needsRefundAccount ? "환불대기 상태로 전환" : "취소"}됩니다. 이 작업은 되돌릴 수 없어요.
+        </p>
+
+        {needsRefundAccount && (
+          <div className="mb-4 space-y-2">
+            <p className="text-xs text-neutral-500">이미 입금이 확인된 주문이라 환불계좌 정보가 필요해요</p>
+            <input
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="은행명"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              placeholder="계좌번호"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={holderName}
+              onChange={(e) => setHolderName(e.target.value)}
+              placeholder="예금주명"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm font-medium text-neutral-600"
+          >
+            돌아가기
+          </button>
+          <button
+            type="button"
+            disabled={busy || !canConfirm}
+            onClick={() =>
+              onConfirm(
+                needsRefundAccount
+                  ? { bankName: bankName.trim(), accountNumber: accountNumber.trim(), holderName: holderName.trim() }
+                  : undefined
+              )
+            }
+            className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "처리 중..." : "취소 확정"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function B2COrderCard({
   order,
   selectable,
@@ -87,6 +171,7 @@ function B2COrderCard({
   onToggleSelect?: () => void;
 }) {
   const { busy, run } = useAction();
+  const [cancelTarget, setCancelTarget] = useState<B2COrder | null>(null);
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
@@ -192,19 +277,7 @@ function B2COrderCard({
         {(order.status === "입금대기" || order.status === "입금확인완료") && (
           <button
             disabled={busy}
-            onClick={() => {
-              if (order.status === "입금대기") {
-                if (confirm("이 주문을 취소할까요?")) run(() => adminCancelOrder(order.id));
-                return;
-              }
-              const bankName = prompt("환불받을 은행명을 입력해주세요");
-              if (!bankName) return;
-              const accountNumber = prompt("환불받을 계좌번호를 입력해주세요");
-              if (!accountNumber) return;
-              const holderName = prompt("예금주명을 입력해주세요");
-              if (!holderName) return;
-              run(() => adminCancelOrder(order.id, { bankName, accountNumber, holderName }));
-            }}
+            onClick={() => setCancelTarget(order)}
             className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
           >
             주문취소
@@ -231,6 +304,17 @@ function B2COrderCard({
           </button>
         )}
       </div>
+
+      {cancelTarget && (
+        <CancelOrderModal
+          order={cancelTarget}
+          busy={busy}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={(refundAccount) => {
+            run(() => adminCancelOrder(order.id, refundAccount)).then(() => setCancelTarget(null));
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -558,9 +642,25 @@ export default function ConsoleClient({
               <>
                 {isBulkable && list.length > 0 && (
                   <div className="mb-2 flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
-                    <span className="text-xs text-neutral-500">
-                      {selectedForDelivery.size}건 선택됨
-                    </span>
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={list.length > 0 && list.every((o) => selectedForDelivery.has(o.id))}
+                        onChange={(e) => {
+                          setSelectedForDelivery((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) {
+                              list.forEach((o) => next.add(o.id));
+                            } else {
+                              list.forEach((o) => next.delete(o.id));
+                            }
+                            return next;
+                          });
+                        }}
+                      />
+                      전체선택 · {selectedForDelivery.size}건 선택됨
+                    </label>
                     <button
                       disabled={selectedForDelivery.size === 0 || bulkPending}
                       onClick={handleBulkStart}

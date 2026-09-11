@@ -14,3 +14,8 @@ export async function setAdminCookie() {
   const store = await cookies();
   store.set(COOKIE_NAME, "ok", { httpOnly: true, path: "/", maxAge: 60 * 60 * 8 });
 }
+
+export async function clearAdminCookie() {
+  const store = await cookies();
+  store.delete(COOKIE_NAME);
+}

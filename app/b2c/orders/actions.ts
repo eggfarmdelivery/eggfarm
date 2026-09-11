@@ -163,7 +163,7 @@ export async function addOrderItem(
     if (order.status !== "입금대기") {
       throw new Error("입금 확인 전에만 상품을 추가할 수 있어요");
     }
-    if (!order.campaign_id) throw new Error("캠페인 정보가 없는 주문이에요");
+    if (!order.campaign_id) throw new Error("판매기간 정보가 없는 주문이에요");
     if (quantity < 1) throw new Error("수량은 최소 1판 이상이어야 해요");
 
     const { data: existing } = await supabase
@@ -176,7 +176,7 @@ export async function addOrderItem(
 
     const productLimits = await getCampaignProductLimits(order.campaign_id);
     const limit = productLimits.find((l) => l.product_id === productId);
-    if (!limit) throw new Error("이 캠페인에 없는 상품이에요");
+    if (!limit) throw new Error("이 판매기간에 없는 상품이에요");
 
     const result = await checkCampaignLimit(order.campaign_id, limit, quantity);
     if (!result.allowed) throw new Error(result.reason ?? "추가할 수 없어요");
