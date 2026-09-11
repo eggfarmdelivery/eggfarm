@@ -66,11 +66,11 @@ export default function OrderForm({
       formData.set("delivery_fee_charged", String(appliedDeliveryFee));
       const result = await createGeneralOrder(formData);
 
-      // 응답이 너무 빨리 오면 "눌렸다"는 느낌 자체가 안 들 수 있어서, 최소 500ms는
-      // 처리중 상태를 눈에 보이게 유지함
+      // 응답이 너무 빨리 오면 "눌렸다"는 느낌 자체가 안 들 수 있어서, 최소 900ms는
+      // 처리중 상태를 눈에 확실히 보이게 유지함
       const elapsed = Date.now() - startedAt;
-      if (elapsed < 500) {
-        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+      if (elapsed < 900) {
+        await new Promise((resolve) => setTimeout(resolve, 900 - elapsed));
       }
 
       if (!result.success) {
@@ -202,6 +202,15 @@ export default function OrderForm({
         {pending && <Spinner className="h-5 w-5" />}
         {justSucceeded ? "접수완료!" : pending ? "주문 접수 중이에요..." : "주문하기"}
       </button>
+
+      {pending && !justSucceeded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-8 py-7 shadow-lg">
+            <Spinner className="h-8 w-8 text-primary" />
+            <p className="text-sm font-medium text-neutral-700">주문 접수 중이에요...</p>
+          </div>
+        </div>
+      )}
 
       {paidTotal !== null && (
         <PaymentInfoModal

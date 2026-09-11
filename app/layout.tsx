@@ -20,6 +20,7 @@ export const viewport: Viewport = {
   userScalable: false,
   colorScheme: "light",
   themeColor: "#E8940C",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -29,8 +30,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" style={{ colorScheme: "light" }}>
-      <body className="min-h-screen overflow-x-hidden">
-        <div className="mx-auto max-w-md min-h-screen bg-white shadow-sm">
+      <body className="min-h-dvh overflow-x-hidden">
+        <div className="mx-auto max-w-md min-h-dvh bg-white shadow-sm">
           {children}
         </div>
         <Script

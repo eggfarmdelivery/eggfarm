@@ -16,8 +16,8 @@ export default async function GuidePage() {
 
       <main className="px-5">
         <section className="mb-6 rounded-xl bg-neutral-50 p-4 text-sm leading-relaxed text-neutral-600">
-          에그팜은 동네 계란 배송 서비스예요. 정해진 판매기간에 주문하면 우리 단지로
-          신선한 계란을 배송해드려요.
+          강화도에서 직접 운영하는 농장에서 갓 낳은 신선한 계란을 판매하고, 그 계란을
+          우리 동네까지 배송해드리는 서비스예요.
         </section>
 
         <p className="mb-2 text-sm font-medium">자주 묻는 질문</p>

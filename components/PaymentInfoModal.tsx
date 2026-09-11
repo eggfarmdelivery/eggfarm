@@ -75,12 +75,14 @@ export default function PaymentInfoModal({
           <div className="mb-4 rounded-md bg-neutral-50 px-3 py-2">
             <p className="text-xs text-neutral-500">
               입금자명에{" "}
-              <span className="font-semibold text-red-500">{depositorNickname}</span>
-              <span className="font-medium text-neutral-700">{depositorPhoneSuffix}</span>를
-              그대로 넣어주세요
+              <span className="font-semibold text-red-500">
+                {depositorNickname}
+                {depositorPhoneSuffix}
+              </span>
+              를 그대로 넣어주세요
             </p>
             <p className="mt-0.5 text-[11px] text-neutral-400">
-              입금자명 = 닉네임(빨간색) + 전화번호 뒷자리 4자리예요
+              입금자명 = 닉네임 + 전화번호 뒷자리 4자리예요
             </p>
           </div>
         )}

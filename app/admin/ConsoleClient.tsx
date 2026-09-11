@@ -75,7 +75,8 @@ function useAction() {
   return { busy, run };
 }
 
-// 주문취소 확인 팝업 - 입금대기(단순취소)/입금확인완료(환불계좌 입력) 두 케이스를 하나의 모달로 처리
+// 주문취소 확인 팝업 - 관리자가 유의할 수 있도록 경고만 보여주고 확정만 받음.
+// 환불계좌 입력은 구매자 본인이 주문내역에서 취소할 때 이미 받고 있어서 여기선 요구하지 않음
 function CancelOrderModal({
   order,
   onClose,
@@ -84,17 +85,11 @@ function CancelOrderModal({
 }: {
   order: B2COrder;
   onClose: () => void;
-  onConfirm: (refundAccount?: { bankName: string; accountNumber: string; holderName: string }) => void;
+  onConfirm: () => void;
   busy: boolean;
 }) {
-  const needsRefundAccount = order.status === "입금확인완료";
-  const [bankName, setBankName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [holderName, setHolderName] = useState("");
-
-  const canConfirm = needsRefundAccount
-    ? bankName.trim() && accountNumber.trim() && holderName.trim()
-    : true;
+  const isPaid = order.status === "입금확인완료";
+  const hasRefundAccount = order.refund_bank_name && order.refund_account_number;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
@@ -103,30 +98,21 @@ function CancelOrderModal({
         <p className="mb-4 text-sm text-neutral-500">
           {order.account?.nickname ?? order.account?.name ?? "이름없음"}님의{" "}
           {order.total_amount.toLocaleString()}원 주문이{" "}
-          {needsRefundAccount ? "환불대기 상태로 전환" : "취소"}됩니다. 이 작업은 되돌릴 수 없어요.
+          {isPaid ? "환불대기 상태로 전환" : "취소"}됩니다. 이 작업은 되돌릴 수 없어요.
         </p>
 
-        {needsRefundAccount && (
-          <div className="mb-4 space-y-2">
-            <p className="text-xs text-neutral-500">이미 입금이 확인된 주문이라 환불계좌 정보가 필요해요</p>
-            <input
-              value={bankName}
-              onChange={(e) => setBankName(e.target.value)}
-              placeholder="은행명"
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-            />
-            <input
-              value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
-              placeholder="계좌번호"
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-            />
-            <input
-              value={holderName}
-              onChange={(e) => setHolderName(e.target.value)}
-              placeholder="예금주명"
-              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-            />
+        {isPaid && (
+          <div className="mb-4 rounded-md bg-neutral-50 px-3 py-2.5 text-xs text-neutral-600">
+            {hasRefundAccount ? (
+              <>
+                <p className="mb-1 font-medium text-neutral-700">구매자가 입력한 환불계좌</p>
+                <p>
+                  {order.refund_bank_name} {order.refund_account_number} ({order.refund_holder_name})
+                </p>
+              </>
+            ) : (
+              <p>아직 등록된 환불계좌가 없어요. 연락처로 확인해주세요{order.account?.phone && ` (${order.account.phone})`}.</p>
+            )}
           </div>
         )}
 
@@ -141,14 +127,8 @@ function CancelOrderModal({
           </button>
           <button
             type="button"
-            disabled={busy || !canConfirm}
-            onClick={() =>
-              onConfirm(
-                needsRefundAccount
-                  ? { bankName: bankName.trim(), accountNumber: accountNumber.trim(), holderName: holderName.trim() }
-                  : undefined
-              )
-            }
+            disabled={busy}
+            onClick={onConfirm}
             className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {busy ? "처리 중..." : "취소 확정"}
@@ -206,18 +186,22 @@ function B2COrderCard({
       {order.status === "환불대기" && (
         <div className="mb-2 rounded-md bg-orange-50 px-2.5 py-2 text-xs text-orange-700">
           <p>환불할 금액 {order.total_amount.toLocaleString()}원</p>
-          <div className="flex items-center gap-1.5">
-            <p>
-              {order.refund_bank_name} {order.refund_account_number} ({order.refund_holder_name})
-            </p>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard.writeText(order.refund_account_number ?? "")}
-              className="shrink-0 rounded border border-orange-300 px-1.5 py-0.5 text-[10px] text-orange-700"
-            >
-              복사
-            </button>
-          </div>
+          {order.refund_bank_name && order.refund_account_number ? (
+            <div className="flex items-center gap-1.5">
+              <p>
+                {order.refund_bank_name} {order.refund_account_number} ({order.refund_holder_name})
+              </p>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(order.refund_account_number ?? "")}
+                className="shrink-0 rounded border border-orange-300 px-1.5 py-0.5 text-[10px] text-orange-700"
+              >
+                복사
+              </button>
+            </div>
+          ) : (
+            <p className="font-medium">환불계좌 정보가 아직 없어요 - 고객에게 확인해주세요</p>
+          )}
           {order.account?.phone && (
             <p className="mt-1 text-orange-500">연락처 {order.account.phone}</p>
           )}
@@ -310,8 +294,8 @@ function B2COrderCard({
           order={cancelTarget}
           busy={busy}
           onClose={() => setCancelTarget(null)}
-          onConfirm={(refundAccount) => {
-            run(() => adminCancelOrder(order.id, refundAccount)).then(() => setCancelTarget(null));
+          onConfirm={() => {
+            run(() => adminCancelOrder(order.id)).then(() => setCancelTarget(null));
           }}
         />
       )}

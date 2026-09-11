@@ -238,10 +238,13 @@ export async function confirmRefund(orderId: string): Promise<Result> {
 // - 입금대기: 그냥 취소
 // - 입금확인완료: 관리자가 환불계좌 정보를 입력해서 환불대기로 전환(이후 confirmRefund로 마무리)
 // ---------------------------------------------------------
-export async function adminCancelOrder(
-  orderId: string,
-  refundAccount?: { bankName: string; accountNumber: string; holderName: string }
-): Promise<Result> {
+// ---------------------------------------------------------
+// 관리자가 직접 주문을 취소(전화문의 등으로 대신 취소해주는 경우)
+// - 입금대기: 그냥 취소
+// - 입금확인완료: 환불대기로 전환(환불계좌 정보는 고객이 주문내역에서 직접 입력하거나,
+//   관리자가 전화로 확인해서 별도로 채워줌 - 취소 자체는 경고만 주고 데이터 입력을 요구하지 않음)
+// ---------------------------------------------------------
+export async function adminCancelOrder(orderId: string): Promise<Result> {
   try {
     await requireAdmin();
     const { data: order, error: fetchError } = await supabase
@@ -257,20 +260,7 @@ export async function adminCancelOrder(
     }
 
     if (order.status === "입금확인완료") {
-      if (!refundAccount?.bankName || !refundAccount?.accountNumber || !refundAccount?.holderName) {
-        throw new Error("환불받을 계좌 정보를 입력해주세요");
-      }
-      const { error } = await supabase
-        .from("b2c_order")
-        .update({
-          status: "환불대기",
-          refund_bank_name: refundAccount.bankName,
-          refund_account_number: refundAccount.accountNumber,
-          refund_holder_name: refundAccount.holderName,
-        })
-        .eq("id", orderId);
-      if (error) throw new Error(error.message);
-      await logStatusChange("b2c_order", orderId, "입금확인완료", "환불대기");
+      await updateB2CStatus(orderId, "입금확인완료", "환불대기");
       return { success: true };
     }
 
