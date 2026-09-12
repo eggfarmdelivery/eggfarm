@@ -23,6 +23,22 @@ export default async function B2BAccountsPage() {
     .select("account_id, total_amount")
     .eq("status", "입금확인완료");
 
+  const { data: products } = await admin
+    .from("product")
+    .select("id, name, base_price")
+    .eq("is_active", true)
+    .order("base_price", { ascending: false });
+
+  const { data: accountPrices } = await admin
+    .from("b2b_account_price")
+    .select("account_id, product_id, price");
+  const priceByAccount = new Map<string, Record<string, number>>();
+  for (const p of accountPrices ?? []) {
+    const m = priceByAccount.get(p.account_id) ?? {};
+    m[p.product_id] = p.price;
+    priceByAccount.set(p.account_id, m);
+  }
+
   const revenueMap = new Map<string, number>();
   for (const o of paidOrders ?? []) {
     revenueMap.set(o.account_id, (revenueMap.get(o.account_id) ?? 0) + o.total_amount);
@@ -32,6 +48,7 @@ export default async function B2BAccountsPage() {
     ...a,
     entrance_password: decryptSensitive(a.entrance_password) || null,
     cumulative_revenue: revenueMap.get(a.id) ?? 0,
+    prices: priceByAccount.get(a.id) ?? {},
   }));
 
   return (
@@ -43,7 +60,7 @@ export default async function B2BAccountsPage() {
         <h1 className="text-base font-medium">거래처 관리</h1>
       </header>
 
-      <B2BAccountsClient accounts={rows as any} />
+      <B2BAccountsClient accounts={rows as any} products={(products as any) ?? []} />
     </div>
   );
 }

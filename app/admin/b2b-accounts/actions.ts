@@ -75,3 +75,38 @@ export async function toggleTaxInvoiceNeeded(accountId: string, needed: boolean)
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
   }
 }
+
+// 거래처가 발주 화면에서 볼 수 있는 상품과 단가를 관리 - 여기 등록 안 된 상품은 그 거래처 발주화면에 아예 안 보임
+export async function setB2BAccountPrices(
+  accountId: string,
+  items: { productId: string; enabled: boolean; price: number }[]
+): Promise<Result> {
+  try {
+    await requireAdmin();
+    const admin = createAdminClient();
+
+    for (const item of items) {
+      if (item.enabled) {
+        if (!item.price || item.price <= 0) throw new Error("단가를 올바르게 입력해주세요");
+        const { error } = await admin
+          .from("b2b_account_price")
+          .upsert(
+            { account_id: accountId, product_id: item.productId, price: item.price },
+            { onConflict: "account_id,product_id" }
+          );
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await admin
+          .from("b2b_account_price")
+          .delete()
+          .eq("account_id", accountId)
+          .eq("product_id", item.productId);
+        if (error) throw new Error(error.message);
+      }
+    }
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}

@@ -35,7 +35,8 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
     for (const p of products) {
       const qty = Number(formData.get(`qty_${p.id}`) ?? 0);
       if (qty <= 0) continue;
-      const unitPrice = priceMap.get(p.id) ?? p.base_price;
+      if (!priceMap.has(p.id)) continue; // 이 거래처에 등록되지 않은 상품은 서버에서도 무시함
+      const unitPrice = priceMap.get(p.id)!;
       items.push({
         product_id: p.id,
         quantity: qty,

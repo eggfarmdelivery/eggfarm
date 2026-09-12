@@ -26,11 +26,13 @@ export default async function B2BOrderPage() {
     (contractPrices ?? []).map((r) => [r.product_id, r.price])
   );
 
-  const productsWithPrice = (products ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    price: priceMap.get(p.id) ?? p.base_price,
-  }));
+  const productsWithPrice = (products ?? [])
+    .filter((p) => priceMap.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: priceMap.get(p.id)!,
+    }));
 
   return (
     <div className="pb-10">
@@ -52,6 +54,12 @@ export default async function B2BOrderPage() {
       </header>
 
       <OrderForm products={productsWithPrice} minOrderAmount={minOrderAmount} />
+
+      {productsWithPrice.length === 0 && (
+        <p className="mx-5 mt-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+          아직 발주 가능한 상품이 등록되지 않았어요. 에그팜으로 문의해주세요
+        </p>
+      )}
     </div>
   );
 }

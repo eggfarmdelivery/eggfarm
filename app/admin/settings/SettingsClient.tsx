@@ -98,6 +98,18 @@ export default function SettingsClient({ config }: { config: Record<string, stri
         <p className="text-sm font-medium mb-2">B2B 발주 설정</p>
         <div className="space-y-2">
           <div>
+            <label className="mb-1 block text-xs text-neutral-500">발주 마감시간 (평일)</label>
+            <input
+              name="daily_order_deadline"
+              type="time"
+              defaultValue={config.daily_order_deadline || "15:00"}
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-neutral-400">
+              토·일요일은 항상 발주 마감이에요
+            </p>
+          </div>
+          <div>
             <label className="mb-1 block text-xs text-neutral-500">최소 발주금액 (원)</label>
             <input
               name="b2b_min_order_amount"

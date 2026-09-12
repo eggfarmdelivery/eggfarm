@@ -4,11 +4,38 @@ import Link from "next/link";
 import { Wallet, FileText, History, ChevronRight } from "lucide-react";
 import { requireAdmin } from "@/lib/adminAuth";
 
-const items = [
+const b2bItems = [
   { href: "/admin/settlement", label: "정산", icon: Wallet },
   { href: "/admin/quotes", label: "견적", icon: FileText },
-  { href: "/admin/logs", label: "상태변경 이력", icon: History },
 ];
+
+const commonItems = [{ href: "/admin/logs", label: "상태변경 이력 (B2C+B2B)", icon: History }];
+
+function ItemGroup({ title, items }: { title?: string; items: typeof b2bItems }) {
+  return (
+    <div className="mb-4">
+      {title && <p className="mb-1.5 px-1 text-xs font-medium text-neutral-400">{title}</p>}
+      <div className="overflow-hidden rounded-xl border border-neutral-200">
+        {items.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
+                idx > 0 ? "border-t border-neutral-200" : ""
+              }`}
+            >
+              <Icon size={18} className="text-neutral-500" />
+              <span className="flex-1">{item.label}</span>
+              <ChevronRight size={16} className="text-neutral-300" />
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default async function RecordsPage() {
   await requireAdmin();
@@ -20,24 +47,8 @@ export default async function RecordsPage() {
       </header>
 
       <div className="px-5">
-        <div className="overflow-hidden rounded-xl border border-neutral-200">
-          {items.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
-                  idx > 0 ? "border-t border-neutral-200" : ""
-                }`}
-              >
-                <Icon size={18} className="text-neutral-500" />
-                <span className="flex-1">{item.label}</span>
-                <ChevronRight size={16} className="text-neutral-300" />
-              </Link>
-            );
-          })}
-        </div>
+        <ItemGroup title="B2B" items={b2bItems} />
+        <ItemGroup title="공통" items={commonItems} />
       </div>
     </div>
   );

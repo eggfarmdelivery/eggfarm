@@ -25,6 +25,7 @@ export default async function SettingsPage({
     "notice_text",
     "b2b_min_order_amount",
     "b2b_origin_address",
+    "daily_order_deadline",
   ]);
   const connected = await isAdminKakaoConnected();
 

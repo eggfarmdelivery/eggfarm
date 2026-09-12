@@ -86,6 +86,7 @@ export async function updateSettings(formData: FormData): Promise<Result> {
       ["notice_text", String(formData.get("notice_text") ?? "").trim()],
       ["b2b_min_order_amount", String(formData.get("b2b_min_order_amount") ?? "").trim()],
       ["b2b_origin_address", String(formData.get("b2b_origin_address") ?? "").trim()],
+      ["daily_order_deadline", String(formData.get("daily_order_deadline") ?? "").trim()],
     ];
 
     for (const [key, value] of entries) {
