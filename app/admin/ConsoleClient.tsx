@@ -50,7 +50,7 @@ type B2BOrder = {
   total_amount: number;
   created_at: string;
   desired_delivery_date: string | null;
-  account: { business_name: string | null; phone: string | null } | null;
+  account: { business_name: string | null; phone: string | null; is_test: boolean } | null;
   b2b_order_item: {
     id: string;
     quantity: number;
@@ -442,6 +442,9 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm">
           {order.account?.business_name ?? "거래처"} · {order.total_amount.toLocaleString()}원
+          {order.account?.is_test && (
+            <span className="ml-1.5 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-white">테스트</span>
+          )}
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>

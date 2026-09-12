@@ -29,11 +29,11 @@ export async function GET(request: Request) {
 
   const authUserId = data.session.user.id;
 
-  const { data: existing, error: lookupError } = await supabase
+  // 한 카카오 계정이 b2c/b2b 계정을 동시에 가질 수 있어서, 단일행 가정(maybeSingle)은 안 됨
+  const { data: existingAccounts, error: lookupError } = await supabase
     .from("account")
     .select("id, role")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
+    .eq("auth_user_id", authUserId);
 
   if (lookupError) {
     return NextResponse.redirect(
@@ -41,9 +41,12 @@ export async function GET(request: Request) {
     );
   }
 
-  if (existing) {
-    return NextResponse.redirect(`${origin}/${existing.role}`);
+  if (!existingAccounts || existingAccounts.length === 0) {
+    return NextResponse.redirect(`${origin}/onboarding`);
   }
-
-  return NextResponse.redirect(`${origin}/onboarding`);
+  if (existingAccounts.length === 1) {
+    return NextResponse.redirect(`${origin}/${existingAccounts[0].role}`);
+  }
+  // b2c/b2b 계정을 둘 다 가진 경우 - 어느 쪽으로 들어갈지 선택하게 함
+  return NextResponse.redirect(`${origin}/choose-role`);
 }

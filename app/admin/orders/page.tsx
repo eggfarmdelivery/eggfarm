@@ -30,7 +30,7 @@ export default async function AdminOrdersPage() {
   const { data: b2bOrders } = await admin
     .from("b2b_order")
     .select(
-      "id, status, total_amount, created_at, desired_delivery_date, account(business_name, phone), b2b_order_item(id, quantity, unit_price, adjusted, original_quantity, product(name))"
+      "id, status, total_amount, created_at, desired_delivery_date, account(business_name, phone, is_test), b2b_order_item(id, quantity, unit_price, adjusted, original_quantity, product(name))"
     )
     .order("created_at", { ascending: false });
 

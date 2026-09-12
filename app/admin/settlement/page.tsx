@@ -32,22 +32,25 @@ export default async function SettlementPage({
   const monthValue = `${y}-${String(m).padStart(2, "0")}`;
 
   // 확정(입금확인완료) 건 - 정산 대상
-  const { data: confirmedOrders } = await supabase
+  const { data: confirmedOrdersRaw } = await supabase
     .from("b2b_order")
     .select(
-      "id, account_id, total_amount, payment_method, payment_confirmed_at, account(business_name), b2b_order_item(quantity, unit_price, subtotal, product(name))"
+      "id, account_id, total_amount, payment_method, payment_confirmed_at, account(business_name, is_test), b2b_order_item(quantity, unit_price, subtotal, product(name))"
     )
     .eq("status", "입금확인완료")
     .gte("payment_confirmed_at", monthStartStr)
     .lt("payment_confirmed_at", monthEndStr);
+  // 테스트계정 발주는 정산 통계에서 제외
+  const confirmedOrders = (confirmedOrdersRaw ?? []).filter((o: any) => !o.account?.is_test);
 
   // 배송은 됐지만 아직 결제(계좌이체/현금) 확인이 안 된 건 - "결제대기"로 별도 표시
-  const { data: unconfirmedOrders } = await supabase
+  const { data: unconfirmedOrdersRaw } = await supabase
     .from("b2b_order")
-    .select("id, account_id, total_amount, account(business_name)")
+    .select("id, account_id, total_amount, account(business_name, is_test)")
     .eq("status", "입금대기")
     .gte("delivery_completed_at", monthStartStr)
     .lt("delivery_completed_at", monthEndStr);
+  const unconfirmedOrders = (unconfirmedOrdersRaw ?? []).filter((o: any) => !o.account?.is_test);
 
   const { data: settlements } = await supabase
     .from("b2b_settlement")
