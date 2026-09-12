@@ -64,7 +64,17 @@ function monthsAgo(months: number) {
   return d;
 }
 
-function OrderDetail({ order }: { order: Order }) {
+function OrderDetail({
+  order,
+  bankInfo,
+  depositorNickname,
+  depositorPhoneSuffix,
+}: {
+  order: Order;
+  bankInfo?: Record<string, string>;
+  depositorNickname?: string | null;
+  depositorPhoneSuffix?: string | null;
+}) {
   const [editing, setEditing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [refundBankName, setRefundBankName] = useState("");
@@ -325,6 +335,24 @@ function OrderDetail({ order }: { order: Order }) {
             </div>
           </div>
           <OrderJourney status={order.status} />
+          {order.status === "입금대기" && bankInfo?.bank_name && (
+            <div className="mt-2 rounded-md bg-primary-bg px-3 py-2.5 text-xs text-primary-dark">
+              <p className="mb-1 font-medium">입금 안내</p>
+              <p>
+                {bankInfo.bank_name} {bankInfo.bank_account} ({bankInfo.bank_holder})
+              </p>
+              <p className="mt-1">입금할 금액 {order.total_amount.toLocaleString()}원</p>
+              {depositorNickname && depositorPhoneSuffix && (
+                <p className="mt-1">
+                  입금자명{" "}
+                  <span className="font-semibold text-red-500">
+                    {depositorNickname}
+                    {depositorPhoneSuffix}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
           {(order.status === "취소" || order.status === "환불대기" || order.status === "환불완료") &&
             order.cancel_reason && (
               <div className="mt-2 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
@@ -433,7 +461,17 @@ function OrderDetail({ order }: { order: Order }) {
   );
 }
 
-export default function OrdersClient({ orders }: { orders: Order[] }) {
+export default function OrdersClient({
+  orders,
+  bankInfo,
+  depositorNickname,
+  depositorPhoneSuffix,
+}: {
+  orders: Order[];
+  bankInfo?: Record<string, string>;
+  depositorNickname?: string | null;
+  depositorPhoneSuffix?: string | null;
+}) {
   const router = useRouter();
   const [activeGroup, setActiveGroup] = useState("전체");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -613,7 +651,12 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
               </button>
 
               {isOpen && (
-                <OrderDetail order={o} />
+                <OrderDetail
+                  order={o}
+                  bankInfo={bankInfo}
+                  depositorNickname={depositorNickname}
+                  depositorPhoneSuffix={depositorPhoneSuffix}
+                />
               )}
             </div>
           );

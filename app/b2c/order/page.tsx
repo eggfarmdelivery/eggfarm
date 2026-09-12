@@ -94,6 +94,19 @@ export default async function GeneralOrderPage({
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
+  // 같은 판매기간에 이미 주문(취소 제외)이 있으면 중복 주문을 막고 주문내역에서 수정하도록 안내
+  let existingOrder: { id: string; status: string } | null = null;
+  if (campaign) {
+    const { data } = await supabase
+      .from("b2c_order")
+      .select("id, status")
+      .eq("account_id", accountId)
+      .eq("campaign_id", campaign.id)
+      .neq("status", "취소")
+      .maybeSingle();
+    existingOrder = data;
+  }
+
   return (
     <div className="pb-32">
       <header className="flex items-center gap-2 px-5 py-4">
@@ -109,6 +122,23 @@ export default async function GeneralOrderPage({
             <p className="text-sm text-neutral-600">
               이 판매기간은 회원님의 단지에서는 이용할 수 없어요
             </p>
+          </div>
+        </div>
+      ) : existingOrder ? (
+        <div className="px-5">
+          <div className="rounded-xl bg-neutral-50 px-4 py-8 text-center">
+            <p className="mb-3 text-sm text-neutral-600">
+              이 판매기간엔 이미 주문하신 내역이 있어요
+            </p>
+            <p className="mb-4 text-xs text-neutral-400">
+              수량을 바꾸거나 상품을 추가하고 싶으시면 주문내역에서 수정해주세요
+            </p>
+            <Link
+              href="/b2c/orders"
+              className="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white"
+            >
+              주문내역 보기
+            </Link>
           </div>
         </div>
       ) : isOpenStatus(campaignStatus as CampaignStatus) && campaign ? (

@@ -102,6 +102,19 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       return { success: true, remainingAmount: recentDuplicate.total_amount };
     }
 
+    // 위 60초 체크를 통과했어도(시간 차이가 있는 진짜 재주문 시도), 이미 이 판매기간에
+    // 취소되지 않은 주문이 있으면 중복 주문이니 막고 주문내역에서 수정하도록 안내
+    const { data: existingOrder } = await supabase
+      .from("b2c_order")
+      .select("id")
+      .eq("account_id", accountId)
+      .eq("campaign_id", campaignId)
+      .neq("status", "취소")
+      .maybeSingle();
+    if (existingOrder) {
+      throw new Error("이 판매기간엔 이미 주문하신 내역이 있어요. 주문내역에서 수정해주세요");
+    }
+
     // 크레딧 기능은 당분간 보류 - 항상 무통장입금(전액 입금대기)으로 처리
     const { data: order, error } = await supabase
       .from("b2c_order")

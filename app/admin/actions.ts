@@ -289,6 +289,32 @@ export async function confirmRefund(orderId: string): Promise<Result> {
   }
 }
 
+// 실제로는 입금 자체가 없었던 주문(예: 중복주문, 착오주문)이 잘못해서 환불대기로 간 경우 -
+// "환불완료"로 처리하면 실제 돈이 오간 것처럼 보여서 나중에 분쟁 소지가 있으므로,
+// 환불 없이 "취소"로 종결하고 사유를 명확히 남겨서 기록으로 남김
+export async function resolveRefundWithoutTransfer(orderId: string, note: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    if (!note.trim()) throw new Error("처리 사유를 입력해주세요");
+    const { data: order, error: fetchError } = await supabase
+      .from("b2c_order")
+      .select("status, cancel_reason")
+      .eq("id", orderId)
+      .single();
+    if (fetchError || !order) throw new Error("주문을 찾을 수 없어요");
+    if (order.status !== "환불대기") throw new Error("환불대기 상태가 아니에요");
+
+    const combinedReason = order.cancel_reason
+      ? `${order.cancel_reason} / [환불없이 종료] ${note.trim()}`
+      : `[환불없이 종료] ${note.trim()}`;
+
+    await updateB2CStatus(orderId, "환불대기", "취소", { cancel_reason: combinedReason });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}
+
 // ---------------------------------------------------------
 // 관리자가 직접 주문을 취소(전화문의 등으로 대신 취소해주는 경우)
 // - 입금대기: 그냥 취소

@@ -159,7 +159,37 @@ export default async function AdminHome() {
   // ---------- 카카오 알림 연동 ----------
   const kakaoConnected = await isAdminKakaoConnected();
 
-  const cards: DashboardCard[] = [
+  // ---------- B2B ----------
+  const { count: b2bApprovedCount } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2b")
+    .eq("approval_status", "approved");
+  const { count: b2bPendingCount } = await admin
+    .from("account")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "b2b")
+    .eq("approval_status", "pending");
+  const { count: b2bWeekOrders } = await admin
+    .from("b2b_order")
+    .select("id, account!inner(is_test)", { count: "exact", head: true })
+    .eq("account.is_test", false)
+    .gte("created_at", weekStart.toISOString());
+  const { data: b2bConfirmedThisMonth } = await admin
+    .from("b2b_order")
+    .select("total_amount, account!inner(is_test)")
+    .eq("status", "입금확인완료")
+    .eq("account.is_test", false)
+    .gte("payment_confirmed_at", monthStart.toISOString());
+  const b2bRevenueThisMonth = (b2bConfirmedThisMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
+  const { data: b2bPendingPayment } = await admin
+    .from("b2b_order")
+    .select("total_amount, account!inner(is_test)")
+    .eq("status", "입금대기")
+    .eq("account.is_test", false);
+  const b2bPendingPaymentAmount = (b2bPendingPayment ?? []).reduce((s, o) => s + o.total_amount, 0);
+
+  const b2cCards: DashboardCard[] = [
     {
       key: "members",
       label: "가입자",
@@ -240,6 +270,53 @@ export default async function AdminHome() {
           ? zoneRows.slice(0, 5).map(([name, count]) => ({ label: name, value: `${count}건` }))
           : [{ label: "안내", value: "이번주 주문이 없어요" }],
     },
+  ];
+
+  const b2bCards: DashboardCard[] = [
+    {
+      key: "b2bAccounts",
+      label: "거래처",
+      icon: "users",
+      value: `${b2bApprovedCount ?? 0}곳`,
+      sub: (b2bPendingCount ?? 0) > 0 ? `승인대기 ${b2bPendingCount}곳` : "승인대기 없음",
+      danger: (b2bPendingCount ?? 0) > 0,
+      detail: [
+        { label: "승인된 거래처", value: `${b2bApprovedCount ?? 0}곳` },
+        { label: "승인대기", value: `${b2bPendingCount ?? 0}곳` },
+      ],
+      moreLink: { label: "거래처 관리로 이동", href: "/admin/b2b-accounts" },
+    },
+    {
+      key: "b2bOrders",
+      label: "이번주 발주",
+      icon: "orders",
+      value: `${b2bWeekOrders ?? 0}건`,
+      detail: [{ label: "이번주 발주", value: `${b2bWeekOrders ?? 0}건` }],
+    },
+    {
+      key: "b2bRevenue",
+      label: "이번달 B2B매출",
+      icon: "revenue",
+      value: `${b2bRevenueThisMonth.toLocaleString()}원`,
+      sub: "입금확인완료 기준",
+      detail: [{ label: "이번달 확정매출", value: `${b2bRevenueThisMonth.toLocaleString()}원` }],
+      moreLink: { label: "정산 상세보기", href: "/admin/settlement" },
+    },
+    {
+      key: "b2bPending",
+      label: "결제대기",
+      icon: "refund",
+      value: `${(b2bPendingPayment ?? []).length}건`,
+      sub: (b2bPendingPayment ?? []).length > 0 ? `${b2bPendingPaymentAmount.toLocaleString()}원` : "없음",
+      danger: (b2bPendingPayment ?? []).length > 0,
+      detail: [
+        { label: "결제대기 건수", value: `${(b2bPendingPayment ?? []).length}건` },
+        { label: "결제대기 금액", value: `${b2bPendingPaymentAmount.toLocaleString()}원` },
+      ],
+    },
+  ];
+
+  const commonCards: DashboardCard[] = [
     {
       key: "kakao",
       label: "카카오 알림",
@@ -269,7 +346,14 @@ export default async function AdminHome() {
       </header>
 
       <div className="px-5">
-        <AdminDashboardCards cards={cards} />
+        <p className="mb-1.5 text-xs font-medium text-neutral-400">B2C</p>
+        <AdminDashboardCards cards={b2cCards} />
+
+        <p className="mb-1.5 mt-5 text-xs font-medium text-neutral-400">B2B</p>
+        <AdminDashboardCards cards={b2bCards} />
+
+        <p className="mb-1.5 mt-5 text-xs font-medium text-neutral-400">공통</p>
+        <AdminDashboardCards cards={commonCards} />
       </div>
     </div>
   );

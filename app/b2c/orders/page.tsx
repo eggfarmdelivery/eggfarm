@@ -3,11 +3,21 @@ export const dynamic = "force-dynamic";
 import { supabase } from "@/lib/supabase";
 import { getAccountId } from "@/lib/getAccount";
 import { getCampaignProductLimits, getCampaignSold } from "@/lib/campaign";
+import { getConfigs } from "@/lib/settings";
 import BottomNav from "@/components/BottomNav";
 import OrdersClient from "./OrdersClient";
 
 export default async function OrdersPage() {
   const accountId = await getAccountId("b2c");
+  const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
+  const { data: account } = await supabase
+    .from("account")
+    .select("nickname, phone")
+    .eq("id", accountId)
+    .single();
+  const depositorNickname = account?.nickname && account?.phone ? account.nickname : null;
+  const depositorPhoneSuffix =
+    account?.nickname && account?.phone ? account.phone.replace(/\D/g, "").slice(-4) : null;
 
   const { data: rawOrders } = await supabase
     .from("b2c_order")
@@ -73,7 +83,12 @@ export default async function OrdersPage() {
       </header>
 
       <main className="px-5">
-        <OrdersClient orders={(orders as any) ?? []} />
+        <OrdersClient
+          orders={(orders as any) ?? []}
+          bankInfo={bankInfo}
+          depositorNickname={depositorNickname}
+          depositorPhoneSuffix={depositorPhoneSuffix}
+        />
       </main>
 
       <BottomNav active="/b2c/orders" />

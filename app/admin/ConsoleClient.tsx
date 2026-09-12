@@ -15,6 +15,7 @@ import {
   revertB2CStatus,
   revertB2BStatus,
   confirmRefund,
+  resolveRefundWithoutTransfer,
   adminCancelOrder,
   adjustB2BOrderItems,
 } from "./actions";
@@ -170,6 +171,54 @@ function CancelOrderModal({
   );
 }
 
+// 실제 입금이 없었던 건을 "환불완료"로 잘못 표시하면 나중에 분쟁 소지가 있어서,
+// 사유를 남기고 "취소"로 명확하게 종결하기 위한 팝업
+function ResolveNoRefundModal({
+  onClose,
+  onConfirm,
+  busy,
+}: {
+  onClose: () => void;
+  onConfirm: (note: string) => void;
+  busy: boolean;
+}) {
+  const [note, setNote] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-1 text-base font-medium">환불 없이 종료할까요?</p>
+        <p className="mb-3 text-sm text-neutral-500">
+          실제 입금이 없었던 건이라 "환불완료"가 아니라 "취소"로 종결돼요. 나중에 확인할 수 있게 사유를
+          남겨주세요.
+        </p>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          placeholder="예: 중복주문 건, 실제 입금 없었음 - 전화로 안내함"
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm text-neutral-600"
+          >
+            취소
+          </button>
+          <button
+            onClick={() => onConfirm(note)}
+            disabled={busy || !note.trim()}
+            className="flex-1 rounded-lg bg-neutral-800 py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "처리 중..." : "종료 확정"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function B2COrderCard({
   order,
   selectable,
@@ -183,6 +232,7 @@ function B2COrderCard({
 }) {
   const { busy, run } = useAction();
   const [cancelTarget, setCancelTarget] = useState<B2COrder | null>(null);
+  const [resolvingNoRefund, setResolvingNoRefund] = useState(false);
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
@@ -320,13 +370,22 @@ function B2COrderCard({
           </button>
         )}
         {order.status === "환불대기" && (
-          <button
-            disabled={busy}
-            onClick={() => run(() => confirmRefund(order.id))}
-            className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
-          >
-            계좌이체 완료 처리
-          </button>
+          <>
+            <button
+              disabled={busy}
+              onClick={() => run(() => confirmRefund(order.id))}
+              className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+            >
+              계좌이체 완료 처리
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => setResolvingNoRefund(true)}
+              className="text-xs rounded-md border border-neutral-300 text-neutral-500 px-3 py-1.5"
+            >
+              환불없이 종료
+            </button>
+          </>
         )}
         {["입금확인완료", "배송중", "배송완료", "승인거절"].includes(order.status) && (
           <button
@@ -348,6 +407,16 @@ function B2COrderCard({
           onClose={() => setCancelTarget(null)}
           onConfirm={(reason) => {
             run(() => adminCancelOrder(order.id, reason)).then(() => setCancelTarget(null));
+          }}
+        />
+      )}
+
+      {resolvingNoRefund && (
+        <ResolveNoRefundModal
+          busy={busy}
+          onClose={() => setResolvingNoRefund(false)}
+          onConfirm={(note) => {
+            run(() => resolveRefundWithoutTransfer(order.id, note)).then(() => setResolvingNoRefund(false));
           }}
         />
       )}
