@@ -16,9 +16,11 @@ function tomorrow() {
 export default function B2BOrderForm({
   products,
   minOrderAmount,
+  minOrderQty,
 }: {
   products: Product[];
   minOrderAmount: number;
+  minOrderQty: number;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [desiredDate, setDesiredDate] = useState(tomorrow());
@@ -30,7 +32,10 @@ export default function B2BOrderForm({
     (sum, p) => sum + (qty[p.id] ?? 0) * p.price,
     0
   );
-  const belowMinimum = minOrderAmount > 0 && total > 0 && total < minOrderAmount;
+  const totalQty = Object.values(qty).reduce((s, v) => s + v, 0);
+  const belowMinAmount = minOrderAmount > 0 && total > 0 && total < minOrderAmount;
+  const belowMinQty = minOrderQty > 0 && totalQty > 0 && totalQty < minOrderQty;
+  const belowMinimum = belowMinAmount || belowMinQty;
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -89,15 +94,22 @@ export default function B2BOrderForm({
         <span className="text-xl font-medium">{total.toLocaleString()}원</span>
       </div>
 
-      {minOrderAmount > 0 && (
+      {(minOrderAmount > 0 || minOrderQty > 0) && (
         <p className="mb-3 text-xs text-neutral-400">
-          최소 발주금액 {minOrderAmount.toLocaleString()}원
+          {minOrderAmount > 0 && `최소 발주금액 ${minOrderAmount.toLocaleString()}원`}
+          {minOrderAmount > 0 && minOrderQty > 0 && " · "}
+          {minOrderQty > 0 && `최소 발주수량 ${minOrderQty}판`}
         </p>
       )}
 
-      {belowMinimum && (
-        <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-600">
+      {belowMinAmount && (
+        <p className="mb-2 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-600">
           최소 발주금액({minOrderAmount.toLocaleString()}원)보다 적어요
+        </p>
+      )}
+      {belowMinQty && (
+        <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-600">
+          최소 발주수량({minOrderQty}판)보다 적어요
         </p>
       )}
 

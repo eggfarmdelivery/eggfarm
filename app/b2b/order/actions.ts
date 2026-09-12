@@ -47,10 +47,15 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
     if (items.length === 0) throw new Error("발주할 상품을 선택해주세요");
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
+    const totalQty = items.reduce((s, i) => s + i.quantity, 0);
 
     const minOrderAmount = Number(await getConfig("b2b_min_order_amount")) || 0;
     if (minOrderAmount > 0 && totalAmount < minOrderAmount) {
       throw new Error(`최소 발주금액(${minOrderAmount.toLocaleString()}원)보다 적어요`);
+    }
+    const minOrderQty = Number(await getConfig("b2b_min_order_qty")) || 0;
+    if (minOrderQty > 0 && totalQty < minOrderQty) {
+      throw new Error(`최소 발주수량(${minOrderQty}판)보다 적어요`);
     }
 
     const desiredDeliveryDate = String(formData.get("desired_delivery_date") ?? "").trim() || null;

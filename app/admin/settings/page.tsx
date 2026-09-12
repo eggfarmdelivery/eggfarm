@@ -24,8 +24,8 @@ export default async function SettingsPage({
     "notice_enabled",
     "notice_text",
     "b2b_min_order_amount",
+    "b2b_min_order_qty",
     "b2b_origin_address",
-    "daily_order_deadline",
   ]);
   const connected = await isAdminKakaoConnected();
 
@@ -39,6 +39,7 @@ export default async function SettingsPage({
       </header>
       <SettingsClient config={config} />
       <div className="px-5">
+        <p className="mb-2 mt-2 text-xs font-medium text-neutral-400">공통</p>
         <KakaoNotifySection
           connected={connected}
           justConnected={kakao_connected === "1"}

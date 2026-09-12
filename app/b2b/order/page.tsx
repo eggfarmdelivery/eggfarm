@@ -11,6 +11,8 @@ export default async function B2BOrderPage() {
   const window = await getOrderWindowStatus();
   const minOrderAmountRaw = await getConfig("b2b_min_order_amount");
   const minOrderAmount = Number(minOrderAmountRaw) || 0;
+  const minOrderQtyRaw = await getConfig("b2b_min_order_qty");
+  const minOrderQty = Number(minOrderQtyRaw) || 0;
 
   const { data: products } = await supabase
     .from("product")
@@ -53,7 +55,7 @@ export default async function B2BOrderPage() {
         </span>
       </header>
 
-      <OrderForm products={productsWithPrice} minOrderAmount={minOrderAmount} />
+      <OrderForm products={productsWithPrice} minOrderAmount={minOrderAmount} minOrderQty={minOrderQty} />
 
       {productsWithPrice.length === 0 && (
         <p className="mx-5 mt-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
