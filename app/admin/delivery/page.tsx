@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getAllCampaigns } from "@/lib/campaign";
+import { decryptSensitive } from "@/lib/crypto";
 import DeliveryClient from "./DeliveryClient";
 
 const DELIVERABLE_STATUSES = ["입금확인완료", "배송중", "배송위임", "배송완료"];
@@ -28,7 +29,13 @@ export default async function DeliveryPage({
       )
       .eq("campaign_id", campaignId)
       .in("status", DELIVERABLE_STATUSES);
-    orders = data ?? [];
+    // entrance_password는 암호화 저장돼있어서 복호화해서 넘겨줌
+    orders = (data ?? []).map((o: any) => ({
+      ...o,
+      account: o.account
+        ? { ...o.account, entrance_password: decryptSensitive(o.account.entrance_password) || null }
+        : null,
+    }));
   }
 
   // 동/호수 순 정렬 (숫자 기준)

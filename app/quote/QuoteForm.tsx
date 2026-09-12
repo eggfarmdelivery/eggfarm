@@ -47,6 +47,12 @@ export default function QuoteForm() {
         placeholder="담당자 연락처"
         className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
       />
+      <input
+        name="email"
+        type="email"
+        placeholder="이메일 (선택)"
+        className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+      />
       <textarea
         name="content"
         placeholder="필요한 품목/수량, 문의내용을 적어주세요"

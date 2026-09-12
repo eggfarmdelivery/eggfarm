@@ -16,6 +16,7 @@ import {
   revertB2BStatus,
   confirmRefund,
   adminCancelOrder,
+  adjustB2BOrderItems,
 } from "./actions";
 import Spinner from "@/components/Spinner";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
@@ -48,7 +49,16 @@ type B2BOrder = {
   status: string;
   total_amount: number;
   created_at: string;
-  account: { business_name: string | null } | null;
+  desired_delivery_date: string | null;
+  account: { business_name: string | null; phone: string | null } | null;
+  b2b_order_item: {
+    id: string;
+    quantity: number;
+    unit_price: number;
+    adjusted: boolean;
+    original_quantity: number | null;
+    product: { name: string } | null;
+  }[];
 };
 
 function formatTime(iso: string) {
@@ -345,8 +355,88 @@ function B2COrderCard({
   );
 }
 
+function AdjustQuantityModal({
+  order,
+  onClose,
+  busy,
+  run,
+}: {
+  order: B2BOrder;
+  onClose: () => void;
+  busy: boolean;
+  run: (fn: () => Promise<{ success: boolean; error?: string }>) => Promise<void>;
+}) {
+  const [qtys, setQtys] = useState<Record<string, number>>(
+    Object.fromEntries((order.b2b_order_item ?? []).map((i) => [i.id, i.quantity]))
+  );
+
+  const newTotal = (order.b2b_order_item ?? []).reduce(
+    (sum, i) => sum + (qtys[i.id] ?? i.quantity) * i.unit_price,
+    0
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-3 text-base font-medium">발주 수량 조정</p>
+        <div className="mb-4 space-y-2">
+          {(order.b2b_order_item ?? []).map((item) => (
+            <div key={item.id} className="flex items-center justify-between">
+              <span className="text-sm">{item.product?.name ?? "상품"}</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={qtys[item.id] ?? item.quantity}
+                  onChange={(e) =>
+                    setQtys((prev) => ({ ...prev, [item.id]: Math.max(0, Number(e.target.value)) }))
+                  }
+                  className="w-16 rounded-md border border-neutral-200 px-2 py-1.5 text-center text-sm"
+                />
+                <span className="text-xs text-neutral-400">판</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mb-4 flex justify-between border-t border-neutral-200 pt-3 text-sm">
+          <span className="text-neutral-500">조정 후 총액</span>
+          <span className="font-medium">{newTotal.toLocaleString()}원</span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm text-neutral-600"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              run(() =>
+                adjustB2BOrderItems(
+                  order.id,
+                  Object.entries(qtys).map(([itemId, quantity]) => ({ itemId, quantity }))
+                )
+              ).then(onClose)
+            }
+            className="flex-1 rounded-lg bg-primary py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function B2BOrderCard({ order }: { order: B2BOrder }) {
   const { busy, run } = useAction();
+  const [adjusting, setAdjusting] = useState(false);
+  const hasAdjusted = (order.b2b_order_item ?? []).some((i) => i.adjusted);
+
   return (
     <div className="rounded-lg border border-neutral-200 p-3">
       <div className="flex items-center justify-between mb-1">
@@ -355,16 +445,40 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
-      <p className="text-xs text-neutral-400 mb-2">{formatTime(order.created_at)}</p>
+      <p className="text-xs text-neutral-400 mb-1">{formatTime(order.created_at)}</p>
+      {order.desired_delivery_date && (
+        <p className="text-xs text-blue-700 mb-1">
+          📅 희망배송일 {new Date(order.desired_delivery_date).toLocaleDateString("ko-KR")}
+        </p>
+      )}
+      <p className="text-xs text-neutral-500 mb-2">
+        {(order.b2b_order_item ?? [])
+          .map((i) =>
+            i.adjusted && i.original_quantity != null
+              ? `${i.product?.name} ${i.original_quantity}→${i.quantity}판`
+              : `${i.product?.name} ${i.quantity}판`
+          )
+          .join(", ")}
+      </p>
+      {hasAdjusted && <p className="mb-2 text-xs text-orange-600">수량 조정됨</p>}
       <div className="flex gap-2 flex-wrap items-center">
         {order.status === "발주요청" && (
-          <button
-            disabled={busy}
-            onClick={() => run(() => startB2BDelivery(order.id))}
-            className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
-          >
-            배송시작
-          </button>
+          <>
+            <button
+              disabled={busy}
+              onClick={() => setAdjusting(true)}
+              className="text-xs rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-600"
+            >
+              수량 조정
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => run(() => startB2BDelivery(order.id))}
+              className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+            >
+              배송시작
+            </button>
+          </>
         )}
         {order.status === "배송중" && (
           <PhotoUploadButton
@@ -374,13 +488,22 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
           />
         )}
         {order.status === "입금대기" && (
-          <button
-            disabled={busy}
-            onClick={() => run(() => confirmB2BPayment(order.id))}
-            className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
-          >
-            입금확인
-          </button>
+          <>
+            <button
+              disabled={busy}
+              onClick={() => run(() => confirmB2BPayment(order.id, "계좌이체"))}
+              className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+            >
+              계좌이체 확인
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => run(() => confirmB2BPayment(order.id, "현금"))}
+              className="text-xs rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-600"
+            >
+              현금 수령
+            </button>
+          </>
         )}
         {["배송중", "입금대기", "입금확인완료"].includes(order.status) && (
           <button
@@ -394,6 +517,10 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
           </button>
         )}
       </div>
+
+      {adjusting && (
+        <AdjustQuantityModal order={order} busy={busy} run={run} onClose={() => setAdjusting(false)} />
+      )}
     </div>
   );
 }

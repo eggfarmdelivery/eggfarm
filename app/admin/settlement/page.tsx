@@ -5,41 +5,105 @@ import { supabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/adminAuth";
 import SettlementClient from "./SettlementClient";
 
-export default async function SettlementPage() {
+type DetailRow = {
+  date: string;
+  product: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  paymentMethod: string | null;
+};
+
+export default async function SettlementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   await requireAdmin();
+  const { month } = await searchParams;
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [y, m] = month ? month.split("-").map(Number) : [now.getFullYear(), now.getMonth() + 1];
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 1);
   const monthStartStr = monthStart.toISOString().slice(0, 10);
-  const monthLabel = `${now.getMonth() + 1}월분`;
+  const monthEndStr = monthEnd.toISOString().slice(0, 10);
+  const monthLabel = `${m}월분`;
+  const monthValue = `${y}-${String(m).padStart(2, "0")}`;
 
-  const { data: orders } = await supabase
+  // 확정(입금확인완료) 건 - 정산 대상
+  const { data: confirmedOrders } = await supabase
     .from("b2b_order")
-    .select("account_id, total_amount, account(business_name)")
+    .select(
+      "id, account_id, total_amount, payment_method, payment_confirmed_at, account(business_name), b2b_order_item(quantity, unit_price, subtotal, product(name))"
+    )
     .eq("status", "입금확인완료")
-    .gte("payment_confirmed_at", monthStartStr);
+    .gte("payment_confirmed_at", monthStartStr)
+    .lt("payment_confirmed_at", monthEndStr);
+
+  // 배송은 됐지만 아직 결제(계좌이체/현금) 확인이 안 된 건 - "결제대기"로 별도 표시
+  const { data: unconfirmedOrders } = await supabase
+    .from("b2b_order")
+    .select("id, account_id, total_amount, account(business_name)")
+    .eq("status", "입금대기")
+    .gte("delivery_completed_at", monthStartStr)
+    .lt("delivery_completed_at", monthEndStr);
 
   const { data: settlements } = await supabase
     .from("b2b_settlement")
     .select("account_id, status")
     .eq("settlement_month", monthStartStr);
-  const settlementMap = new Map(
-    (settlements ?? []).map((s) => [s.account_id, s.status])
-  );
+  const settlementMap = new Map((settlements ?? []).map((s) => [s.account_id, s.status]));
 
   const grouped = new Map<
     string,
-    { businessName: string; orderCount: number; totalAmount: number }
+    {
+      businessName: string;
+      orderCount: number;
+      totalAmount: number;
+      pendingCount: number;
+      pendingAmount: number;
+      detail: DetailRow[];
+    }
   >();
-  for (const o of orders ?? []) {
+
+  for (const o of confirmedOrders ?? []) {
     const key = o.account_id;
     const existing = grouped.get(key) ?? {
       businessName: (o.account as any)?.business_name ?? "거래처",
       orderCount: 0,
       totalAmount: 0,
+      pendingCount: 0,
+      pendingAmount: 0,
+      detail: [] as DetailRow[],
     };
     existing.orderCount += 1;
     existing.totalAmount += o.total_amount;
+    for (const item of (o as any).b2b_order_item ?? []) {
+      existing.detail.push({
+        date: o.payment_confirmed_at ?? "",
+        product: item.product?.name ?? "상품",
+        unitPrice: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+        paymentMethod: o.payment_method,
+      });
+    }
+    grouped.set(key, existing);
+  }
+
+  for (const o of unconfirmedOrders ?? []) {
+    const key = o.account_id;
+    const existing = grouped.get(key) ?? {
+      businessName: (o.account as any)?.business_name ?? "거래처",
+      orderCount: 0,
+      totalAmount: 0,
+      pendingCount: 0,
+      pendingAmount: 0,
+      detail: [] as DetailRow[],
+    };
+    existing.pendingCount += 1;
+    existing.pendingAmount += o.total_amount;
     grouped.set(key, existing);
   }
 
@@ -61,6 +125,7 @@ export default async function SettlementPage() {
         rows={rows}
         monthLabel={monthLabel}
         settlementMonth={monthStartStr}
+        monthValue={monthValue}
       />
     </div>
   );

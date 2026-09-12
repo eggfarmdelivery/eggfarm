@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Users,
   ShoppingCart,
@@ -21,6 +22,7 @@ export type DashboardCard = {
   danger?: boolean;
   muted?: boolean;
   detail?: { label: string; value: string }[];
+  moreLink?: { label: string; href: string };
 };
 
 const ICONS = {
@@ -88,6 +90,14 @@ export default function AdminDashboardCards({ cards }: { cards: DashboardCard[] 
               <span className="text-xs">{row.value}</span>
             </div>
           ))}
+          {activeCard.moreLink && (
+            <Link
+              href={activeCard.moreLink.href}
+              className="mt-2 flex items-center justify-center rounded-md border border-neutral-300 py-2 text-xs text-neutral-600"
+            >
+              {activeCard.moreLink.label}
+            </Link>
+          )}
         </div>
       )}
     </div>

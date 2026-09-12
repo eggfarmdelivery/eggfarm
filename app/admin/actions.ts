@@ -142,15 +142,71 @@ export async function markB2BDelivered(formData: FormData): Promise<Result> {
   }
 }
 
-export async function confirmB2BPayment(orderId: string): Promise<Result> {
+export async function confirmB2BPayment(orderId: string, paymentMethod: "계좌이체" | "현금"): Promise<Result> {
   try {
     await requireAdmin();
     await updateB2BStatus(orderId, "입금대기", "입금확인완료", {
       payment_confirmed_at: new Date().toISOString(),
+      payment_method: paymentMethod,
     });
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}
+
+// 발주요청 단계에서 관리자가 수량을 조정(재고/공급 사정) — 원래 수량은 남겨서 거래처가 비교해볼 수 있게 함
+export async function adjustB2BOrderItems(
+  orderId: string,
+  adjustments: { itemId: string; quantity: number }[]
+): Promise<Result> {
+  try {
+    await requireAdmin();
+    const { data: order, error: orderError } = await supabase
+      .from("b2b_order")
+      .select("status")
+      .eq("id", orderId)
+      .single();
+    if (orderError || !order) throw new Error("발주를 찾을 수 없어요");
+    if (order.status !== "발주요청") throw new Error("발주요청 상태에서만 수량을 조정할 수 있어요");
+
+    const { data: items, error: itemsError } = await supabase
+      .from("b2b_order_item")
+      .select("id, quantity, unit_price, adjusted, original_quantity")
+      .eq("order_id", orderId);
+    if (itemsError || !items) throw new Error("발주 상품을 불러오지 못했어요");
+
+    let totalAmount = 0;
+    for (const item of items) {
+      const adjustment = adjustments.find((a) => a.itemId === item.id);
+      const newQty = adjustment ? adjustment.quantity : item.quantity;
+      const wasAlreadyAdjusted = item.adjusted;
+      const originalQty = wasAlreadyAdjusted ? item.original_quantity : item.quantity;
+      const changed = newQty !== item.quantity;
+      const subtotal = newQty * item.unit_price;
+      totalAmount += subtotal;
+
+      const { error } = await supabase
+        .from("b2b_order_item")
+        .update({
+          quantity: newQty,
+          subtotal,
+          adjusted: wasAlreadyAdjusted || changed,
+          original_quantity: wasAlreadyAdjusted ? originalQty : changed ? item.quantity : null,
+        })
+        .eq("id", item.id);
+      if (error) throw new Error(error.message);
+    }
+
+    const { error: totalError } = await supabase
+      .from("b2b_order")
+      .update({ total_amount: totalAmount })
+      .eq("id", orderId);
+    if (totalError) throw new Error(totalError.message);
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "조정 중 오류가 발생했어요" };
   }
 }
 

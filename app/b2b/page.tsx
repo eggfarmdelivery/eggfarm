@@ -2,10 +2,10 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getAccountId } from "@/lib/getAccount";
+import { getApprovedB2BAccountId } from "@/lib/getAccount";
 
 export default async function B2BHome() {
-  const accountId = await getAccountId("b2b");
+  const accountId = await getApprovedB2BAccountId();
   const supabase = await createClient();
 
   const { data: account } = await supabase
@@ -31,6 +31,12 @@ export default async function B2BHome() {
           className="block w-full rounded-lg border border-neutral-300 py-3 text-sm font-medium"
         >
           배송 현황
+        </Link>
+        <Link
+          href="/b2b/settlement"
+          className="block w-full rounded-lg border border-neutral-300 py-3 text-sm font-medium"
+        >
+          납품내역
         </Link>
       </div>
     </div>

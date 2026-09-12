@@ -23,6 +23,8 @@ export default async function SettingsPage({
     "kakao_openchat_url",
     "notice_enabled",
     "notice_text",
+    "b2b_min_order_amount",
+    "b2b_origin_address",
   ]);
   const connected = await isAdminKakaoConnected();
 

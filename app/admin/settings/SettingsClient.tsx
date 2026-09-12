@@ -94,6 +94,34 @@ export default function SettingsClient({ config }: { config: Record<string, stri
         />
       </section>
 
+      <section>
+        <p className="text-sm font-medium mb-2">B2B 발주 설정</p>
+        <div className="space-y-2">
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">최소 발주금액 (원)</label>
+            <input
+              name="b2b_min_order_amount"
+              defaultValue={config.b2b_min_order_amount}
+              inputMode="numeric"
+              placeholder="비워두면 제한 없음"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">출발지 주소 (배송동선 계산용)</label>
+            <input
+              name="b2b_origin_address"
+              defaultValue={config.b2b_origin_address}
+              placeholder="예: 인천시 강화군 ○○면 ○○로 12"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-neutral-400">
+              B2B 배송리스트에서 방문순서 추천·네이버지도 연결에 쓰여요
+            </p>
+          </div>
+        </div>
+      </section>
+
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
       )}

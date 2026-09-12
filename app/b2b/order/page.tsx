@@ -1,13 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import { supabase } from "@/lib/supabase";
-import { getAccountId } from "@/lib/getAccount";
+import { getApprovedB2BAccountId } from "@/lib/getAccount";
 import { getOrderWindowStatus } from "@/lib/b2bDeadline";
+import { getConfig } from "@/lib/settings";
 import OrderForm from "./OrderForm";
 
 export default async function B2BOrderPage() {
-  const accountId = await getAccountId("b2b");
+  const accountId = await getApprovedB2BAccountId();
   const window = await getOrderWindowStatus();
+  const minOrderAmountRaw = await getConfig("b2b_min_order_amount");
+  const minOrderAmount = Number(minOrderAmountRaw) || 0;
 
   const { data: products } = await supabase
     .from("product")
@@ -48,7 +51,7 @@ export default async function B2BOrderPage() {
         </span>
       </header>
 
-      <OrderForm products={productsWithPrice} />
+      <OrderForm products={productsWithPrice} minOrderAmount={minOrderAmount} />
     </div>
   );
 }

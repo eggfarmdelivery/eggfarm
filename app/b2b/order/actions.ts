@@ -1,8 +1,9 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { getAccountId } from "@/lib/getAccount";
+import { getApprovedB2BAccountId } from "@/lib/getAccount";
 import { getOrderWindowStatus } from "@/lib/b2bDeadline";
+import { getConfig } from "@/lib/settings";
 
 type Result = { success: true } | { success: false; error: string };
 
@@ -13,7 +14,7 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
       throw new Error("지금은 발주 접수 시간이 아니에요");
     }
 
-    const accountId = await getAccountId("b2b");
+    const accountId = await getApprovedB2BAccountId();
 
     const { data: products } = await supabase
       .from("product")
@@ -46,9 +47,21 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
 
     const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
 
+    const minOrderAmount = Number(await getConfig("b2b_min_order_amount")) || 0;
+    if (minOrderAmount > 0 && totalAmount < minOrderAmount) {
+      throw new Error(`최소 발주금액(${minOrderAmount.toLocaleString()}원)보다 적어요`);
+    }
+
+    const desiredDeliveryDate = String(formData.get("desired_delivery_date") ?? "").trim() || null;
+
     const { data: order, error } = await supabase
       .from("b2b_order")
-      .insert({ account_id: accountId, status: "발주요청", total_amount: totalAmount })
+      .insert({
+        account_id: accountId,
+        status: "발주요청",
+        total_amount: totalAmount,
+        desired_delivery_date: desiredDeliveryDate,
+      })
       .select("id")
       .single();
     if (error || !order) throw new Error(error?.message ?? "발주 생성 실패");
@@ -60,6 +73,11 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
 
     return { success: true };
   } catch (e) {
+    // getApprovedB2BAccountId()의 redirect()는 특수 에러를 throw하는 방식이라,
+    // 그냥 일반 에러로 삼켜버리면 안내 화면으로 못 넘어가고 이상한 에러 메시지만 뜸
+    if (e && typeof e === "object" && "digest" in e && String((e as any).digest).startsWith("NEXT_REDIRECT")) {
+      throw e;
+    }
     return { success: false, error: e instanceof Error ? e.message : "발주 처리 중 오류가 발생했어요" };
   }
 }

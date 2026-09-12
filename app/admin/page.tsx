@@ -166,6 +166,7 @@ export default async function AdminHome() {
       icon: "users",
       value: `${(totalAccounts ?? 0).toLocaleString()}명`,
       sub: `+${weekAccounts ?? 0} 이번주`,
+      moreLink: { label: "전체 명단 보기", href: "/admin/signups" },
       detail: [
         { label: "오늘 가입", value: `${todayAccounts ?? 0}명` },
         { label: "이번주 가입", value: `${weekAccounts ?? 0}명` },

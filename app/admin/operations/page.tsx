@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight } from "lucide-react";
+import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store } from "lucide-react";
 import { requireAdmin } from "@/lib/adminAuth";
 
 const items = [
@@ -10,6 +10,8 @@ const items = [
   { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
   { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
   { href: "/admin/products", label: "상품관리", icon: Package },
+  { href: "/admin/b2b-accounts", label: "거래처 관리", icon: Store },
+  { href: "/admin/b2b-delivery", label: "B2B 배송리스트", icon: Truck },
 ];
 
 export default async function OperationsPage() {

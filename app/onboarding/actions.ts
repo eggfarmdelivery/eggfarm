@@ -57,16 +57,25 @@ export async function submitOnboarding(formData: FormData): Promise<Result> {
     }
 
     const businessName = String(formData.get("business_name") ?? "").trim();
+    const businessNumber = String(formData.get("business_number") ?? "").trim();
+    const businessType = String(formData.get("business_type") ?? "").trim();
+    const entrancePasswordRaw = String(formData.get("entrance_password") ?? "").trim();
     if (!businessName) throw new Error("업체명을 입력해주세요");
+    if (!businessNumber) throw new Error("사업자등록번호를 입력해주세요");
+    if (!businessType) throw new Error("사업자구분을 선택해주세요");
 
     const { error } = await supabase.from("account").insert({
       role: "b2b",
       auth_user_id: user.id,
       kakao_user_id: kakaoUserId,
       business_name: businessName,
+      business_number: businessNumber,
+      business_type: businessType,
+      approval_status: "pending",
       name,
       phone,
       address,
+      entrance_password: entrancePasswordRaw ? encryptSensitive(entrancePasswordRaw) : null,
     });
     if (error) throw new Error(error.message);
     return { success: true };
