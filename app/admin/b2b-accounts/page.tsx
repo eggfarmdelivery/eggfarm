@@ -1,13 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSensitive } from "@/lib/crypto";
 import B2BAccountsClient from "./B2BAccountsClient";
 
 export default async function B2BAccountsPage() {
-  await requireAdmin();
+  await requireOwner();
   const admin = createAdminClient();
 
   const { data: accounts } = await admin

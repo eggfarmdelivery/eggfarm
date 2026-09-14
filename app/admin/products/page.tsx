@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { getCurrentLimit } from "@/lib/limits";
 import ProductsClient from "./ProductsClient";
 
 export default async function ProductsPage() {
-  await requireAdmin();
+  await requireOwner();
 
   const { data: products } = await supabase
     .from("product")

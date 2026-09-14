@@ -1,9 +1,9 @@
 export default async function AdminLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kakao_error?: string; kakao_setup_id?: string }>;
+  searchParams: Promise<{ kakao_error?: string; kakao_setup_id?: string; staff_setup_id?: string }>;
 }) {
-  const { kakao_error, kakao_setup_id } = await searchParams;
+  const { kakao_error, kakao_setup_id, staff_setup_id } = await searchParams;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
@@ -18,6 +18,18 @@ export default async function AdminLoginPage({
           </p>
           <p className="select-all break-all rounded bg-white px-2 py-1 font-mono">
             {kakao_setup_id}
+          </p>
+        </div>
+      )}
+      {staff_setup_id && (
+        <div className="w-full max-w-xs rounded-md bg-amber-50 px-3 py-3 text-xs text-amber-800">
+          <p className="mb-1 font-medium">아직 등록되지 않은 계정이에요</p>
+          <p className="mb-2">
+            아래 카카오 ID를 관리자님께 전달해서, 환경설정 &gt; 관리자 계정 관리에서
+            등록해달라고 요청해주세요:
+          </p>
+          <p className="select-all break-all rounded bg-white px-2 py-1 font-mono">
+            {staff_setup_id}
           </p>
         </div>
       )}

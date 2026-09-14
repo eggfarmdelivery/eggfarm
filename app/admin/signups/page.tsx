@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { maskPhone } from "@/lib/mask";
 import SignupsClient from "./SignupsClient";
@@ -18,7 +18,7 @@ export default async function SignupsPage({
 }: {
   searchParams: Promise<{ range?: string }>;
 }) {
-  await requireAdmin();
+  await requireOwner();
   const { range } = await searchParams;
   const period = range === "month" ? "month" : range === "all" ? "all" : "week";
 

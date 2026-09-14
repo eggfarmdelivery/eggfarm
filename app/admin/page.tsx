@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpenCampaigns, getCampaignSold } from "@/lib/campaign";
 import { isAdminKakaoConnected } from "@/lib/kakao";
@@ -18,7 +18,7 @@ function daysAgo(n: number) {
 }
 
 export default async function AdminHome() {
-  await requireAdmin();
+  await requireOwner();
   const admin = createAdminClient();
 
   const now = new Date();

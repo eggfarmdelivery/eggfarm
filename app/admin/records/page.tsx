@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { Wallet, FileText, History, ChevronRight } from "lucide-react";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 
 const b2bItems = [
   { href: "/admin/settlement", label: "정산", icon: Wallet },
@@ -38,7 +38,7 @@ function ItemGroup({ title, items }: { title?: string; items: typeof b2bItems })
 }
 
 export default async function RecordsPage() {
-  await requireAdmin();
+  await requireOwner();
 
   return (
     <div className="pb-24">

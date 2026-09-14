@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requirePermission } from "@/lib/adminAuth";
 import { getAllCampaigns } from "@/lib/campaign";
 import { decryptSensitive } from "@/lib/crypto";
 import DeliveryClient from "./DeliveryClient";
@@ -14,7 +14,7 @@ export default async function DeliveryPage({
 }: {
   searchParams: Promise<{ campaign?: string }>;
 }) {
-  await requireAdmin();
+  await requirePermission(["delivery"]);
   const { campaign: campaignId } = await searchParams;
 
   const campaigns = await getAllCampaigns();

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users } from "lucide-react";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 
 const sharedItems = [{ href: "/admin/orders", label: "주문관리 (B2C+B2B)", icon: ClipboardList }];
 
@@ -49,7 +49,7 @@ function ItemGroup({ title, items }: { title?: string; items: typeof sharedItems
 }
 
 export default async function OperationsPage() {
-  await requireAdmin();
+  await requireOwner();
 
   return (
     <div className="pb-24">

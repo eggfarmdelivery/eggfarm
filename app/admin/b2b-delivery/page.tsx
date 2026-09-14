@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSensitive } from "@/lib/crypto";
 import { getConfig } from "@/lib/settings";
@@ -17,7 +17,7 @@ export default async function B2BDeliveryPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requireAdmin();
+  await requireOwner();
   const { date } = await searchParams;
   const targetDate = date || todayKST();
 

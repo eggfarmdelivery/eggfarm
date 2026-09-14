@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setAdminCookie } from "@/lib/adminAuth";
 import { saveAdminKakaoToken } from "@/lib/kakao";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // 카카오 인증 후 돌아오는 콜백 - code를 토큰으로 교환하고, 그 계정이 관리자 본인인지
 // (ADMIN_KAKAO_ID 환경변수와 대조) 확인한 뒤 관리자 세션 발급 + 알림용 토큰 저장을 함께 처리
@@ -54,22 +55,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (kakaoUserId !== adminKakaoId) {
+    if (kakaoUserId === adminKakaoId) {
+      // 사장님(전체 권한) 계정
+      await setAdminCookie("owner");
+      await saveAdminKakaoToken(
+        tokenJson.access_token,
+        tokenJson.refresh_token,
+        tokenJson.expires_in ?? 21599
+      );
+      return NextResponse.redirect(`${origin}/admin?kakao_connected=1`);
+    }
+
+    // 사장님 본인이 아니면, 제한된 권한(입금확인/배송)으로 등록된 직원 계정인지 확인
+    const admin = createAdminClient();
+    const { data: staff } = await admin
+      .from("admin_staff")
+      .select("permission")
+      .eq("kakao_id", kakaoUserId)
+      .maybeSingle();
+
+    if (!staff) {
+      // 아직 등록 안 된 카카오 계정 - 본인 id를 알려줘서 사장님께 전달하도록 안내
       return NextResponse.redirect(
-        `${origin}/admin/login?kakao_error=${encodeURIComponent(
-          "이 카카오 계정은 관리자 계정이 아니에요"
-        )}`
+        `${origin}/admin/login?staff_setup_id=${encodeURIComponent(kakaoUserId)}`
       );
     }
 
-    await setAdminCookie();
-    await saveAdminKakaoToken(
-      tokenJson.access_token,
-      tokenJson.refresh_token,
-      tokenJson.expires_in ?? 21599
-    );
-
-    return NextResponse.redirect(`${origin}/admin?kakao_connected=1`);
+    await setAdminCookie(staff.permission);
+    const redirectPath = staff.permission === "delivery" ? "/admin/delivery" : "/admin/orders";
+    return NextResponse.redirect(`${origin}${redirectPath}`);
   } catch (e) {
     return NextResponse.redirect(
       `${origin}/admin/login?kakao_error=${encodeURIComponent(

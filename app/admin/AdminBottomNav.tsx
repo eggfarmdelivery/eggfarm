@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, Wallet, Settings } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Wallet, Settings, LogOut } from "lucide-react";
 import { useViewportBottomInset } from "@/lib/useViewportBottomInset";
+import { adminLogout } from "./settings/actions";
+import type { AdminRole } from "@/lib/adminAuth";
 
 const TABS = [
   { key: "status", href: "/admin", label: "현황", Icon: LayoutDashboard, match: ["/admin"] },
@@ -37,11 +39,32 @@ const TABS = [
   },
 ];
 
-export default function AdminBottomNav() {
+export default function AdminBottomNav({ role }: { role: AdminRole | null }) {
   const pathname = usePathname();
   const extraInset = useViewportBottomInset();
 
   if (pathname.startsWith("/admin/login")) return null;
+
+  // 제한된 권한(입금확인/배송 담당)은 접근 가능한 화면이 하나뿐이라 여러 탭이 필요 없음 -
+  // 로그아웃만 할 수 있는 미니멀한 바를 대신 보여줌
+  if (role && role !== "owner") {
+    return (
+      <nav
+        className="fixed bottom-0 left-1/2 w-full max-w-md -translate-x-1/2 border-t border-neutral-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)", bottom: extraInset }}
+      >
+        <div className="flex justify-center py-2">
+          <button
+            onClick={() => adminLogout()}
+            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs text-neutral-500 active:bg-neutral-50"
+          >
+            <LogOut size={16} />
+            로그아웃
+          </button>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav

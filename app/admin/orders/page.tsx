@@ -1,13 +1,14 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requirePermission } from "@/lib/adminAuth";
 import { decryptSensitive } from "@/lib/crypto";
 import ConsoleClient from "../ConsoleClient";
 
 export default async function AdminOrdersPage() {
-  await requireAdmin();
+  const role = await requirePermission(["payment"]);
   // 관리자는 일반 로그인 사용자가 아니라 RLS(auth.uid())를 못 타므로,
   // 회원 이름/전화번호처럼 RLS가 걸린 정보를 보려면 서비스롤 클라이언트가 필요함
   const admin = createAdminClient();
@@ -37,10 +38,19 @@ export default async function AdminOrdersPage() {
   return (
     <div className="pb-24">
       <header className="flex items-center gap-2 px-5 py-4">
-        <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
-          ←
+        {role === "owner" && (
+          <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
+            ←
+          </Link>
+        )}
+        <h1 className="flex-1 text-base font-medium">주문관리</h1>
+        <Link
+          href="/admin/members"
+          className="flex items-center gap-1 rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-600"
+        >
+          <Users size={14} />
+          회원 조회
         </Link>
-        <h1 className="text-base font-medium">주문관리</h1>
       </header>
 
       <ConsoleClient

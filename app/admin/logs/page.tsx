@@ -2,10 +2,10 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 
 export default async function LogsPage() {
-  await requireAdmin();
+  await requireOwner();
   // account(name/phone)에는 RLS가 걸려있어 anon 클라이언트로는 조회가 안 되므로
   // 관리자 화면은 서비스롤 클라이언트를 사용
   const admin = createAdminClient();

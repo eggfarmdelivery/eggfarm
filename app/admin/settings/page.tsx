@@ -1,20 +1,21 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { getConfigs } from "@/lib/settings";
 import { isAdminKakaoConnected } from "@/lib/kakao";
 import SettingsClient from "./SettingsClient";
 import TestAccountReset from "./TestAccountReset";
 import KakaoNotifySection from "./KakaoNotifySection";
 import AdminLogoutButton from "./AdminLogoutButton";
+import StaffManagement from "./StaffManagement";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ kakao_connected?: string; kakao_error?: string }>;
 }) {
-  await requireAdmin();
+  await requireOwner();
   const { kakao_connected, kakao_error } = await searchParams;
   const config = await getConfigs([
     "bank_name",
@@ -46,6 +47,9 @@ export default async function SettingsPage({
           error={kakao_error}
         />
         <TestAccountReset />
+        <div className="mt-8 border-t border-neutral-200 pt-6">
+          <StaffManagement />
+        </div>
         <div className="mt-6">
           <AdminLogoutButton />
         </div>

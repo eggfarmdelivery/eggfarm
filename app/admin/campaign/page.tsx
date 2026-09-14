@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireOwner } from "@/lib/adminAuth";
 import { getAllCampaigns, getCampaignProductLimits, getCampaignZoneIds, getCampaignStatus } from "@/lib/campaign";
 import CampaignClient from "./CampaignClient";
 
 export default async function CampaignPage() {
-  await requireAdmin();
+  await requireOwner();
 
   const campaigns = await getAllCampaigns();
   const campaignsWithInfo = await Promise.all(
