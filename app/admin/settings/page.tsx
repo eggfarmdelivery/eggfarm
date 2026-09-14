@@ -24,6 +24,7 @@ export default async function SettingsPage({
     "kakao_openchat_url",
     "notice_enabled",
     "notice_text",
+    "low_stock_alert_threshold",
     "b2b_min_order_amount",
     "b2b_min_order_qty",
     "b2b_origin_address",

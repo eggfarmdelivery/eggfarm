@@ -39,7 +39,7 @@ export async function cancelOrder(
     if (NO_PAYMENT_STATUSES.includes(order.status)) {
       const { error } = await supabase.from("b2c_order").update({ status: "취소" }).eq("id", orderId);
       if (error) throw new Error(error.message);
-      await logStatusChange("b2c_order", orderId, order.status, "취소");
+      await logStatusChange("b2c_order", orderId, order.status, "취소", "고객");
       return { success: true };
     }
 
@@ -61,7 +61,7 @@ export async function cancelOrder(
       })
       .eq("id", orderId);
     if (error) throw new Error(error.message);
-    await logStatusChange("b2c_order", orderId, order.status, "환불대기");
+    await logStatusChange("b2c_order", orderId, order.status, "환불대기", "고객");
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "취소 처리 중 오류가 발생했어요" };

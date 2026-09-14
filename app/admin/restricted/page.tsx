@@ -7,6 +7,7 @@ import AdminLogoutButton from "@/app/admin/settings/AdminLogoutButton";
 const ROLE_HOME: Record<string, { href: string; label: string }> = {
   payment: { href: "/admin/orders", label: "주문관리로 이동" },
   delivery: { href: "/admin/delivery", label: "배송리스트로 이동" },
+  b2b_delivery: { href: "/admin/b2b-delivery", label: "B2B 배송리스트로 이동" },
 };
 
 export default async function RestrictedPage() {

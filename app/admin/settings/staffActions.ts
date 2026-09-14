@@ -9,7 +9,7 @@ export type AdminStaffRow = {
   id: string;
   kakao_id: string;
   label: string | null;
-  permission: "payment" | "delivery";
+  permission: "payment" | "delivery" | "b2b_delivery";
   created_at: string;
 };
 
@@ -22,7 +22,7 @@ export async function listAdminStaff(): Promise<AdminStaffRow[]> {
 
 export async function addAdminStaff(
   kakaoId: string,
-  permission: "payment" | "delivery",
+  permission: "payment" | "delivery" | "b2b_delivery",
   label: string
 ): Promise<Result> {
   try {

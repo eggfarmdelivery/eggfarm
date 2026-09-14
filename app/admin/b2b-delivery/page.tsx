@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireOwner } from "@/lib/adminAuth";
+import { requirePermission } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSensitive } from "@/lib/crypto";
 import { getConfig } from "@/lib/settings";
@@ -17,7 +17,7 @@ export default async function B2BDeliveryPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requireOwner();
+  const role = await requirePermission(["b2b_delivery"]);
   const { date } = await searchParams;
   const targetDate = date || todayKST();
 
@@ -72,9 +72,11 @@ export default async function B2BDeliveryPage({
   return (
     <div className="pb-24">
       <header className="flex items-center gap-2 px-5 py-4">
-        <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
-          ←
-        </Link>
+        {role === "owner" && (
+          <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
+            ←
+          </Link>
+        )}
         <h1 className="text-base font-medium">B2B 배송리스트</h1>
       </header>
 

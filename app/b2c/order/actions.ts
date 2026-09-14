@@ -7,9 +7,11 @@ import {
   checkCampaignLimit,
   getCampaignProductLimits,
   getCampaignZoneIds,
+  getCampaignSold,
   calculateDeliveryFee,
 } from "@/lib/campaign";
 import { sendKakaoMemoToAdmin } from "@/lib/kakao";
+import { getConfig } from "@/lib/settings";
 
 type Result =
   | { success: true; remainingAmount: number }
@@ -73,7 +75,7 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
 
     const { data: campaign } = await supabase
       .from("campaign")
-      .select("delivery_fee, free_shipping_min_qty")
+      .select("title, delivery_fee, free_shipping_min_qty")
       .eq("id", campaignId)
       .single();
     if (!campaign) throw new Error("판매기간 정보를 찾을 수 없어요");
@@ -148,6 +150,24 @@ export async function createGeneralOrder(formData: FormData): Promise<Result> {
       `[새 주문] ${account?.nickname ?? "회원"}님 - ${itemsSummary} - ${totalAmount.toLocaleString()}원 (입금대기)`,
       "https://eggfarm.shop/admin"
     );
+
+    // 이번 주문으로 재고가 얼마 안 남은 상품이 생겼으면 관리자에게 별도 알림
+    // (이미 기준 이하였던 상품은 매번 알리면 스팸이 되니, 이번 주문으로 "처음" 기준을 넘은 경우에만 보냄)
+    const lowStockThreshold = Number(await getConfig("low_stock_alert_threshold")) || 5;
+    for (const item of items) {
+      const limit = productLimits.find((l) => l.product_id === item.product_id);
+      if (!limit) continue;
+      const soldAfter = await getCampaignSold(campaignId, item.product_id);
+      const remaining = limit.stock_limit - soldAfter;
+      const remainingBefore = remaining + item.quantity;
+      if (remaining <= lowStockThreshold && remainingBefore > lowStockThreshold) {
+        const productName = products.find((p) => p.id === item.product_id)?.name ?? "상품";
+        await sendKakaoMemoToAdmin(
+          `[재고부족] ${campaign?.title ?? "판매기간"} - ${productName} 재고 ${remaining}판 남음`,
+          "https://eggfarm.shop/admin/campaign"
+        );
+      }
+    }
 
     return { success: true, remainingAmount: totalAmount };
   } catch (e) {

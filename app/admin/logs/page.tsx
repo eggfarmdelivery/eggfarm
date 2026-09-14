@@ -12,7 +12,7 @@ export default async function LogsPage() {
 
   const { data: logs } = await admin
     .from("order_status_log")
-    .select("id, order_table, order_id, from_status, to_status, created_at")
+    .select("id, order_table, order_id, from_status, to_status, changed_by, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -90,6 +90,9 @@ export default async function LogsPage() {
               ) : null}
               <span className="font-medium">{log.to_status}</span>
             </p>
+            {log.changed_by && (
+              <p className="mt-0.5 text-xs text-neutral-400">처리자: {log.changed_by}</p>
+            )}
           </div>
         ))}
       </div>

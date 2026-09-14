@@ -86,6 +86,19 @@ export default function SettingsClient({ config }: { config: Record<string, stri
               className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
             />
           </section>
+
+          <section>
+            <p className="text-sm font-medium mb-2">재고 부족 알림</p>
+            <label className="mb-1 block text-xs text-neutral-500">
+              남은 판수가 이 숫자 이하가 되면 카카오로 알려드려요
+            </label>
+            <input
+              name="low_stock_alert_threshold"
+              defaultValue={config.low_stock_alert_threshold || "5"}
+              inputMode="numeric"
+              className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </section>
         </div>
       </div>
 

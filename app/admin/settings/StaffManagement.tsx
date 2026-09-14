@@ -8,7 +8,7 @@ export default function StaffManagement() {
   const [loading, setLoading] = useState(true);
   const [kakaoId, setKakaoId] = useState("");
   const [label, setLabel] = useState("");
-  const [permission, setPermission] = useState<"payment" | "delivery">("payment");
+  const [permission, setPermission] = useState<"payment" | "delivery" | "b2b_delivery">("payment");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,11 +73,12 @@ export default function StaffManagement() {
         <div className="flex gap-2">
           <select
             value={permission}
-            onChange={(e) => setPermission(e.target.value as "payment" | "delivery")}
+            onChange={(e) => setPermission(e.target.value as "payment" | "delivery" | "b2b_delivery")}
             className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm"
           >
             <option value="payment">입금확인 담당 (주문관리만)</option>
             <option value="delivery">배송 담당 (배송리스트만)</option>
+            <option value="b2b_delivery">B2B 배송 담당 (B2B 배송리스트만)</option>
           </select>
           <button
             onClick={handleAdd}
@@ -104,7 +105,12 @@ export default function StaffManagement() {
               <div>
                 <p className="text-sm">{s.label || "이름없음"}</p>
                 <p className="text-xs text-neutral-400">
-                  {s.kakao_id} · {s.permission === "payment" ? "입금확인 담당" : "배송 담당"}
+                  {s.kakao_id} ·{" "}
+                  {s.permission === "payment"
+                    ? "입금확인 담당"
+                    : s.permission === "delivery"
+                      ? "배송 담당"
+                      : "B2B 배송 담당"}
                 </p>
               </div>
               <button

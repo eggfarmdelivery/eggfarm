@@ -339,6 +339,8 @@ export default async function AdminHome() {
     },
   ];
 
+  const hasUrgent = (pendingPaymentOrders ?? 0) > 0 || refundCount > 0 || (b2bPendingCount ?? 0) > 0;
+
   return (
     <div className="pb-24">
       <header className="px-5 py-4">
@@ -346,6 +348,32 @@ export default async function AdminHome() {
       </header>
 
       <div className="px-5">
+        {hasUrgent && (
+          <div className="mb-5 rounded-xl bg-red-50 px-4 py-3.5">
+            <p className="mb-2 text-sm font-medium text-red-600">지금 처리할 게 있어요</p>
+            <div className="space-y-1.5">
+              {(pendingPaymentOrders ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-600">입금대기 주문</span>
+                  <span className="font-medium text-red-600">{pendingPaymentOrders}건</span>
+                </div>
+              )}
+              {refundCount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-600">환불대기</span>
+                  <span className="font-medium text-red-600">{refundCount}건</span>
+                </div>
+              )}
+              {(b2bPendingCount ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-600">거래처 승인대기</span>
+                  <span className="font-medium text-red-600">{b2bPendingCount}곳</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <p className="mb-1.5 text-xs font-medium text-neutral-400">B2C</p>
         <AdminDashboardCards cards={b2cCards} />
 

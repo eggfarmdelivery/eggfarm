@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     const admin = createAdminClient();
     const { data: staff } = await admin
       .from("admin_staff")
-      .select("permission")
+      .select("permission, label, kakao_id")
       .eq("kakao_id", kakaoUserId)
       .maybeSingle();
 
@@ -81,8 +81,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await setAdminCookie(staff.permission);
-    const redirectPath = staff.permission === "delivery" ? "/admin/delivery" : "/admin/orders";
+    await setAdminCookie(staff.permission, staff.label || staff.kakao_id);
+    const redirectPath =
+      staff.permission === "delivery"
+        ? "/admin/delivery"
+        : staff.permission === "b2b_delivery"
+          ? "/admin/b2b-delivery"
+          : "/admin/orders";
     return NextResponse.redirect(`${origin}${redirectPath}`);
   } catch (e) {
     return NextResponse.redirect(

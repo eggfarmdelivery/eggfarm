@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/adminAuth";
+import { requireAdmin, getAdminActorLabel } from "@/lib/adminAuth";
 import { logStatusChange } from "@/lib/statusLog";
 
 type Result = { success: true } | { success: false; error: string };
@@ -23,13 +23,13 @@ async function uploadDeliveryPhoto(orderId: string, file: File): Promise<string 
 async function updateB2CStatus(orderId: string, from: string | null, to: string, extra: Record<string, unknown> = {}) {
   const { error } = await supabase.from("b2c_order").update({ status: to, ...extra }).eq("id", orderId);
   if (error) throw new Error(error.message);
-  await logStatusChange("b2c_order", orderId, from, to);
+  await logStatusChange("b2c_order", orderId, from, to, await getAdminActorLabel());
 }
 
 async function updateB2BStatus(orderId: string, from: string | null, to: string, extra: Record<string, unknown> = {}) {
   const { error } = await supabase.from("b2b_order").update({ status: to, ...extra }).eq("id", orderId);
   if (error) throw new Error(error.message);
-  await logStatusChange("b2b_order", orderId, from, to);
+  await logStatusChange("b2b_order", orderId, from, to, await getAdminActorLabel());
 }
 
 export async function approveOverflow(orderId: string): Promise<Result> {
