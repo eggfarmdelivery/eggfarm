@@ -26,67 +26,111 @@ export default async function AdminHome() {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const weekStart = daysAgo(now.getDay() === 0 ? 6 : now.getDay() - 1); // 이번주 월요일 0시
 
-  // ---------- 가입자 ----------
-  const { count: totalAccounts } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2c")
-    .eq("is_test", false);
-  const { count: todayAccounts } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2c")
-    .eq("is_test", false)
-    .gte("created_at", startOfDay(now).toISOString());
-  const { count: weekAccounts } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2c")
-    .eq("is_test", false)
-    .gte("created_at", weekStart.toISOString());
-  const { count: monthAccounts } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2c")
-    .eq("is_test", false)
-    .gte("created_at", monthStart.toISOString());
-  const { count: noZoneAccounts } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2c")
-    .eq("is_test", false)
-    .is("delivery_zone_id", null);
-
-  // ---------- 주문 ----------
-  const { count: weekOrders } = await admin
-    .from("b2c_order")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", weekStart.toISOString());
-  const { count: pendingPaymentOrders } = await admin
-    .from("b2c_order")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "입금대기");
-  const orderStatusCounts: Record<string, number> = {};
-  for (const status of ["입금대기", "입금확인완료", "배송중", "배송완료"]) {
-    const { count } = await admin
-      .from("b2c_order")
+  // 대시보드가 예전엔 20개 넘는 쿼리를 하나씩 순서대로 기다려서 느렸음(누적 대기시간 때문에 로딩이 오래 걸림).
+  // 서로 관련 없는 조회들은 Promise.all로 한꺼번에 보내서 "가장 느린 쿼리 1개" 시간만 기다리면 되게 바꿈
+  const [
+    totalAccountsRes,
+    todayAccountsRes,
+    weekAccountsRes,
+    monthAccountsRes,
+    noZoneAccountsRes,
+    weekOrdersRes,
+    pendingPaymentOrdersRes,
+    statusPendingRes,
+    statusPaidRes,
+    statusShippingRes,
+    statusDoneRes,
+    deliveredThisMonthRes,
+    deliveredLastMonthRes,
+    openCampaigns,
+    refundOrdersRes,
+    weekOrderZonesRes,
+    zonesRes,
+    kakaoConnected,
+    b2bApprovedCountRes,
+    b2bPendingCountRes,
+    b2bWeekOrdersRawRes,
+    b2bConfirmedThisMonthRes,
+    b2bPendingPaymentRes,
+  ] = await Promise.all([
+    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2c").eq("is_test", false),
+    admin
+      .from("account")
       .select("id", { count: "exact", head: true })
-      .eq("status", status);
-    orderStatusCounts[status] = count ?? 0;
-  }
+      .eq("role", "b2c")
+      .eq("is_test", false)
+      .gte("created_at", startOfDay(now).toISOString()),
+    admin
+      .from("account")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "b2c")
+      .eq("is_test", false)
+      .gte("created_at", weekStart.toISOString()),
+    admin
+      .from("account")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "b2c")
+      .eq("is_test", false)
+      .gte("created_at", monthStart.toISOString()),
+    admin
+      .from("account")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "b2c")
+      .eq("is_test", false)
+      .is("delivery_zone_id", null),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).gte("created_at", weekStart.toISOString()),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금대기"),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금대기"),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금확인완료"),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "배송중"),
+    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "배송완료"),
+    admin
+      .from("b2c_order")
+      .select("total_amount")
+      .eq("status", "배송완료")
+      .gte("created_at", monthStart.toISOString()),
+    admin
+      .from("b2c_order")
+      .select("total_amount")
+      .eq("status", "배송완료")
+      .gte("created_at", lastMonthStart.toISOString())
+      .lt("created_at", monthStart.toISOString()),
+    getOpenCampaigns(),
+    admin
+      .from("b2c_order")
+      .select("id, total_amount, created_at, account(nickname)")
+      .eq("status", "환불대기")
+      .order("created_at", { ascending: true }),
+    admin.from("b2c_order").select("account(delivery_zone_id)").gte("created_at", weekStart.toISOString()),
+    admin.from("delivery_zone").select("id, name"),
+    isAdminKakaoConnected(),
+    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "approved"),
+    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "pending"),
+    admin.from("b2b_order").select("account(is_test)").gte("created_at", weekStart.toISOString()),
+    admin
+      .from("b2b_order")
+      .select("total_amount, account(is_test)")
+      .eq("status", "입금확인완료")
+      .gte("payment_confirmed_at", monthStart.toISOString()),
+    admin.from("b2b_order").select("total_amount, account(is_test)").eq("status", "입금대기"),
+  ]);
 
-  // ---------- 매출 ----------
-  const { data: deliveredThisMonth } = await admin
-    .from("b2c_order")
-    .select("total_amount")
-    .eq("status", "배송완료")
-    .gte("created_at", monthStart.toISOString());
-  const { data: deliveredLastMonth } = await admin
-    .from("b2c_order")
-    .select("total_amount")
-    .eq("status", "배송완료")
-    .gte("created_at", lastMonthStart.toISOString())
-    .lt("created_at", monthStart.toISOString());
+  const totalAccounts = totalAccountsRes.count;
+  const todayAccounts = todayAccountsRes.count;
+  const weekAccounts = weekAccountsRes.count;
+  const monthAccounts = monthAccountsRes.count;
+  const noZoneAccounts = noZoneAccountsRes.count;
+  const weekOrders = weekOrdersRes.count;
+  const pendingPaymentOrders = pendingPaymentOrdersRes.count;
+  const orderStatusCounts: Record<string, number> = {
+    입금대기: statusPendingRes.count ?? 0,
+    입금확인완료: statusPaidRes.count ?? 0,
+    배송중: statusShippingRes.count ?? 0,
+    배송완료: statusDoneRes.count ?? 0,
+  };
+
+  const deliveredThisMonth = deliveredThisMonthRes.data;
+  const deliveredLastMonth = deliveredLastMonthRes.data;
   const revenueThisMonth = (deliveredThisMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
   const revenueLastMonth = (deliveredLastMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
   const avgOrderValue =
@@ -98,18 +142,20 @@ export default async function AdminHome() {
       ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
       : null;
 
-  // ---------- 진행중 판매기간(캠페인) ----------
-  const openCampaigns = await getOpenCampaigns();
+  // ---------- 진행중 판매기간(캠페인) - 상품별 판매량 조회도 병렬로 ----------
   const campaignDetail: { label: string; value: string }[] = [];
   let totalStock = 0;
   let totalSold = 0;
   for (const { campaign, productLimits } of openCampaigns) {
+    const soldByProduct = await Promise.all(
+      productLimits.map((limit) => getCampaignSold(campaign.id, limit.product_id))
+    );
     let campaignStock = 0;
     let campaignSold = 0;
-    for (const limit of productLimits) {
+    productLimits.forEach((limit, i) => {
       campaignStock += limit.stock_limit;
-      campaignSold += await getCampaignSold(campaign.id, limit.product_id);
-    }
+      campaignSold += soldByProduct[i];
+    });
     totalStock += campaignStock;
     totalSold += campaignSold;
     const pct = campaignStock > 0 ? Math.round((campaignSold / campaignStock) * 100) : 0;
@@ -128,11 +174,7 @@ export default async function AdminHome() {
   const overallStockPct = totalStock > 0 ? Math.round((totalSold / totalStock) * 100) : 0;
 
   // ---------- 환불대기 ----------
-  const { data: refundOrders } = await admin
-    .from("b2c_order")
-    .select("id, total_amount, created_at, account(nickname)")
-    .eq("status", "환불대기")
-    .order("created_at", { ascending: true });
+  const refundOrders = refundOrdersRes.data;
   const refundCount = refundOrders?.length ?? 0;
   const maxRefundDays =
     refundCount > 0
@@ -140,11 +182,8 @@ export default async function AdminHome() {
       : 0;
 
   // ---------- 단지별 분포(이번주) ----------
-  const { data: weekOrderZones } = await admin
-    .from("b2c_order")
-    .select("account(delivery_zone_id)")
-    .gte("created_at", weekStart.toISOString());
-  const { data: zones } = await admin.from("delivery_zone").select("id, name");
+  const weekOrderZones = weekOrderZonesRes.data;
+  const zones = zonesRes.data;
   const zoneNameMap = new Map((zones ?? []).map((z) => [z.id, z.name]));
   const zoneCounts = new Map<string, number>();
   for (const row of weekOrderZones ?? []) {
@@ -156,38 +195,14 @@ export default async function AdminHome() {
   const zoneRows = Array.from(zoneCounts.entries()).sort((a, b) => b[1] - a[1]);
   const topZone = zoneRows[0];
 
-  // ---------- 카카오 알림 연동 ----------
-  const kakaoConnected = await isAdminKakaoConnected();
-
   // ---------- B2B ----------
-  const { count: b2bApprovedCount } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2b")
-    .eq("approval_status", "approved");
-  const { count: b2bPendingCount } = await admin
-    .from("account")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "b2b")
-    .eq("approval_status", "pending");
-  const { count: b2bWeekOrders } = await admin
-    .from("b2b_order")
-    .select("id, account!inner(is_test)", { count: "exact", head: true })
-    .eq("account.is_test", false)
-    .gte("created_at", weekStart.toISOString());
-  const { data: b2bConfirmedThisMonth } = await admin
-    .from("b2b_order")
-    .select("total_amount, account!inner(is_test)")
-    .eq("status", "입금확인완료")
-    .eq("account.is_test", false)
-    .gte("payment_confirmed_at", monthStart.toISOString());
-  const b2bRevenueThisMonth = (b2bConfirmedThisMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
-  const { data: b2bPendingPayment } = await admin
-    .from("b2b_order")
-    .select("total_amount, account!inner(is_test)")
-    .eq("status", "입금대기")
-    .eq("account.is_test", false);
-  const b2bPendingPaymentAmount = (b2bPendingPayment ?? []).reduce((s, o) => s + o.total_amount, 0);
+  const b2bApprovedCount = b2bApprovedCountRes.count;
+  const b2bPendingCount = b2bPendingCountRes.count;
+  const b2bWeekOrders = (b2bWeekOrdersRawRes.data ?? []).filter((o: any) => !o.account?.is_test).length;
+  const b2bConfirmedThisMonth = (b2bConfirmedThisMonthRes.data ?? []).filter((o: any) => !o.account?.is_test);
+  const b2bRevenueThisMonth = b2bConfirmedThisMonth.reduce((s, o) => s + o.total_amount, 0);
+  const b2bPendingPayment = (b2bPendingPaymentRes.data ?? []).filter((o: any) => !o.account?.is_test);
+  const b2bPendingPaymentAmount = b2bPendingPayment.reduce((s, o) => s + o.total_amount, 0);
 
   const b2cCards: DashboardCard[] = [
     {
@@ -290,8 +305,8 @@ export default async function AdminHome() {
       key: "b2bOrders",
       label: "이번주 발주",
       icon: "orders",
-      value: `${b2bWeekOrders ?? 0}건`,
-      detail: [{ label: "이번주 발주", value: `${b2bWeekOrders ?? 0}건` }],
+      value: `${b2bWeekOrders}건`,
+      detail: [{ label: "이번주 발주", value: `${b2bWeekOrders}건` }],
     },
     {
       key: "b2bRevenue",
@@ -306,11 +321,11 @@ export default async function AdminHome() {
       key: "b2bPending",
       label: "결제대기",
       icon: "refund",
-      value: `${(b2bPendingPayment ?? []).length}건`,
-      sub: (b2bPendingPayment ?? []).length > 0 ? `${b2bPendingPaymentAmount.toLocaleString()}원` : "없음",
-      danger: (b2bPendingPayment ?? []).length > 0,
+      value: `${b2bPendingPayment.length}건`,
+      sub: b2bPendingPayment.length > 0 ? `${b2bPendingPaymentAmount.toLocaleString()}원` : "없음",
+      danger: b2bPendingPayment.length > 0,
       detail: [
-        { label: "결제대기 건수", value: `${(b2bPendingPayment ?? []).length}건` },
+        { label: "결제대기 건수", value: `${b2bPendingPayment.length}건` },
         { label: "결제대기 금액", value: `${b2bPendingPaymentAmount.toLocaleString()}원` },
       ],
     },
