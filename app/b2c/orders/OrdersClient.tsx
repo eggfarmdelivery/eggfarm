@@ -338,9 +338,18 @@ function OrderDetail({
           {order.status === "입금대기" && bankInfo?.bank_name && (
             <div className="mt-2 rounded-md bg-primary-bg px-3 py-2.5 text-xs text-primary-dark">
               <p className="mb-1 font-medium">입금 안내</p>
-              <p>
-                {bankInfo.bank_name} {bankInfo.bank_account} ({bankInfo.bank_holder})
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p>
+                  {bankInfo.bank_name} {bankInfo.bank_account} ({bankInfo.bank_holder})
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(bankInfo.bank_account ?? "")}
+                  className="shrink-0 rounded border border-primary-dark/40 px-1.5 py-0.5 text-[10px]"
+                >
+                  복사
+                </button>
+              </div>
               <p className="mt-1">입금할 금액 {order.total_amount.toLocaleString()}원</p>
               {depositorNickname && depositorPhoneSuffix && (
                 <p className="mt-1">

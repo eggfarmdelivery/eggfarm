@@ -11,6 +11,7 @@ type Order = {
   status: string;
   total_amount: number;
   created_at: string;
+  delivery_photo_url: string | null;
   account: {
     nickname: string | null;
     phone: string | null;
@@ -141,6 +142,13 @@ export default function DeliveryClient({
                         onSubmit={markB2CDelivered}
                       />
                     </div>
+                  )}
+                  {isDone && o.delivery_photo_url && (
+                    <img
+                      src={o.delivery_photo_url}
+                      alt="배송완료 사진"
+                      className="mt-2 w-full rounded-lg object-cover"
+                    />
                   )}
                 </div>
               );

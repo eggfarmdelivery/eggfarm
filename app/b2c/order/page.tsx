@@ -94,17 +94,21 @@ export default async function GeneralOrderPage({
 
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
 
-  // 같은 판매기간에 이미 주문(취소 제외)이 있으면 중복 주문을 막고 주문내역에서 수정하도록 안내
+  // 같은 판매기간에 이미 주문(취소 제외)이 있으면 중복 주문을 막고 주문내역에서 수정하도록 안내.
+  // 조회 자체가 실패했을 때 "주문 없음"으로 잘못 판단해서 막아야 할 걸 못 막으면 안 되니,
+  // 에러가 나면 안전하게 "이미 주문 있음"으로 처리함(막는 쪽으로 fail-safe)
   let existingOrder: { id: string; status: string } | null = null;
   if (campaign) {
-    const { data } = await supabase
+    const { data, error: existingOrderError } = await supabase
       .from("b2c_order")
       .select("id, status")
       .eq("account_id", accountId)
       .eq("campaign_id", campaign.id)
       .neq("status", "취소")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-    existingOrder = data;
+    existingOrder = existingOrderError ? { id: "unknown", status: "unknown" } : data;
   }
 
   return (

@@ -30,8 +30,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" style={{ colorScheme: "light" }}>
-      <body className="min-h-dvh overflow-x-hidden">
-        <div className="mx-auto max-w-md min-h-dvh bg-white shadow-sm">
+      {/* 홈화면 아이콘(PWA standalone)으로 열었을 때, body 자체가 스크롤되면 iOS의
+          러버밴드 바운스 때문에 하단 고정 탭바가 스크롤 중에 같이 튀는 문제가 있었음.
+          body는 뷰포트에 고정시켜 안 움직이게 하고, 안쪽 div만 실제로 스크롤되게 분리해서 해결함 */}
+      <body className="fixed inset-0 overflow-hidden overscroll-none">
+        <div className="mx-auto h-full max-w-md overflow-y-auto overscroll-contain bg-white shadow-sm">
           {children}
         </div>
         <Script

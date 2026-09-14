@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store } from "lucide-react";
+import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/adminAuth";
 
 const sharedItems = [{ href: "/admin/orders", label: "주문관리 (B2C+B2B)", icon: ClipboardList }];
@@ -17,7 +17,10 @@ const b2bItems = [
   { href: "/admin/b2b-delivery", label: "B2B 배송리스트", icon: Truck },
 ];
 
-const commonItems = [{ href: "/admin/products", label: "상품관리", icon: Package }];
+const commonItems = [
+  { href: "/admin/products", label: "상품관리", icon: Package },
+  { href: "/admin/members", label: "회원 조회", icon: Users },
+];
 
 function ItemGroup({ title, items }: { title?: string; items: typeof sharedItems }) {
   return (

@@ -246,6 +246,9 @@ function B2COrderCard({
             />
           )}
           {order.account?.nickname ?? order.account?.name ?? "이름없음"}
+          {order.account?.nickname && order.account?.name && order.account.nickname !== order.account.name
+            ? ` (실명: ${order.account.name})`
+            : ""}
           {order.account?.phone ? ` · ${order.account.phone.slice(-4)}` : ""}
           {order.account?.is_test && (
             <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-white">테스트</span>
