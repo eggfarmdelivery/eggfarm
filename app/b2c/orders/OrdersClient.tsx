@@ -653,9 +653,14 @@ export default function OrdersClient({
                     </p>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <OrderStatusBadge status={o.status} />
-                  <span className="text-neutral-300">{isOpen ? "▲" : "▼"}</span>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <OrderStatusBadge status={o.status} />
+                    <span className="text-neutral-300">{isOpen ? "▲" : "▼"}</span>
+                  </div>
+                  {o.status === "입금대기" && !isOpen && (
+                    <span className="text-[10px] text-primary">눌러서 수량변경·상품추가</span>
+                  )}
                 </div>
               </button>
 

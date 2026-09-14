@@ -707,7 +707,6 @@ export default function ConsoleClient({
   const [activeB2cStatus, setActiveB2cStatus] = useState<string>(B2C_STATUS_TABS[0]);
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
-  const [nicknameQuery, setNicknameQuery] = useState("");
   const router = useRouter();
 
   // 30초마다 자동 새로고침(수동 새로고침 없이도 최신 주문 반영)
@@ -725,21 +724,9 @@ export default function ConsoleClient({
   }, [b2cOrders]);
 
   const visibleB2cOrders = useMemo(() => {
-    let result = b2cOrders;
-    if (campaignFilter !== "all") {
-      result = result.filter((o) => o.campaign_id === campaignFilter);
-    }
-    const q = nicknameQuery.trim();
-    if (q) {
-      result = result.filter((o) => {
-        const nickname = o.account?.nickname ?? "";
-        const name = o.account?.name ?? "";
-        const phone = o.account?.phone ?? "";
-        return nickname.includes(q) || name.includes(q) || phone.includes(q);
-      });
-    }
-    return result;
-  }, [b2cOrders, campaignFilter, nicknameQuery]);
+    if (campaignFilter === "all") return b2cOrders;
+    return b2cOrders.filter((o) => o.campaign_id === campaignFilter);
+  }, [b2cOrders, campaignFilter]);
 
   // 캠페인별 "아직 배송 안 된" 상품별 수량 합계 - 배송완료 처리될수록 자동으로 줄어듦
   const deliverySummary = useMemo(() => {
@@ -822,12 +809,6 @@ export default function ConsoleClient({
               ))}
             </select>
           )}
-          <input
-            value={nicknameQuery}
-            onChange={(e) => setNicknameQuery(e.target.value)}
-            placeholder="닉네임/이름/전화번호로 검색"
-            className="mb-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-          />
 
           {deliverySummary.length > 0 && (
             <div className="mb-4 rounded-lg bg-primary-bg p-3">

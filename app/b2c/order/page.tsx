@@ -135,7 +135,7 @@ export default async function GeneralOrderPage({
               이 판매기간엔 이미 주문하신 내역이 있어요
             </p>
             <p className="mb-4 text-xs text-neutral-400">
-              수량을 바꾸거나 상품을 추가하고 싶으시면 주문내역에서 수정해주세요
+              주문내역에서 해당 주문 카드를 눌러 펼치면, 수량을 바꾸거나 상품을 추가할 수 있어요
             </p>
             <Link
               href="/b2c/orders"
