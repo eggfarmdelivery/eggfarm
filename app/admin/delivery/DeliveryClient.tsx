@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
 import { markB2CDelivered } from "@/app/admin/actions";
@@ -33,6 +33,7 @@ export default function DeliveryClient({
   orders: Order[];
 }) {
   const router = useRouter();
+  const [expandedPhotos, setExpandedPhotos] = useState<Record<string, boolean>>({});
 
   const deliverySummary = useMemo(() => {
     const map = new Map<string, number>();
@@ -144,11 +145,24 @@ export default function DeliveryClient({
                     </div>
                   )}
                   {isDone && o.delivery_photo_url && (
-                    <img
-                      src={o.delivery_photo_url}
-                      alt="배송완료 사진"
-                      className="mt-2 w-full rounded-lg object-cover"
-                    />
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedPhotos((prev) => ({ ...prev, [o.id]: !prev[o.id] }))
+                        }
+                        className="mt-2 text-xs text-primary underline"
+                      >
+                        {expandedPhotos[o.id] ? "사진 접기" : "배송완료 사진 보기"}
+                      </button>
+                      {expandedPhotos[o.id] && (
+                        <img
+                          src={o.delivery_photo_url}
+                          alt="배송완료 사진"
+                          className="mt-2 w-full rounded-lg object-cover"
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               );

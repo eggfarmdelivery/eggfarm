@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createB2BOrder } from "./actions";
 import QuantityStepper from "@/components/QuantityStepper";
+import Spinner from "@/components/Spinner";
 
 type Product = { id: string; name: string; price: number };
 
@@ -40,8 +42,12 @@ export default function B2BOrderForm({
   const belowMinimum = belowMinAmount || belowMinQty;
 
   async function handleSubmit(formData: FormData) {
-    setError(null);
-    setPending(true);
+    // <form action={fn}> 방식은 트랜지션으로 처리돼서 처리중 상태가 화면에 안 그려지고
+    // 넘어가버리는 문제가 있었음(b2c에서도 같은 문제 겪음) - flushSync로 강제 즉시 렌더링
+    flushSync(() => {
+      setError(null);
+      setPending(true);
+    });
     try {
       const result = await createB2BOrder(formData);
       if (!result.success) {
@@ -57,7 +63,13 @@ export default function B2BOrderForm({
   }
 
   return (
-    <form action={handleSubmit} className="px-5">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(new FormData(e.currentTarget));
+      }}
+      className="px-5"
+    >
       <div className="border-t border-neutral-200 mb-4">
         {products.map((p) => (
           <div
@@ -134,6 +146,15 @@ export default function B2BOrderForm({
       >
         {pending ? "처리 중..." : isWindowOpen ? "발주 요청" : "발주 요청 (승인 후 진행)"}
       </button>
+
+      {pending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-8 py-7 shadow-lg">
+            <Spinner className="h-8 w-8 text-primary" />
+            <p className="text-sm font-medium text-neutral-700">발주 접수 중이에요...</p>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

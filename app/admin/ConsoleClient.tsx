@@ -21,6 +21,7 @@ import {
   createB2BOrderManual,
   approveLateB2BOrder,
   rejectLateB2BOrder,
+  adminCancelB2BOrder,
 } from "./actions";
 import Spinner from "@/components/Spinner";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
@@ -580,6 +581,15 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
               className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
             >
               배송시작
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (confirm("이 발주를 취소할까요?")) run(() => adminCancelB2BOrder(order.id));
+              }}
+              className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
+            >
+              발주취소
             </button>
           </>
         )}

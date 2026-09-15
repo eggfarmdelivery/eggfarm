@@ -103,6 +103,18 @@ export default function B2BDeliveryClient({
           환경설정에서 출발지 주소를 등록하면 방문순서 추천과 네이버지도 연결을 쓸 수 있어요
         </p>
       )}
+      {originAddress && !origin && (
+        <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-600">
+          출발지 주소("{originAddress}")의 좌표를 찾지 못했어요. 환경설정에서 더 정확한 주소(도로명
+          주소 등)로 다시 입력해보시거나, 잠시 후 다시 시도해주세요.
+        </p>
+      )}
+      {origin && orders.some((o) => o.account?.address && o.account?.latitude == null) && (
+        <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-600">
+          일부 거래처 주소의 좌표를 찾지 못해 방문순서 계산에서 빠졌어요. 거래처 주소가 정확한지
+          확인해주세요.
+        </p>
+      )}
 
       {naverUrl && (
         <div className="mb-3 rounded-lg bg-neutral-50 px-3 py-2.5">

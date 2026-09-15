@@ -3,24 +3,49 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
-import { cancelB2BOrder } from "./actions";
+import QuantityStepper from "@/components/QuantityStepper";
+import { cancelB2BOrder, updateB2BOrderQuantities, addB2BOrderItem } from "./actions";
 
-type Item = { quantity: number; original_quantity: number | null; adjusted: boolean; product: { name: string } | null };
+type Item = {
+  id: string;
+  product_id: string;
+  quantity: number;
+  original_quantity: number | null;
+  adjusted: boolean;
+  unit_price: number;
+  product: { name: string } | null;
+};
+type AddableProduct = { productId: string; productName: string; price: number };
 type Order = {
   id: string;
   status: string;
   total_amount: number;
   delivery_photo_url: string | null;
+  payment_method: string | null;
   desired_delivery_date: string | null;
   created_at: string;
   b2b_order_item: Item[];
+  addableProducts: AddableProduct[];
 };
 
-export default function OrderCard({ order: o }: { order: Order }) {
+export default function OrderCard({
+  order: o,
+  bankInfo,
+}: {
+  order: Order;
+  bankInfo: Record<string, string>;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [qtys, setQtys] = useState<Record<string, number>>(
+    Object.fromEntries(o.b2b_order_item.map((i) => [i.id, i.quantity]))
+  );
+  const [addingProductId, setAddingProductId] = useState("");
+  const [addingQty, setAddingQty] = useState(1);
   const router = useRouter();
   const hasAdjusted = (o.b2b_order_item ?? []).some((i) => i.adjusted);
+  const canEdit = ["발주요청", "승인대기"].includes(o.status);
 
   async function handleCancel() {
     if (!confirm("이 발주를 취소할까요?")) return;
@@ -35,21 +60,108 @@ export default function OrderCard({ order: o }: { order: Order }) {
     router.refresh();
   }
 
+  async function handleSaveQuantities() {
+    setBusy(true);
+    setError(null);
+    const items = Object.entries(qtys).map(([itemId, quantity]) => ({ itemId, quantity }));
+    const result = await updateB2BOrderQuantities(o.id, items);
+    setBusy(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleAddItem() {
+    if (!addingProductId) return;
+    setBusy(true);
+    setError(null);
+    const result = await addB2BOrderItem(o.id, addingProductId, addingQty);
+    setBusy(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setAddingProductId("");
+    setAddingQty(1);
+    router.refresh();
+  }
+
   return (
     <div className="rounded-xl border border-neutral-200 p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium">{o.total_amount.toLocaleString()}원</span>
         <OrderStatusBadge status={o.status} />
       </div>
-      <p className="text-xs text-neutral-500 mb-1">
-        {(o.b2b_order_item ?? [])
-          .map((i) =>
-            i.adjusted && i.original_quantity != null
-              ? `${i.product?.name} ${i.original_quantity}판 → ${i.quantity}판으로 조정됨`
-              : `${i.product?.name} ${i.quantity}판`
-          )
-          .join(" · ")}
-      </p>
+
+      {!editing ? (
+        <p className="text-xs text-neutral-500 mb-1">
+          {(o.b2b_order_item ?? [])
+            .map((i) =>
+              i.adjusted && i.original_quantity != null
+                ? `${i.product?.name} ${i.original_quantity}판 → ${i.quantity}판으로 조정됨`
+                : `${i.product?.name} ${i.quantity}판`
+            )
+            .join(" · ")}
+        </p>
+      ) : (
+        <div className="mb-3 space-y-2">
+          {o.b2b_order_item.map((item) => (
+            <div key={item.id} className="flex items-center justify-between">
+              <span className="text-sm">{item.product?.name}</span>
+              <QuantityStepper
+                name={`qty_${item.id}`}
+                value={qtys[item.id] ?? item.quantity}
+                min={1}
+                onChange={(v) => setQtys((prev) => ({ ...prev, [item.id]: v }))}
+              />
+            </div>
+          ))}
+          <button
+            onClick={handleSaveQuantities}
+            disabled={busy}
+            className="w-full rounded-md bg-primary py-2 text-xs font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "저장 중..." : "수량 저장"}
+          </button>
+
+          {o.addableProducts.length > 0 && (
+            <div className="mt-3 border-t border-neutral-100 pt-3">
+              <p className="mb-1.5 text-xs text-neutral-500">상품 추가</p>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={addingProductId}
+                  onChange={(e) => setAddingProductId(e.target.value)}
+                  className="flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs"
+                >
+                  <option value="">상품 선택</option>
+                  {o.addableProducts.map((p) => (
+                    <option key={p.productId} value={p.productId}>
+                      {p.productName} ({p.price.toLocaleString()}원)
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  value={addingQty}
+                  onChange={(e) => setAddingQty(Math.max(1, Number(e.target.value)))}
+                  className="w-14 rounded-md border border-neutral-200 px-2 py-1.5 text-center text-xs"
+                />
+                <button
+                  onClick={handleAddItem}
+                  disabled={busy || !addingProductId}
+                  className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs disabled:opacity-50"
+                >
+                  담기
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {hasAdjusted && (
         <p className="mb-1 text-xs text-orange-600">재고 사정 등으로 수량이 조정됐어요</p>
       )}
@@ -66,18 +178,48 @@ export default function OrderCard({ order: o }: { order: Order }) {
       <p className="text-xs text-neutral-400">
         {new Date(o.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
       </p>
+
+      {o.status === "입금대기" && bankInfo?.bank_name && (
+        <div className="mt-2 rounded-md bg-primary-bg px-3 py-2.5 text-xs text-primary-dark">
+          <p className="mb-1 font-medium">입금 안내</p>
+          <div className="flex items-center gap-1.5">
+            <p>
+              {bankInfo.bank_name} {bankInfo.bank_account} ({bankInfo.bank_holder})
+            </p>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(bankInfo.bank_account ?? "")}
+              className="shrink-0 rounded border border-primary-dark/40 px-1.5 py-0.5 text-[10px]"
+            >
+              복사
+            </button>
+          </div>
+          <p className="mt-1">입금할 금액 {o.total_amount.toLocaleString()}원</p>
+        </div>
+      )}
+
       {o.delivery_photo_url && (
         <img src={o.delivery_photo_url} alt="배송완료 사진" className="mt-3 rounded-lg w-full object-cover" />
       )}
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-      {(o.status === "발주요청" || o.status === "승인대기") && (
-        <button
-          onClick={handleCancel}
-          disabled={busy}
-          className="mt-3 rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-500 disabled:opacity-50"
-        >
-          {busy ? "처리 중..." : "발주 취소"}
-        </button>
+
+      {canEdit && (
+        <div className="mt-3 flex gap-1.5">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            disabled={busy}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 disabled:opacity-50"
+          >
+            {editing ? "닫기" : "수량 수정 · 상품 추가"}
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={busy}
+            className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-500 disabled:opacity-50"
+          >
+            {busy ? "처리 중..." : "발주 취소"}
+          </button>
+        </div>
       )}
     </div>
   );
