@@ -35,6 +35,30 @@ export default async function AdminOrdersPage() {
     )
     .order("created_at", { ascending: false });
 
+  // 마감시간 이후 등 임의로 대신 발주 등록할 때 쓸, 승인된 거래처 + 취급상품/단가 목록
+  const { data: approvedB2BAccountsRaw } = await admin
+    .from("account")
+    .select("id, business_name")
+    .eq("role", "b2b")
+    .eq("approval_status", "approved")
+    .order("business_name", { ascending: true });
+
+  const { data: allB2BPrices } = await admin
+    .from("b2b_account_price")
+    .select("account_id, product_id, price, product(name)");
+
+  const b2bAccountsWithPrices = (approvedB2BAccountsRaw ?? []).map((acc) => ({
+    id: acc.id,
+    businessName: acc.business_name ?? "이름없음",
+    products: (allB2BPrices ?? [])
+      .filter((p) => p.account_id === acc.id)
+      .map((p) => ({
+        productId: p.product_id,
+        productName: (p.product as any)?.name ?? "상품",
+        price: p.price,
+      })),
+  }));
+
   return (
     <div className="pb-24">
       <header className="flex items-center gap-2 px-5 py-4">
@@ -56,6 +80,7 @@ export default async function AdminOrdersPage() {
       <ConsoleClient
         b2cOrders={(b2cOrders as any) ?? []}
         b2bOrders={(b2bOrders as any) ?? []}
+        b2bAccountsWithPrices={b2bAccountsWithPrices}
       />
     </div>
   );

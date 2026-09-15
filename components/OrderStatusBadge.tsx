@@ -6,6 +6,7 @@ const styleMap: Record<string, string> = {
   배송중: "bg-amber-50 text-amber-700",
   배송완료: "bg-green-50 text-green-700",
   초과승인대기: "bg-orange-50 text-orange-700",
+  승인대기: "bg-blue-50 text-blue-700",
   승인거절: "bg-red-50 text-red-700",
   취소: "bg-neutral-100 text-neutral-500",
   환불대기: "bg-orange-50 text-orange-700",

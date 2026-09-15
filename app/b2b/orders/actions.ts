@@ -15,7 +15,8 @@ export async function cancelB2BOrder(orderId: string): Promise<Result> {
       .single();
     if (fetchError || !order) throw new Error("발주를 찾을 수 없어요");
     if (order.account_id !== accountId) throw new Error("본인 발주만 취소할 수 있어요");
-    if (order.status !== "발주요청") throw new Error("이미 배송이 시작된 발주는 취소할 수 없어요. 에그팜으로 문의해주세요");
+    if (!["발주요청", "승인대기"].includes(order.status))
+      throw new Error("이미 배송이 시작된 발주는 취소할 수 없어요. 에그팜으로 문의해주세요");
 
     const { error } = await supabase.from("b2b_order").update({ status: "취소" }).eq("id", orderId);
     if (error) throw new Error(error.message);

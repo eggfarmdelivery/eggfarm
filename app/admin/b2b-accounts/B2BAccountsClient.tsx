@@ -120,11 +120,15 @@ function ProductPricesModal({
               </label>
               <div className="flex items-center gap-1">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   disabled={!enabled[p.id]}
-                  value={prices[p.id] ?? p.base_price}
-                  onChange={(e) => setPrices((prev) => ({ ...prev, [p.id]: Number(e.target.value) }))}
-                  className="w-20 rounded-md border border-neutral-200 px-2 py-1.5 text-right text-sm disabled:opacity-40"
+                  value={(prices[p.id] ?? p.base_price).toLocaleString()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "");
+                    setPrices((prev) => ({ ...prev, [p.id]: digits ? Number(digits) : 0 }));
+                  }}
+                  className="w-24 rounded-md border border-neutral-200 px-2 py-1.5 text-right text-sm disabled:opacity-40"
                 />
                 <span className="text-xs text-neutral-400">원</span>
               </div>

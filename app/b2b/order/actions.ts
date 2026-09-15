@@ -2,17 +2,17 @@
 
 import { supabase } from "@/lib/supabase";
 import { getApprovedB2BAccountId } from "@/lib/getAccount";
-import { getOrderWindowStatus } from "@/lib/b2bDeadline";
+import { getOrderWindowStatus, getNextBusinessDayFrom } from "@/lib/b2bDeadline";
 import { getConfig } from "@/lib/settings";
 
-type Result = { success: true } | { success: false; error: string };
+type Result = { success: true; isLate?: boolean } | { success: false; error: string };
 
 export async function createB2BOrder(formData: FormData): Promise<Result> {
   try {
     const window = await getOrderWindowStatus();
-    if (!window.isOpen) {
-      throw new Error("지금은 발주 접수 시간이 아니에요");
-    }
+    // 마감(평일 낮 12시) 이후나 주말엔 막지 않고 그대로 접수는 받되, 다음 영업일 발주로
+    // 자동 배정하고 사장님 승인 전까지는 "승인대기" 상태로 대기시킴
+    const isLate = !window.isOpen;
 
     const accountId = await getApprovedB2BAccountId();
 
@@ -58,13 +58,15 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
       throw new Error(`최소 발주수량(${minOrderQty}판)보다 적어요`);
     }
 
-    const desiredDeliveryDate = String(formData.get("desired_delivery_date") ?? "").trim() || null;
+    const desiredDeliveryDate = isLate
+      ? getNextBusinessDayFrom(new Date())
+      : String(formData.get("desired_delivery_date") ?? "").trim() || null;
 
     const { data: order, error } = await supabase
       .from("b2b_order")
       .insert({
         account_id: accountId,
-        status: "발주요청",
+        status: isLate ? "승인대기" : "발주요청",
         total_amount: totalAmount,
         desired_delivery_date: desiredDeliveryDate,
       })
@@ -77,7 +79,7 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
       .insert(items.map((i) => ({ ...i, order_id: order.id })));
     if (itemError) throw new Error(itemError.message);
 
-    return { success: true };
+    return { success: true, isLate };
   } catch (e) {
     // getApprovedB2BAccountId()의 redirect()는 특수 에러를 throw하는 방식이라,
     // 그냥 일반 에러로 삼켜버리면 안내 화면으로 못 넘어가고 이상한 에러 메시지만 뜸

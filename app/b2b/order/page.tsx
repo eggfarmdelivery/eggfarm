@@ -44,18 +44,30 @@ export default async function B2BOrderPage() {
           className={`text-xs px-2.5 py-1 rounded-full ${
             window.isOpen
               ? "bg-yellow-50 text-yellow-700"
-              : "bg-neutral-100 text-neutral-500"
+              : "bg-blue-50 text-blue-700"
           }`}
         >
           {window.isWeekend
-            ? "주말 마감"
+            ? "주말 접수 (승인 후 진행)"
             : window.isOpen
             ? `마감 ${window.remLabel} 전`
-            : "오늘 발주 마감"}
+            : "마감 이후 접수 (승인 후 진행)"}
         </span>
       </header>
 
-      <OrderForm products={productsWithPrice} minOrderAmount={minOrderAmount} minOrderQty={minOrderQty} />
+      {!window.isOpen && (
+        <p className="mx-5 mb-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          지금은 발주 마감 이후예요. 주문은 접수되지만 사장님 승인 후 진행되고, 배송일은
+          자동으로 다음 영업일로 배정돼요.
+        </p>
+      )}
+
+      <OrderForm
+        products={productsWithPrice}
+        minOrderAmount={minOrderAmount}
+        minOrderQty={minOrderQty}
+        isWindowOpen={window.isOpen}
+      />
 
       {productsWithPrice.length === 0 && (
         <p className="mx-5 mt-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">

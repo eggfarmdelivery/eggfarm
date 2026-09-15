@@ -22,3 +22,15 @@ export async function getOrderWindowStatus() {
 
   return { isOpen, isWeekend, deadlineStr: FIXED_DEADLINE, remLabel };
 }
+
+// 마감 이후(평일 낮 12시 지남) 또는 주말에 들어온 주문은 그 다음 영업일로 자동 배정함
+// (금요일 마감 이후/주말 접수분은 월요일로 감 - 토·일 건너뜀)
+export function getNextBusinessDayFrom(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().slice(0, 10);
+}

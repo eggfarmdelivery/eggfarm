@@ -17,10 +17,12 @@ export default function B2BOrderForm({
   products,
   minOrderAmount,
   minOrderQty,
+  isWindowOpen,
 }: {
   products: Product[];
   minOrderAmount: number;
   minOrderQty: number;
+  isWindowOpen: boolean;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [desiredDate, setDesiredDate] = useState(tomorrow());
@@ -79,14 +81,20 @@ export default function B2BOrderForm({
 
       <div className="mb-4">
         <label className="mb-1 block text-xs text-neutral-500">희망 배송일</label>
-        <input
-          type="date"
-          name="desired_delivery_date"
-          value={desiredDate}
-          min={tomorrow()}
-          onChange={(e) => setDesiredDate(e.target.value)}
-          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-        />
+        {isWindowOpen ? (
+          <input
+            type="date"
+            name="desired_delivery_date"
+            value={desiredDate}
+            min={tomorrow()}
+            onChange={(e) => setDesiredDate(e.target.value)}
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          />
+        ) : (
+          <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+            마감 이후 접수라 다음 영업일로 자동 배정돼요
+          </p>
+        )}
       </div>
 
       <div className="flex items-baseline justify-between mb-4">
@@ -124,7 +132,7 @@ export default function B2BOrderForm({
         disabled={pending || total === 0 || belowMinimum}
         className="w-full rounded-lg bg-primary py-3 text-white font-medium disabled:opacity-50"
       >
-        {pending ? "처리 중..." : "발주 요청"}
+        {pending ? "처리 중..." : isWindowOpen ? "발주 요청" : "발주 요청 (승인 후 진행)"}
       </button>
     </form>
   );

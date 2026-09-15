@@ -352,3 +352,85 @@ export async function adminCancelOrder(orderId: string, cancelReason: string): P
     return { success: false, error: e instanceof Error ? e.message : "취소 중 오류가 발생했어요" };
   }
 }
+
+// 마감시간 이후나 주말에 거래처가 전화 등으로 발주를 요청하는 경우, 관리자가 대신 발주를
+// 등록해줌 - 평일 낮 12시 마감/최소발주 제한을 전부 건너뛰는 예외 처리용 경로
+// 마감시간 이후 등 임의로 대신 발주 등록할 때 쓸, 승인된 거래처 + 취급상품/단가 목록으로 만드는 발주
+export async function createB2BOrderManual(
+  accountId: string,
+  items: { productId: string; quantity: number }[],
+  desiredDeliveryDate: string | null
+): Promise<Result> {
+  try {
+    await requireAdmin();
+    const validItems = items.filter((i) => i.quantity > 0);
+    if (validItems.length === 0) throw new Error("발주할 상품을 선택해주세요");
+
+    const { data: prices, error: priceError } = await supabase
+      .from("b2b_account_price")
+      .select("product_id, price")
+      .eq("account_id", accountId)
+      .in(
+        "product_id",
+        validItems.map((i) => i.productId)
+      );
+    if (priceError) throw new Error(priceError.message);
+    const priceMap = new Map((prices ?? []).map((p) => [p.product_id, p.price]));
+
+    const orderItems = validItems.map((i) => {
+      const unitPrice = priceMap.get(i.productId);
+      if (unitPrice == null) throw new Error("이 거래처에 등록되지 않은 상품이 있어요");
+      return {
+        product_id: i.productId,
+        quantity: i.quantity,
+        unit_price: unitPrice,
+        subtotal: unitPrice * i.quantity,
+      };
+    });
+    const totalAmount = orderItems.reduce((s, i) => s + i.subtotal, 0);
+
+    const { data: order, error } = await supabase
+      .from("b2b_order")
+      .insert({
+        account_id: accountId,
+        status: "발주요청",
+        total_amount: totalAmount,
+        desired_delivery_date: desiredDeliveryDate,
+      })
+      .select("id")
+      .single();
+    if (error || !order) throw new Error(error?.message ?? "발주 등록 실패");
+
+    const { error: itemError } = await supabase
+      .from("b2b_order_item")
+      .insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
+    if (itemError) throw new Error(itemError.message);
+
+    await logStatusChange("b2b_order", order.id, null, "발주요청", `${await getAdminActorLabel()}(대신등록)`);
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "발주 등록 중 오류가 발생했어요" };
+  }
+}
+
+// 마감 이후/주말에 접수된 발주 승인 - 정상 발주요청 흐름으로 편입시킴
+export async function approveLateB2BOrder(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    await updateB2BStatus(orderId, "승인대기", "발주요청");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "승인 중 오류가 발생했어요" };
+  }
+}
+
+export async function rejectLateB2BOrder(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    await updateB2BStatus(orderId, "승인대기", "취소");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "거절 중 오류가 발생했어요" };
+  }
+}

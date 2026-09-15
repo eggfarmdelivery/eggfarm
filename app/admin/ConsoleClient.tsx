@@ -18,6 +18,9 @@ import {
   resolveRefundWithoutTransfer,
   adminCancelOrder,
   adjustB2BOrderItems,
+  createB2BOrderManual,
+  approveLateB2BOrder,
+  rejectLateB2BOrder,
 } from "./actions";
 import Spinner from "@/components/Spinner";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
@@ -535,8 +538,33 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
           )
           .join(", ")}
       </p>
+      {order.status === "승인대기" && (
+        <p className="mb-2 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs text-blue-700">
+          마감 이후 접수된 발주예요. 승인해야 정상 진행돼요.
+        </p>
+      )}
       {hasAdjusted && <p className="mb-2 text-xs text-orange-600">수량 조정됨</p>}
       <div className="flex gap-2 flex-wrap items-center">
+        {order.status === "승인대기" && (
+          <>
+            <button
+              disabled={busy}
+              onClick={() => run(() => approveLateB2BOrder(order.id))}
+              className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+            >
+              승인
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (confirm("이 발주를 거절할까요?")) run(() => rejectLateB2BOrder(order.id));
+              }}
+              className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
+            >
+              거절
+            </button>
+          </>
+        )}
         {order.status === "발주요청" && (
           <>
             <button
@@ -639,7 +667,7 @@ const B2C_STATUS_TABS = [
   "환불완료",
   "취소",
 ];
-const B2B_PROGRESS = ["발주요청", "배송중", "입금대기", "입금확인완료"];
+const B2B_PROGRESS = ["승인대기", "발주요청", "배송중", "입금대기", "입금확인완료"];
 const B2B_DONE = ["배송완료", "취소"];
 
 // 완료/취소 탭 (날짜 필터, 기본 오늘)
@@ -696,17 +724,144 @@ function DoneTab<T extends { id: string; status: string; created_at: string }>({
   );
 }
 
+function ManualB2BOrderModal({
+  accounts,
+  onClose,
+  onDone,
+}: {
+  accounts: { id: string; businessName: string; products: { productId: string; productName: string; price: number }[] }[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [qtys, setQtys] = useState<Record<string, number>>({});
+  const [desiredDate, setDesiredDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const account = accounts.find((a) => a.id === accountId);
+  const total = (account?.products ?? []).reduce((s, p) => s + (qtys[p.productId] ?? 0) * p.price, 0);
+
+  async function handleSubmit() {
+    setBusy(true);
+    setError(null);
+    const items = Object.entries(qtys)
+      .filter(([, qty]) => qty > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }));
+    const result = await createB2BOrderManual(accountId, items, desiredDate || null);
+    setBusy(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    onDone();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-3 text-base font-medium">거래처 대신 발주 등록</p>
+
+        {accounts.length === 0 ? (
+          <p className="mb-4 text-sm text-neutral-500">승인된 거래처가 없어요</p>
+        ) : (
+          <>
+            <label className="mb-1 block text-xs text-neutral-500">거래처</label>
+            <select
+              value={accountId}
+              onChange={(e) => {
+                setAccountId(e.target.value);
+                setQtys({});
+              }}
+              className="mb-3 w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.businessName}
+                </option>
+              ))}
+            </select>
+
+            {(account?.products ?? []).length === 0 ? (
+              <p className="mb-4 text-xs text-neutral-400">이 거래처에 등록된 취급상품이 없어요</p>
+            ) : (
+              <div className="mb-4 space-y-2">
+                {account!.products.map((p) => (
+                  <div key={p.productId} className="flex items-center justify-between">
+                    <span className="text-sm">
+                      {p.productName}{" "}
+                      <span className="text-xs text-neutral-400">({p.price.toLocaleString()}원)</span>
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={qtys[p.productId] ?? 0}
+                      onChange={(e) =>
+                        setQtys((prev) => ({ ...prev, [p.productId]: Math.max(0, Number(e.target.value)) }))
+                      }
+                      className="w-16 rounded-md border border-neutral-200 px-2 py-1.5 text-center text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label className="mb-1 block text-xs text-neutral-500">희망 배송일 (선택)</label>
+            <input
+              type="date"
+              value={desiredDate}
+              onChange={(e) => setDesiredDate(e.target.value)}
+              className="mb-4 w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+            />
+
+            <div className="mb-4 flex justify-between border-t border-neutral-200 pt-3 text-sm">
+              <span className="text-neutral-500">합계</span>
+              <span className="font-medium">{total.toLocaleString()}원</span>
+            </div>
+          </>
+        )}
+
+        {error && <p className="mb-3 text-xs text-red-500">{error}</p>}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm text-neutral-600"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={busy || total === 0}
+            className="flex-1 rounded-lg bg-primary py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "등록 중..." : "발주 등록"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ConsoleClient({
   b2cOrders,
   b2bOrders,
+  b2bAccountsWithPrices,
 }: {
   b2cOrders: B2COrder[];
   b2bOrders: B2BOrder[];
+  b2bAccountsWithPrices: {
+    id: string;
+    businessName: string;
+    products: { productId: string; productName: string; price: number }[];
+  }[];
 }) {
   const [topTab, setTopTab] = useState<"b2c" | "b2b">("b2c");
   const [activeB2cStatus, setActiveB2cStatus] = useState<string>(B2C_STATUS_TABS[0]);
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [manualOrderOpen, setManualOrderOpen] = useState(false);
   const router = useRouter();
 
   // 30초마다 자동 새로고침(수동 새로고침 없이도 최신 주문 반영)
@@ -902,6 +1057,13 @@ export default function ConsoleClient({
         </>
       ) : (
         <>
+          <button
+            onClick={() => setManualOrderOpen(true)}
+            className="mb-3 w-full rounded-lg border border-dashed border-neutral-300 py-2.5 text-sm text-neutral-600"
+          >
+            + 거래처 대신 발주 등록 (마감 이후 전화문의 등)
+          </button>
+
           <div className="mb-4 grid grid-cols-2 gap-2">
             <button
               onClick={() => setB2bSubTab("progress")}
@@ -949,6 +1111,17 @@ export default function ConsoleClient({
             />
           )}
         </>
+      )}
+
+      {manualOrderOpen && (
+        <ManualB2BOrderModal
+          accounts={b2bAccountsWithPrices}
+          onClose={() => setManualOrderOpen(false)}
+          onDone={() => {
+            setManualOrderOpen(false);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );

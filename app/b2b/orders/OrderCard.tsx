@@ -53,6 +53,11 @@ export default function OrderCard({ order: o }: { order: Order }) {
       {hasAdjusted && (
         <p className="mb-1 text-xs text-orange-600">재고 사정 등으로 수량이 조정됐어요</p>
       )}
+      {o.status === "승인대기" && (
+        <p className="mb-1 text-xs text-blue-600">
+          마감 이후 접수돼 사장님 승인을 기다리고 있어요. 배송일은 다음 영업일로 자동 배정됐어요.
+        </p>
+      )}
       {o.desired_delivery_date && (
         <p className="text-xs text-neutral-400">
           희망 배송일 {new Date(o.desired_delivery_date).toLocaleDateString("ko-KR")}
@@ -65,7 +70,7 @@ export default function OrderCard({ order: o }: { order: Order }) {
         <img src={o.delivery_photo_url} alt="배송완료 사진" className="mt-3 rounded-lg w-full object-cover" />
       )}
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-      {o.status === "발주요청" && (
+      {(o.status === "발주요청" || o.status === "승인대기") && (
         <button
           onClick={handleCancel}
           disabled={busy}
