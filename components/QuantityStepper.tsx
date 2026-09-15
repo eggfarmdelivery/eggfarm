@@ -37,6 +37,21 @@ export default function QuantityStepper({
     onChange(max !== undefined ? Math.min(max, value + 1) : value + 1);
   }
 
+  function handleTextChange(raw: string) {
+    const digits = raw.replace(/[^0-9]/g, "");
+    if (digits === "") {
+      onChange(min);
+      return;
+    }
+    let next = Number(digits);
+    if (max !== undefined && next > max) {
+      next = max;
+      triggerLimitFeedback();
+    }
+    if (next < min) next = min;
+    onChange(next);
+  }
+
   return (
     <div className="flex flex-col items-end gap-1">
       <div className={`flex items-center gap-1.5 ${shake ? "animate-shake" : ""}`}>
@@ -50,11 +65,12 @@ export default function QuantityStepper({
           −
         </button>
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
           name={name}
           value={value}
-          readOnly
-          className="w-10 rounded-md border border-neutral-200 py-1.5 text-center text-sm"
+          onChange={(e) => handleTextChange(e.target.value)}
+          className="w-12 rounded-md border border-neutral-200 py-1.5 text-center text-sm"
         />
         <button
           type="button"
