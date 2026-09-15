@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { getApprovedB2BAccountId } from "@/lib/getAccount";
-import { getOrderWindowStatus, getNextBusinessDayFrom } from "@/lib/b2bDeadline";
+import { getOrderWindowStatus, getNextBusinessDayFrom, getSeoulNow } from "@/lib/b2bDeadline";
 import { getConfig } from "@/lib/settings";
 
 type Result = { success: true; isLate?: boolean } | { success: false; error: string };
@@ -59,7 +59,7 @@ export async function createB2BOrder(formData: FormData): Promise<Result> {
     }
 
     const desiredDeliveryDate = isLate
-      ? getNextBusinessDayFrom(new Date())
+      ? getNextBusinessDayFrom(getSeoulNow())
       : String(formData.get("desired_delivery_date") ?? "").trim() || null;
 
     const { data: order, error } = await supabase

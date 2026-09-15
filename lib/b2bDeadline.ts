@@ -2,8 +2,19 @@
 // 자정(00:00)으로 하면 하루가 시작되자마자 마감 상태가 돼서 사실상 발주가 거의 불가능해지기 때문
 const FIXED_DEADLINE = "12:00";
 
+// Vercel 서버는 UTC로 돌아서 new Date()의 getHours()/getDay()가 한국시간이 아니라 UTC 기준으로
+// 나옴(9시간 차이) - 그래서 "평일 낮 12시"를 그냥 new Date()로 비교하면 실제 한국시간 기준
+// 마감시간이 어긋나는 문제가 있었음. 항상 이 함수로 한국시간 기준 Date를 만들어서 사용함
+function nowInSeoul(): Date {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+}
+
+export function getSeoulNow(): Date {
+  return nowInSeoul();
+}
+
 export async function getOrderWindowStatus() {
-  const now = new Date();
+  const now = nowInSeoul();
   const day = now.getDay(); // 0=일 6=토
   const isWeekend = day === 0 || day === 6;
 
