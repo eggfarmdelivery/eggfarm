@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { supabase } from "@/lib/supabase";
 import { getApprovedB2BAccountId } from "@/lib/getAccount";
+import Link from "next/link";
 import SettlementView from "./SettlementView";
 
 export default async function B2BSettlementPage({
@@ -54,7 +55,10 @@ export default async function B2BSettlementPage({
 
   return (
     <div className="pb-10">
-      <header className="px-5 py-4">
+      <header className="flex items-center gap-2 px-5 py-4">
+        <Link href="/b2b" aria-label="뒤로가기" className="text-lg">
+          ←
+        </Link>
         <h1 className="text-base font-medium">납품내역</h1>
       </header>
       <SettlementView

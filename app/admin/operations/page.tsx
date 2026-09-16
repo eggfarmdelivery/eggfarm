@@ -4,15 +4,15 @@ import Link from "next/link";
 import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
 
-const sharedItems = [{ href: "/admin/orders", label: "주문관리 (B2C+B2B)", icon: ClipboardList }];
-
 const b2cItems = [
+  { href: "/admin/orders", label: "주문관리", icon: ClipboardList },
   { href: "/admin/campaign", label: "캠페인 관리", icon: Megaphone },
   { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
   { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
 ];
 
 const b2bItems = [
+  { href: "/admin/b2b-orders", label: "주문관리", icon: ClipboardList },
   { href: "/admin/b2b-accounts", label: "거래처 관리", icon: Store },
   { href: "/admin/b2b-delivery", label: "B2B 배송리스트", icon: Truck },
 ];
@@ -22,7 +22,7 @@ const commonItems = [
   { href: "/admin/members", label: "회원 조회", icon: Users },
 ];
 
-function ItemGroup({ title, items }: { title?: string; items: typeof sharedItems }) {
+function ItemGroup({ title, items }: { title?: string; items: typeof commonItems }) {
   return (
     <div className="mb-4">
       {title && <p className="mb-1.5 px-1 text-xs font-medium text-neutral-400">{title}</p>}
@@ -58,7 +58,6 @@ export default async function OperationsPage() {
       </header>
 
       <div className="px-5">
-        <ItemGroup items={sharedItems} />
         <ItemGroup title="B2C" items={b2cItems} />
         <ItemGroup title="B2B" items={b2bItems} />
         <ItemGroup title="공통" items={commonItems} />

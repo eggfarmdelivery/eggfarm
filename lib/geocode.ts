@@ -1,24 +1,38 @@
 import "server-only";
 
-// 카카오 로컬 API(주소 검색)로 주소 -> 위경도 변환. 실패하면 null 반환(호출부에서 처리)
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!address?.trim()) return null;
+export type GeocodeResult =
+  | { ok: true; lat: number; lng: number }
+  | { ok: false; reason: "no_key" | "http_error" | "not_found" | "network_error"; detail?: string };
+
+// 카카오 로컬 API(주소 검색)로 주소 -> 위경도 변환. 실패 이유를 구분해서 반환해서
+// 관리자 화면에서 "왜 안 되는지" 알 수 있게 함(그냥 null만 던지면 원인 파악이 안 됨)
+export async function geocodeAddressDetailed(address: string): Promise<GeocodeResult> {
+  if (!address?.trim()) return { ok: false, reason: "not_found" };
   const key = process.env.KAKAO_REST_API_KEY;
-  if (!key) return null;
+  if (!key) return { ok: false, reason: "no_key" };
 
   try {
     const res = await fetch(
       `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
       { headers: { Authorization: `KakaoAK ${key}` }, cache: "no-store" }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { ok: false, reason: "http_error", detail: `${res.status} ${body}`.slice(0, 200) };
+    }
     const data = await res.json();
     const doc = data.documents?.[0];
-    if (!doc) return null;
-    return { lat: Number(doc.y), lng: Number(doc.x) };
-  } catch {
-    return null;
+    if (!doc) return { ok: false, reason: "not_found" };
+    return { ok: true, lat: Number(doc.y), lng: Number(doc.x) };
+  } catch (e) {
+    return { ok: false, reason: "network_error", detail: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// 기존 호출부(성공/null만 필요한 곳) 호환용
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  const result = await geocodeAddressDetailed(address);
+  return result.ok ? { lat: result.lat, lng: result.lng } : null;
 }
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {

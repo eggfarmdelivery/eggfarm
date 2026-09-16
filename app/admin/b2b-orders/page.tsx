@@ -3,12 +3,12 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { requirePermission } from "@/lib/adminAuth";
-import { getB2COrdersData } from "../ordersData";
+import { getB2BOrdersData } from "../ordersData";
 import ConsoleClient from "../ConsoleClient";
 
-export default async function AdminOrdersPage() {
+export default async function AdminB2BOrdersPage() {
   const role = await requirePermission(["payment"]);
-  const b2cOrders = await getB2COrdersData();
+  const { b2bOrders, b2bAccountsWithPrices } = await getB2BOrdersData();
 
   return (
     <div className="pb-24">
@@ -18,13 +18,13 @@ export default async function AdminOrdersPage() {
             ←
           </Link>
         )}
-        <h1 className="flex-1 text-base font-medium">B2C 주문관리</h1>
+        <h1 className="flex-1 text-base font-medium">B2B 주문관리</h1>
         {role !== "owner" && (
           <Link
-            href="/admin/b2b-orders"
+            href="/admin/orders"
             className="mr-2 rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-600"
           >
-            B2B 주문 보기
+            B2C 주문 보기
           </Link>
         )}
         <Link
@@ -37,10 +37,10 @@ export default async function AdminOrdersPage() {
       </header>
 
       <ConsoleClient
-        b2cOrders={(b2cOrders as any) ?? []}
-        b2bOrders={[]}
-        b2bAccountsWithPrices={[]}
-        initialTab="b2c"
+        b2cOrders={[]}
+        b2bOrders={b2bOrders}
+        b2bAccountsWithPrices={b2bAccountsWithPrices}
+        initialTab="b2b"
         hideTabs
       />
     </div>

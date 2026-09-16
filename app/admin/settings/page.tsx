@@ -25,9 +25,10 @@ export default async function SettingsPage({
     "notice_enabled",
     "notice_text",
     "low_stock_alert_threshold",
-    "b2b_min_order_amount",
     "b2b_min_order_qty",
     "b2b_origin_address",
+    "b2b_order_deadline",
+    "b2b_closed_days",
   ]);
   const connected = await isAdminKakaoConnected();
 
@@ -48,7 +49,8 @@ export default async function SettingsPage({
           error={kakao_error}
         />
         <TestAccountReset />
-        <div className="mt-8 border-t border-neutral-200 pt-6">
+        <div className="mt-8">
+          <p className="mb-2 text-xs font-medium text-neutral-400">기타</p>
           <StaffManagement />
         </div>
         <div className="mt-6">

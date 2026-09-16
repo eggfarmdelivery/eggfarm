@@ -55,6 +55,7 @@ type B2BOrder = {
   total_amount: number;
   created_at: string;
   desired_delivery_date: string | null;
+  cancel_reason: string | null;
   account: { business_name: string | null; phone: string | null; is_test: boolean } | null;
   b2b_order_item: {
     id: string;
@@ -62,6 +63,7 @@ type B2BOrder = {
     unit_price: number;
     adjusted: boolean;
     original_quantity: number | null;
+    added_later: boolean;
     product: { name: string } | null;
   }[];
 };
@@ -508,9 +510,55 @@ function AdjustQuantityModal({
   );
 }
 
+// 간단한 사유 입력 팝업 (B2B 취소/거절 공용)
+function ReasonPromptModal({
+  title,
+  onClose,
+  onConfirm,
+  busy,
+}: {
+  title: string;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+  busy: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-3 text-base font-medium">{title}</p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          placeholder="예: 재고 부족으로 취소합니다"
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm text-neutral-600"
+          >
+            돌아가기
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={busy || !reason.trim()}
+            className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "처리 중..." : "확인"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function B2BOrderCard({ order }: { order: B2BOrder }) {
   const { busy, run } = useAction();
   const [adjusting, setAdjusting] = useState(false);
+  const [cancelReasonModal, setCancelReasonModal] = useState<"cancel" | "reject" | null>(null);
   const hasAdjusted = (order.b2b_order_item ?? []).some((i) => i.adjusted);
 
   return (
@@ -530,18 +578,28 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
           📅 희망배송일 {new Date(order.desired_delivery_date).toLocaleDateString("ko-KR")}
         </p>
       )}
-      <p className="text-xs text-neutral-500 mb-2">
-        {(order.b2b_order_item ?? [])
-          .map((i) =>
-            i.adjusted && i.original_quantity != null
+      <div className="text-xs text-neutral-500 mb-2 space-y-0.5">
+        {(order.b2b_order_item ?? []).map((i) => (
+          <p key={i.id}>
+            {i.adjusted && i.original_quantity != null
               ? `${i.product?.name} ${i.original_quantity}→${i.quantity}판`
-              : `${i.product?.name} ${i.quantity}판`
-          )
-          .join(", ")}
-      </p>
+              : `${i.product?.name} ${i.quantity}판`}
+            {i.added_later && (
+              <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">
+                추가됨
+              </span>
+            )}
+          </p>
+        ))}
+      </div>
       {order.status === "승인대기" && (
         <p className="mb-2 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs text-blue-700">
           마감 이후 접수된 발주예요. 승인해야 정상 진행돼요.
+        </p>
+      )}
+      {order.status === "취소" && order.cancel_reason && (
+        <p className="mb-2 rounded-md bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-500">
+          취소 사유: {order.cancel_reason}
         </p>
       )}
       {hasAdjusted && <p className="mb-2 text-xs text-orange-600">수량 조정됨</p>}
@@ -557,9 +615,7 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
             </button>
             <button
               disabled={busy}
-              onClick={() => {
-                if (confirm("이 발주를 거절할까요?")) run(() => rejectLateB2BOrder(order.id));
-              }}
+              onClick={() => setCancelReasonModal("reject")}
               className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
             >
               거절
@@ -584,9 +640,7 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
             </button>
             <button
               disabled={busy}
-              onClick={() => {
-                if (confirm("이 발주를 취소할까요?")) run(() => adminCancelB2BOrder(order.id));
-              }}
+              onClick={() => setCancelReasonModal("cancel")}
               className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
             >
               발주취소
@@ -634,6 +688,17 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
       {adjusting && (
         <AdjustQuantityModal order={order} busy={busy} run={run} onClose={() => setAdjusting(false)} />
       )}
+      {cancelReasonModal && (
+        <ReasonPromptModal
+          title={cancelReasonModal === "reject" ? "이 발주를 거절할까요?" : "이 발주를 취소할까요?"}
+          busy={busy}
+          onClose={() => setCancelReasonModal(null)}
+          onConfirm={(reason) => {
+            const action = cancelReasonModal === "reject" ? rejectLateB2BOrder : adminCancelB2BOrder;
+            run(() => action(order.id, reason)).then(() => setCancelReasonModal(null));
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -677,8 +742,8 @@ const B2C_STATUS_TABS = [
   "환불완료",
   "취소",
 ];
-const B2B_PROGRESS = ["승인대기", "발주요청", "배송중", "입금대기", "입금확인완료"];
-const B2B_DONE = ["배송완료", "취소"];
+const B2B_PROGRESS = ["승인대기", "발주요청", "배송중", "입금대기"];
+const B2B_DONE = ["입금확인완료", "배송완료", "취소"];
 
 // 완료/취소 탭 (날짜 필터, 기본 오늘)
 function DoneTab<T extends { id: string; status: string; created_at: string }>({
@@ -858,6 +923,8 @@ export default function ConsoleClient({
   b2cOrders,
   b2bOrders,
   b2bAccountsWithPrices,
+  initialTab = "b2c",
+  hideTabs = false,
 }: {
   b2cOrders: B2COrder[];
   b2bOrders: B2BOrder[];
@@ -866,8 +933,10 @@ export default function ConsoleClient({
     businessName: string;
     products: { productId: string; productName: string; price: number }[];
   }[];
+  initialTab?: "b2c" | "b2b";
+  hideTabs?: boolean;
 }) {
-  const [topTab, setTopTab] = useState<"b2c" | "b2b">("b2c");
+  const [topTab, setTopTab] = useState<"b2c" | "b2b">(initialTab);
   const [activeB2cStatus, setActiveB2cStatus] = useState<string>(B2C_STATUS_TABS[0]);
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
@@ -939,24 +1008,26 @@ export default function ConsoleClient({
 
   return (
     <div className="px-5">
-      <div className="mb-4 flex gap-2 border-b border-neutral-200">
-        <button
-          onClick={() => setTopTab("b2c")}
-          className={`px-3 py-2 text-sm ${
-            topTab === "b2c" ? "border-b-2 border-primary font-semibold text-primary" : "text-neutral-400"
-          }`}
-        >
-          B2C ({b2cOrders.length})
-        </button>
-        <button
-          onClick={() => setTopTab("b2b")}
-          className={`px-3 py-2 text-sm ${
-            topTab === "b2b" ? "border-b-2 border-primary font-semibold text-primary" : "text-neutral-400"
-          }`}
-        >
-          B2B ({b2bOrders.length})
-        </button>
-      </div>
+      {!hideTabs && (
+        <div className="mb-4 flex gap-2 border-b border-neutral-200">
+          <button
+            onClick={() => setTopTab("b2c")}
+            className={`px-3 py-2 text-sm ${
+              topTab === "b2c" ? "border-b-2 border-primary font-semibold text-primary" : "text-neutral-400"
+            }`}
+          >
+            B2C ({b2cOrders.length})
+          </button>
+          <button
+            onClick={() => setTopTab("b2b")}
+            className={`px-3 py-2 text-sm ${
+              topTab === "b2b" ? "border-b-2 border-primary font-semibold text-primary" : "text-neutral-400"
+            }`}
+          >
+            B2B ({b2bOrders.length})
+          </button>
+        </div>
+      )}
 
       {topTab === "b2c" ? (
         <>
@@ -993,12 +1064,12 @@ export default function ConsoleClient({
             </div>
           )}
 
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-4 flex flex-wrap gap-2">
             {B2C_STATUS_TABS.map((status) => (
               <button
                 key={status}
                 onClick={() => setActiveB2cStatus(status)}
-                className={`shrink-0 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap ${
+                className={`rounded-full border px-3.5 py-2 text-sm whitespace-nowrap ${
                   activeB2cStatus === status
                     ? "border-primary bg-primary-bg text-primary font-medium"
                     : "border-neutral-200 text-neutral-500"

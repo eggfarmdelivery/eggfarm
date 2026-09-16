@@ -85,9 +85,13 @@ export async function updateSettings(formData: FormData): Promise<Result> {
       ["notice_enabled", formData.get("notice_enabled") === "on" ? "true" : "false"],
       ["notice_text", String(formData.get("notice_text") ?? "").trim()],
       ["low_stock_alert_threshold", String(formData.get("low_stock_alert_threshold") ?? "").trim()],
-      ["b2b_min_order_amount", String(formData.get("b2b_min_order_amount") ?? "").trim()],
       ["b2b_min_order_qty", String(formData.get("b2b_min_order_qty") ?? "").trim()],
       ["b2b_origin_address", String(formData.get("b2b_origin_address") ?? "").trim()],
+      ["b2b_order_deadline", String(formData.get("b2b_order_deadline") ?? "").trim()],
+      [
+        "b2b_closed_days",
+        formData.getAll("b2b_closed_days").join(","),
+      ],
     ];
 
     for (const [key, value] of entries) {

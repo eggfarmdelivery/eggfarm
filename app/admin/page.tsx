@@ -104,8 +104,8 @@ export default async function AdminHome() {
     admin.from("b2c_order").select("account(delivery_zone_id)").gte("created_at", weekStart.toISOString()),
     admin.from("delivery_zone").select("id, name"),
     isAdminKakaoConnected(),
-    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "approved"),
-    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "pending"),
+    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "approved").eq("is_test", false),
+    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "pending").eq("is_test", false),
     admin.from("b2b_order").select("account(is_test)").gte("created_at", weekStart.toISOString()),
     admin
       .from("b2b_order")
@@ -251,11 +251,11 @@ export default async function AdminHome() {
     },
     {
       key: "campaign",
-      label: "진행중 판매기간",
+      label: "진행중 캠페인",
       icon: "campaign",
       value: `${openCampaigns.length}개`,
-      sub: openCampaigns.length > 0 ? `재고 ${overallStockPct}% 소진` : "진행중인 판매기간 없음",
-      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "진행중인 판매기간이 없어요" }],
+      sub: openCampaigns.length > 0 ? `재고 ${overallStockPct}% 소진` : "진행중인 캠페인 없음",
+      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "진행중인 캠페인이 없어요" }],
     },
     {
       key: "refund",

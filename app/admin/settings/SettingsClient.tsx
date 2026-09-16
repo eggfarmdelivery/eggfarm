@@ -8,10 +8,21 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-xs font-medium text-neutral-400">{children}</p>;
 }
 
+const DAY_LABELS = [
+  { value: "0", label: "일" },
+  { value: "1", label: "월" },
+  { value: "2", label: "화" },
+  { value: "3", label: "수" },
+  { value: "4", label: "목" },
+  { value: "5", label: "금" },
+  { value: "6", label: "토" },
+];
+
 export default function SettingsClient({ config }: { config: Record<string, string> }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const closedDaysDefault = (config.b2b_closed_days || "0,6").split(",");
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
@@ -34,10 +45,11 @@ export default function SettingsClient({ config }: { config: Record<string, stri
   return (
     <form action={handleSubmit} className="px-5 space-y-6">
       <div>
-        <GroupLabel>B2C</GroupLabel>
+        <GroupLabel>공통</GroupLabel>
         <div className="space-y-5">
           <section>
             <p className="text-sm font-medium mb-2">입금 계좌 정보</p>
+            <p className="mb-2 text-xs text-neutral-400">B2C·B2B 공통으로 쓰여요</p>
             <div className="space-y-2">
               <div>
                 <label className="mb-1 block text-xs text-neutral-500">은행명</label>
@@ -70,6 +82,7 @@ export default function SettingsClient({ config }: { config: Record<string, stri
 
           <section>
             <p className="text-sm font-medium mb-2">홈화면 공지사항</p>
+            <p className="mb-2 text-xs text-neutral-400">B2C·B2B 홈화면에 동일하게 노출돼요</p>
             <label className="mb-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -88,37 +101,69 @@ export default function SettingsClient({ config }: { config: Record<string, stri
           </section>
 
           <section>
-            <p className="text-sm font-medium mb-2">재고 부족 알림</p>
-            <label className="mb-1 block text-xs text-neutral-500">
-              남은 판수가 이 숫자 이하가 되면 카카오로 알려드려요
-            </label>
+            <p className="text-sm font-medium mb-2">카카오 오픈채팅 문의</p>
+            <label className="mb-1 block text-xs text-neutral-500">오픈채팅 URL</label>
             <input
-              name="low_stock_alert_threshold"
-              defaultValue={config.low_stock_alert_threshold || "5"}
-              inputMode="numeric"
+              name="kakao_openchat_url"
+              defaultValue={config.kakao_openchat_url}
+              placeholder="https://open.kakao.com/o/..."
               className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
             />
+            <p className="mt-1 text-xs text-neutral-400">
+              비워두면 문의 버튼이 화면에 안 보여요
+            </p>
           </section>
         </div>
+      </div>
+
+      <div>
+        <GroupLabel>B2C</GroupLabel>
+        <section>
+          <p className="text-sm font-medium mb-2">재고 부족 알림</p>
+          <label className="mb-1 block text-xs text-neutral-500">
+            남은 판수가 이 숫자 이하가 되면 카카오로 알려드려요
+          </label>
+          <input
+            name="low_stock_alert_threshold"
+            defaultValue={config.low_stock_alert_threshold || "5"}
+            inputMode="numeric"
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </section>
       </div>
 
       <div>
         <GroupLabel>B2B</GroupLabel>
         <section>
           <p className="text-sm font-medium mb-2">B2B 발주 설정</p>
-          <div className="space-y-2">
-            <p className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
-              발주 마감시간은 평일 낮 12시로 고정돼있어요 (토·일요일은 항상 마감)
-            </p>
+          <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs text-neutral-500">최소 발주금액 (원)</label>
+              <label className="mb-1 block text-xs text-neutral-500">발주 마감시각</label>
               <input
-                name="b2b_min_order_amount"
-                defaultValue={config.b2b_min_order_amount}
-                inputMode="numeric"
-                placeholder="비워두면 제한 없음"
+                name="b2b_order_deadline"
+                type="time"
+                defaultValue={config.b2b_order_deadline || "12:00"}
                 className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-neutral-500">발주 불가 요일</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DAY_LABELS.map((d) => (
+                  <label
+                    key={d.value}
+                    className="flex items-center gap-1 rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      name="b2b_closed_days"
+                      value={d.value}
+                      defaultChecked={closedDaysDefault.includes(d.value)}
+                    />
+                    {d.label}
+                  </label>
+                ))}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs text-neutral-500">최소 발주수량 (판)</label>
@@ -143,23 +188,6 @@ export default function SettingsClient({ config }: { config: Record<string, stri
               </p>
             </div>
           </div>
-        </section>
-      </div>
-
-      <div>
-        <GroupLabel>공통</GroupLabel>
-        <section>
-          <p className="text-sm font-medium mb-2">카카오 오픈채팅 문의</p>
-          <label className="mb-1 block text-xs text-neutral-500">오픈채팅 URL</label>
-          <input
-            name="kakao_openchat_url"
-            defaultValue={config.kakao_openchat_url}
-            placeholder="https://open.kakao.com/o/..."
-            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-          />
-          <p className="mt-1 text-xs text-neutral-400">
-            비워두면 문의 버튼이 화면에 안 보여요
-          </p>
         </section>
       </div>
 

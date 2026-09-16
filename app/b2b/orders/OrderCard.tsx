@@ -12,6 +12,7 @@ type Item = {
   quantity: number;
   original_quantity: number | null;
   adjusted: boolean;
+  added_later: boolean;
   unit_price: number;
   product: { name: string } | null;
 };
@@ -23,10 +24,58 @@ type Order = {
   delivery_photo_url: string | null;
   payment_method: string | null;
   desired_delivery_date: string | null;
+  cancel_reason: string | null;
   created_at: string;
   b2b_order_item: Item[];
   addableProducts: AddableProduct[];
 };
+
+// 배송완료(사진 촬영) 이전 단계로 되돌아가면, 실제 사진 파일은 그대로 서버에 두되 화면엔 안 보이게 함
+const PHOTO_VISIBLE_STATUSES = ["입금대기", "입금확인완료", "배송완료"];
+
+function ReasonPromptModal({
+  title,
+  onClose,
+  onConfirm,
+  busy,
+}: {
+  title: string;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+  busy: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+        <p className="mb-3 text-base font-medium">{title}</p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          placeholder="예: 물량 조정이 필요해서 취소합니다"
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg border border-neutral-200 py-3 text-sm text-neutral-600"
+          >
+            돌아가기
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={busy || !reason.trim()}
+            className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? "처리 중..." : "확인"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function OrderCard({
   order: o,
@@ -38,6 +87,8 @@ export default function OrderCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [qtys, setQtys] = useState<Record<string, number>>(
     Object.fromEntries(o.b2b_order_item.map((i) => [i.id, i.quantity]))
   );
@@ -46,17 +97,18 @@ export default function OrderCard({
   const router = useRouter();
   const hasAdjusted = (o.b2b_order_item ?? []).some((i) => i.adjusted);
   const canEdit = ["발주요청", "승인대기"].includes(o.status);
+  const showPhoto = PHOTO_VISIBLE_STATUSES.includes(o.status) && o.delivery_photo_url;
 
-  async function handleCancel() {
-    if (!confirm("이 발주를 취소할까요?")) return;
+  async function handleCancel(reason: string) {
     setBusy(true);
     setError(null);
-    const result = await cancelB2BOrder(o.id);
+    const result = await cancelB2BOrder(o.id, reason);
     setBusy(false);
     if (!result.success) {
       setError(result.error);
       return;
     }
+    setCancelling(false);
     router.refresh();
   }
 
@@ -70,6 +122,7 @@ export default function OrderCard({
       setError(result.error);
       return;
     }
+    setEditing(false);
     router.refresh();
   }
 
@@ -85,6 +138,7 @@ export default function OrderCard({
     }
     setAddingProductId("");
     setAddingQty(1);
+    setEditing(false);
     router.refresh();
   }
 
@@ -96,15 +150,20 @@ export default function OrderCard({
       </div>
 
       {!editing ? (
-        <p className="text-xs text-neutral-500 mb-1">
-          {(o.b2b_order_item ?? [])
-            .map((i) =>
-              i.adjusted && i.original_quantity != null
+        <div className="text-xs text-neutral-500 mb-1 space-y-0.5">
+          {(o.b2b_order_item ?? []).map((i) => (
+            <p key={i.id}>
+              {i.adjusted && i.original_quantity != null
                 ? `${i.product?.name} ${i.original_quantity}판 → ${i.quantity}판으로 조정됨`
-                : `${i.product?.name} ${i.quantity}판`
-            )
-            .join(" · ")}
-        </p>
+                : `${i.product?.name} ${i.quantity}판`}
+              {i.added_later && (
+                <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">
+                  추가됨
+                </span>
+              )}
+            </p>
+          ))}
+        </div>
       ) : (
         <div className="mb-3 space-y-2">
           {o.b2b_order_item.map((item) => (
@@ -170,6 +229,11 @@ export default function OrderCard({
           마감 이후 접수돼 사장님 승인을 기다리고 있어요. 배송일은 다음 영업일로 자동 배정됐어요.
         </p>
       )}
+      {o.status === "취소" && o.cancel_reason && (
+        <p className="mb-1 rounded-md bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-500">
+          취소 사유: {o.cancel_reason}
+        </p>
+      )}
       {o.desired_delivery_date && (
         <p className="text-xs text-neutral-400">
           희망 배송일 {new Date(o.desired_delivery_date).toLocaleDateString("ko-KR")}
@@ -198,9 +262,25 @@ export default function OrderCard({
         </div>
       )}
 
-      {o.delivery_photo_url && (
-        <img src={o.delivery_photo_url} alt="배송완료 사진" className="mt-3 rounded-lg w-full object-cover" />
+      {showPhoto && (
+        <>
+          <button
+            type="button"
+            onClick={() => setPhotoOpen((v) => !v)}
+            className="mt-2 text-xs text-primary underline"
+          >
+            {photoOpen ? "사진 접기" : "배송완료 사진 보기"}
+          </button>
+          {photoOpen && (
+            <img
+              src={o.delivery_photo_url!}
+              alt="배송완료 사진"
+              className="mt-2 rounded-lg w-full object-cover"
+            />
+          )}
+        </>
       )}
+
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
 
       {canEdit && (
@@ -213,13 +293,22 @@ export default function OrderCard({
             {editing ? "닫기" : "수량 수정 · 상품 추가"}
           </button>
           <button
-            onClick={handleCancel}
+            onClick={() => setCancelling(true)}
             disabled={busy}
             className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-500 disabled:opacity-50"
           >
-            {busy ? "처리 중..." : "발주 취소"}
+            발주 취소
           </button>
         </div>
+      )}
+
+      {cancelling && (
+        <ReasonPromptModal
+          title="이 발주를 취소할까요?"
+          busy={busy}
+          onClose={() => setCancelling(false)}
+          onConfirm={handleCancel}
+        />
       )}
     </div>
   );

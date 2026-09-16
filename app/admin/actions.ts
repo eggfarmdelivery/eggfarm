@@ -425,10 +425,11 @@ export async function approveLateB2BOrder(orderId: string): Promise<Result> {
   }
 }
 
-export async function rejectLateB2BOrder(orderId: string): Promise<Result> {
+export async function rejectLateB2BOrder(orderId: string, reason: string): Promise<Result> {
   try {
     await requireAdmin();
-    await updateB2BStatus(orderId, "승인대기", "취소");
+    if (!reason.trim()) throw new Error("거절 사유를 입력해주세요");
+    await updateB2BStatus(orderId, "승인대기", "취소", { cancel_reason: reason.trim() });
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "거절 중 오류가 발생했어요" };
@@ -436,10 +437,11 @@ export async function rejectLateB2BOrder(orderId: string): Promise<Result> {
 }
 
 // 관리자가 발주요청 단계 B2B 발주를 취소 (아직 배송 시작 전이라 환불 절차 없이 바로 취소)
-export async function adminCancelB2BOrder(orderId: string): Promise<Result> {
+export async function adminCancelB2BOrder(orderId: string, reason: string): Promise<Result> {
   try {
     await requireAdmin();
-    await updateB2BStatus(orderId, "발주요청", "취소");
+    if (!reason.trim()) throw new Error("취소 사유를 입력해주세요");
+    await updateB2BStatus(orderId, "발주요청", "취소", { cancel_reason: reason.trim() });
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "취소 중 오류가 발생했어요" };

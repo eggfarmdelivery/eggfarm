@@ -48,12 +48,14 @@ export default function B2BDeliveryClient({
   targetDate,
   origin,
   originAddress,
+  originErrorReason,
 }: {
   orders: Order[];
   route: { orderId: string; distanceFromPrevKm: number; etaMin: number }[];
   targetDate: string;
   origin: { lat: number; lng: number } | null;
   originAddress: string;
+  originErrorReason?: "no_key" | "http_error" | "not_found" | "network_error" | null;
 }) {
   const router = useRouter();
   const routeMap = new Map(route.map((r) => [r.orderId, r]));
@@ -105,8 +107,14 @@ export default function B2BDeliveryClient({
       )}
       {originAddress && !origin && (
         <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-600">
-          출발지 주소("{originAddress}")의 좌표를 찾지 못했어요. 환경설정에서 더 정확한 주소(도로명
-          주소 등)로 다시 입력해보시거나, 잠시 후 다시 시도해주세요.
+          {originErrorReason === "no_key" &&
+            "카카오 지도 API 키(KAKAO_REST_API_KEY)가 서버에 설정돼있지 않아요. Vercel 환경변수를 확인해주세요."}
+          {originErrorReason === "http_error" &&
+            `카카오 지도 API 호출이 거부됐어요. 카카오 디벨로퍼스에서 이 앱에 "로컬" 서비스가 활성화돼있는지 확인해주세요.`}
+          {originErrorReason === "network_error" &&
+            "카카오 지도 API 호출 중 네트워크 오류가 발생했어요. 잠시 후 다시 시도해주세요."}
+          {(!originErrorReason || originErrorReason === "not_found") &&
+            `출발지 주소("${originAddress}")의 좌표를 찾지 못했어요. 환경설정에서 더 정확한 주소(도로명 주소 등)로 다시 입력해보시거나, 잠시 후 다시 시도해주세요.`}
         </p>
       )}
       {origin && orders.some((o) => o.account?.address && o.account?.latitude == null) && (

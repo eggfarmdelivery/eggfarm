@@ -35,7 +35,7 @@ export async function updateB2BOrderQuantities(
       totalAmount += subtotal;
       const { error } = await supabase
         .from("b2b_order_item")
-        .update({ quantity: item.quantity, subtotal })
+        .update({ quantity: item.quantity, subtotal, adjusted: false, original_quantity: null })
         .eq("id", item.itemId);
       if (error) throw new Error(error.message);
     }
@@ -94,6 +94,7 @@ export async function addB2BOrderItem(
       quantity,
       unit_price: priceRow.price,
       subtotal,
+      added_later: true,
     });
     if (insertError) throw new Error(insertError.message);
 
@@ -114,9 +115,10 @@ export async function addB2BOrderItem(
   }
 }
 
-export async function cancelB2BOrder(orderId: string): Promise<Result> {
+export async function cancelB2BOrder(orderId: string, reason: string): Promise<Result> {
   try {
     const accountId = await getApprovedB2BAccountId();
+    if (!reason.trim()) throw new Error("취소 사유를 입력해주세요");
     const { data: order, error: fetchError } = await supabase
       .from("b2b_order")
       .select("id, account_id, status")
@@ -127,7 +129,10 @@ export async function cancelB2BOrder(orderId: string): Promise<Result> {
     if (!["발주요청", "승인대기"].includes(order.status))
       throw new Error("이미 배송이 시작된 발주는 취소할 수 없어요. 에그팜으로 문의해주세요");
 
-    const { error } = await supabase.from("b2b_order").update({ status: "취소" }).eq("id", orderId);
+    const { error } = await supabase
+      .from("b2b_order")
+      .update({ status: "취소", cancel_reason: reason.trim() })
+      .eq("id", orderId);
     if (error) throw new Error(error.message);
     return { success: true };
   } catch (e) {

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getApprovedB2BAccountId } from "@/lib/getAccount";
+import { getConfigs } from "@/lib/settings";
 
 export default async function B2BHome() {
   const accountId = await getApprovedB2BAccountId();
@@ -14,10 +15,19 @@ export default async function B2BHome() {
     .eq("id", accountId)
     .single();
 
+  const notice = await getConfigs(["notice_enabled", "notice_text"]);
+  const showNotice = notice.notice_enabled === "true" && notice.notice_text;
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-primary-bg p-6 text-center">
       <img src="/logo.png" alt="에그팜" className="h-8 w-auto" />
       <p className="text-sm text-primary-dark">{account?.business_name ?? "거래처"}님</p>
+
+      {showNotice && (
+        <div className="w-full max-w-xs rounded-lg bg-white px-3 py-2.5 text-sm text-primary-dark">
+          📢 {notice.notice_text}
+        </div>
+      )}
 
       <div className="w-full max-w-xs space-y-2">
         <Link
@@ -30,7 +40,7 @@ export default async function B2BHome() {
           href="/b2b/orders"
           className="block w-full rounded-lg border border-neutral-300 py-3 text-sm font-medium"
         >
-          배송 현황
+          주문 · 배송 조회
         </Link>
         <Link
           href="/b2b/settlement"

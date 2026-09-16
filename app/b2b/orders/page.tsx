@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getApprovedB2BAccountId } from "@/lib/getAccount";
 import OrderCard from "./OrderCard";
@@ -12,7 +13,7 @@ export default async function B2BOrdersPage() {
   const { data: orders } = await supabase
     .from("b2b_order")
     .select(
-      "id, status, total_amount, delivery_photo_url, payment_method, desired_delivery_date, created_at, b2b_order_item(id, product_id, quantity, original_quantity, adjusted, unit_price, product(name))"
+      "id, status, total_amount, delivery_photo_url, payment_method, desired_delivery_date, cancel_reason, created_at, b2b_order_item(id, product_id, quantity, original_quantity, adjusted, added_later, unit_price, product(name))"
     )
     .eq("account_id", accountId)
     .order("created_at", { ascending: false });
@@ -43,8 +44,11 @@ export default async function B2BOrdersPage() {
 
   return (
     <div className="pb-10">
-      <header className="px-5 py-4">
-        <h1 className="text-base font-medium">배송 현황</h1>
+      <header className="flex items-center gap-2 px-5 py-4">
+        <Link href="/b2b" aria-label="뒤로가기" className="text-lg">
+          ←
+        </Link>
+        <h1 className="text-base font-medium">주문 · 배송 조회</h1>
       </header>
 
       <main className="px-5">

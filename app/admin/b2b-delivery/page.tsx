@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSensitive } from "@/lib/crypto";
 import { getConfig } from "@/lib/settings";
-import { geocodeAddress, optimizeRoute, estimateMinutes } from "@/lib/geocode";
+import { geocodeAddressDetailed, optimizeRoute, estimateMinutes } from "@/lib/geocode";
 import B2BDeliveryClient from "./B2BDeliveryClient";
 
 function todayKST() {
@@ -41,8 +41,8 @@ export default async function B2BDeliveryPage({
   // 좌표가 없는 거래처는 이번에 지오코딩해서 계정에 캐시해둠(매번 다시 호출 안 하도록)
   for (const o of orders) {
     if (o.account && (o.account.latitude == null || o.account.longitude == null) && o.account.address) {
-      const geo = await geocodeAddress(o.account.address);
-      if (geo) {
+      const geo = await geocodeAddressDetailed(o.account.address);
+      if (geo.ok) {
         o.account.latitude = geo.lat;
         o.account.longitude = geo.lng;
         await admin.from("account").update({ latitude: geo.lat, longitude: geo.lng }).eq("id", o.account_id);
@@ -51,7 +51,9 @@ export default async function B2BDeliveryPage({
   }
 
   const originAddress = await getConfig("b2b_origin_address");
-  const origin = originAddress ? await geocodeAddress(originAddress) : null;
+  const originResult = originAddress ? await geocodeAddressDetailed(originAddress) : null;
+  const origin = originResult?.ok ? { lat: originResult.lat, lng: originResult.lng } : null;
+  const originErrorReason = originResult && !originResult.ok ? originResult.reason : null;
 
   let route: { orderId: string; distanceFromPrevKm: number; etaMin: number }[] = [];
   if (origin) {
@@ -86,6 +88,7 @@ export default async function B2BDeliveryPage({
         targetDate={targetDate}
         origin={origin}
         originAddress={originAddress}
+        originErrorReason={originErrorReason}
       />
     </div>
   );

@@ -17,10 +17,14 @@ const TABS = [
     match: [
       "/admin/operations",
       "/admin/orders",
+      "/admin/b2b-orders",
       "/admin/campaign",
       "/admin/delivery",
       "/admin/zones",
       "/admin/products",
+      "/admin/b2b-accounts",
+      "/admin/b2b-delivery",
+      "/admin/members",
     ],
   },
   {

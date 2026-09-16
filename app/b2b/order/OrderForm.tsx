@@ -17,12 +17,10 @@ function tomorrow() {
 
 export default function B2BOrderForm({
   products,
-  minOrderAmount,
   minOrderQty,
   isWindowOpen,
 }: {
   products: Product[];
-  minOrderAmount: number;
   minOrderQty: number;
   isWindowOpen: boolean;
 }) {
@@ -37,9 +35,8 @@ export default function B2BOrderForm({
     0
   );
   const totalQty = Object.values(qty).reduce((s, v) => s + v, 0);
-  const belowMinAmount = minOrderAmount > 0 && total > 0 && total < minOrderAmount;
   const belowMinQty = minOrderQty > 0 && totalQty > 0 && totalQty < minOrderQty;
-  const belowMinimum = belowMinAmount || belowMinQty;
+  const belowMinimum = belowMinQty;
 
   async function handleSubmit(formData: FormData) {
     // <form action={fn}> 방식은 트랜지션으로 처리돼서 처리중 상태가 화면에 안 그려지고
@@ -114,21 +111,14 @@ export default function B2BOrderForm({
         <span className="text-xl font-medium">{total.toLocaleString()}원</span>
       </div>
 
-      {(minOrderAmount > 0 || minOrderQty > 0) && (
-        <p className="mb-3 text-xs text-neutral-400">
-          {minOrderAmount > 0 && `최소 발주금액 ${minOrderAmount.toLocaleString()}원`}
-          {minOrderAmount > 0 && minOrderQty > 0 && " · "}
-          {minOrderQty > 0 && `최소 발주수량 ${minOrderQty}판`}
+      {minOrderQty > 0 && (
+        <p className="mb-3 text-xs font-medium text-red-500">
+          최소 발주수량 {minOrderQty}판 이상부터 발주 가능해요
         </p>
       )}
 
-      {belowMinAmount && (
-        <p className="mb-2 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-600">
-          최소 발주금액({minOrderAmount.toLocaleString()}원)보다 적어요
-        </p>
-      )}
       {belowMinQty && (
-        <p className="mb-3 rounded-md bg-orange-50 px-3 py-2 text-sm text-orange-600">
+        <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
           최소 발주수량({minOrderQty}판)보다 적어요
         </p>
       )}

@@ -9,8 +9,6 @@ import OrderForm from "./OrderForm";
 export default async function B2BOrderPage() {
   const accountId = await getApprovedB2BAccountId();
   const window = await getOrderWindowStatus();
-  const minOrderAmountRaw = await getConfig("b2b_min_order_amount");
-  const minOrderAmount = Number(minOrderAmountRaw) || 0;
   const minOrderQtyRaw = await getConfig("b2b_min_order_qty");
   const minOrderQty = Number(minOrderQtyRaw) || 0;
 
@@ -48,7 +46,7 @@ export default async function B2BOrderPage() {
           }`}
         >
           {window.isWeekend
-            ? "주말 접수 (승인 후 진행)"
+            ? "휴무일 접수 (승인 후 진행)"
             : window.isOpen
             ? `마감 ${window.remLabel} 전`
             : "마감 이후 접수 (승인 후 진행)"}
@@ -64,7 +62,6 @@ export default async function B2BOrderPage() {
 
       <OrderForm
         products={productsWithPrice}
-        minOrderAmount={minOrderAmount}
         minOrderQty={minOrderQty}
         isWindowOpen={window.isOpen}
       />
