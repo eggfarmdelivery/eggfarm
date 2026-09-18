@@ -39,7 +39,10 @@ export default function ZoneRequestMapClient({
   noCoordCount: number;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+  // 지도(Maps) 무료 쿼터는 계정당 처음 활성화한 앱 1개에만 주어져서, 과금을 피하려고
+  // 이미 Maps가 활성화된 다른 앱(오더모아)의 JS키를 지도 로딩 전용으로 따로 씀
+  // (로그인/공유/주소검색 등 나머지 기능은 여전히 에그팜 전용 앱의 NEXT_PUBLIC_KAKAO_JS_KEY를 씀)
+  const jsKey = process.env.NEXT_PUBLIC_KAKAO_MAPS_JS_KEY;
 
   useEffect(() => {
     function draw() {
@@ -111,8 +114,8 @@ export default function ZoneRequestMapClient({
 
       {!jsKey && (
         <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
-          NEXT_PUBLIC_KAKAO_JS_KEY가 설정되지 않아 지도를 표시할 수 없어요. 카카오 디벨로퍼스에서 해당 앱에
-          "Maps" 기능을 활성화하고 이 도메인을 등록해주세요.
+          NEXT_PUBLIC_KAKAO_MAPS_JS_KEY가 설정되지 않아 지도를 표시할 수 없어요. Maps가 활성화된 카카오
+          앱의 JS 키를 이 환경변수로 등록하고, 그 앱의 플랫폼에 이 도메인을 등록해주세요.
         </p>
       )}
 
