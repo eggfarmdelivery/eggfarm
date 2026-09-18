@@ -14,7 +14,12 @@ export async function geocodeAddressDetailed(address: string): Promise<GeocodeRe
   try {
     const res = await fetch(
       `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${key}` }, cache: "no-store" }
+      {
+        headers: { Authorization: `KakaoAK ${key}` },
+        cache: "no-store",
+        // 네트워크 문제로 응답이 안 올 때 무한정 기다리지 않게 타임아웃을 둠(그동안 버튼이 계속 "등록 중"으로 멈춰있는 문제 방지)
+        signal: AbortSignal.timeout(8000),
+      }
     );
     if (!res.ok) {
       const body = await res.text().catch(() => "");

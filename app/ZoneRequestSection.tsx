@@ -44,14 +44,20 @@ function RequestModal({ onClose }: { onClose: () => void }) {
     }
     setPending(true);
     setError(null);
-    const result = await submitZoneRequest(address);
-    setPending(false);
-    if (!result.success) {
-      setError(result.error);
-      return;
+    try {
+      const result = await submitZoneRequest(address);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setCount(result.countForAddress);
+      setStep("success");
+    } catch {
+      // 네트워크 오류 등으로 서버 액션 호출 자체가 실패한 경우 - 버튼이 "등록 중"에 멈춰있지 않게 처리
+      setError("네트워크 오류로 등록하지 못했어요. 다시 시도해주세요");
+    } finally {
+      setPending(false);
     }
-    setCount(result.countForAddress);
-    setStep("success");
   }
 
   return (
