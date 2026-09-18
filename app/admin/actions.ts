@@ -114,10 +114,21 @@ export async function markB2CDelivered(formData: FormData): Promise<Result> {
   }
 }
 
+// 발주요청 -> 주문확정: 배송 시작 전에 사장님이 한 번 확인/승인하는 단계
+export async function confirmB2BOrder(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    await updateB2BStatus(orderId, "발주요청", "주문확정");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
+  }
+}
+
 export async function startB2BDelivery(orderId: string): Promise<Result> {
   try {
     await requireAdmin();
-    await updateB2BStatus(orderId, "발주요청", "배송중");
+    await updateB2BStatus(orderId, "주문확정", "배송중");
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
@@ -220,7 +231,8 @@ const B2C_REVERT: Record<string, string> = {
   승인거절: "입금대기",
 };
 const B2B_REVERT: Record<string, string> = {
-  배송중: "발주요청",
+  주문확정: "발주요청",
+  배송중: "주문확정",
   입금대기: "배송중",
   입금확인완료: "입금대기",
 };
@@ -436,12 +448,21 @@ export async function rejectLateB2BOrder(orderId: string, reason: string): Promi
   }
 }
 
-// 관리자가 발주요청 단계 B2B 발주를 취소 (아직 배송 시작 전이라 환불 절차 없이 바로 취소)
+// 관리자가 발주요청/주문확정 단계 B2B 발주를 취소 (아직 배송 시작 전이라 환불 절차 없이 바로 취소)
 export async function adminCancelB2BOrder(orderId: string, reason: string): Promise<Result> {
   try {
     await requireAdmin();
     if (!reason.trim()) throw new Error("취소 사유를 입력해주세요");
-    await updateB2BStatus(orderId, "발주요청", "취소", { cancel_reason: reason.trim() });
+    const { data: order, error: fetchError } = await supabase
+      .from("b2b_order")
+      .select("status")
+      .eq("id", orderId)
+      .single();
+    if (fetchError || !order) throw new Error("발주를 찾을 수 없어요");
+    if (!["발주요청", "주문확정"].includes(order.status)) {
+      throw new Error("배송 시작 전 단계에서만 취소할 수 있어요");
+    }
+    await updateB2BStatus(orderId, order.status, "취소", { cancel_reason: reason.trim() });
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "취소 중 오류가 발생했어요" };

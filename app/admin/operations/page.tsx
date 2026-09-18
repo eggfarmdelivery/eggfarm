@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users } from "lucide-react";
+import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users, MapPin } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
 
 const b2cItems = [
@@ -20,6 +20,7 @@ const b2bItems = [
 const commonItems = [
   { href: "/admin/products", label: "상품관리", icon: Package },
   { href: "/admin/members", label: "회원 조회", icon: Users },
+  { href: "/admin/zone-requests", label: "단지 추가 요청", icon: MapPin },
 ];
 
 function ItemGroup({ title, items }: { title?: string; items: typeof commonItems }) {
