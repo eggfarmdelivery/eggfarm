@@ -4,7 +4,7 @@ import "server-only";
 import { headers } from "next/headers";
 import crypto from "crypto";
 import { supabase } from "@/lib/supabase";
-import { geocodeAddress } from "@/lib/geocode";
+import { geocodeAddressDetailed } from "@/lib/geocode";
 
 type Result =
   | { success: true; countForAddress: number }
@@ -54,12 +54,14 @@ export async function submitZoneRequest(rawAddress: string): Promise<Result> {
       throw new Error("오늘 요청이 많아 잠시 후 다시 시도해주세요");
     }
 
-    const geo = await geocodeAddress(address);
+    // 실패 이유(reason)까지 같이 저장해서 관리자 화면에서 "왜 안 잡혔는지" 바로 확인 가능하게 함
+    const geo = await geocodeAddressDetailed(address);
 
     const { error } = await supabase.from("zone_request").insert({
       road_address: address,
-      lat: geo?.lat ?? null,
-      lng: geo?.lng ?? null,
+      lat: geo.ok ? geo.lat : null,
+      lng: geo.ok ? geo.lng : null,
+      geo_reason: geo.ok ? null : geo.reason,
       ip_hash: ipHash,
     });
     if (error) throw new Error(error.message);

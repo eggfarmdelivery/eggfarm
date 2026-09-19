@@ -10,7 +10,7 @@ export default async function ZoneRequestsPage() {
   const admin = createAdminClient();
   const { data: rows } = await admin
     .from("zone_request")
-    .select("id, road_address, lat, lng, created_at")
+    .select("id, road_address, lat, lng, geo_reason, created_at")
     .order("created_at", { ascending: false });
 
   const all = rows ?? [];
@@ -33,7 +33,9 @@ export default async function ZoneRequestsPage() {
   }
   const markers = Array.from(groups.values()).sort((a, b) => b.count - a.count);
   const ranking = markers.slice(0, 5).map((m, i) => ({ rank: i + 1, address: m.address, count: m.count }));
-  const noCoordCount = all.filter((r) => r.lat == null || r.lng == null).length;
+  const noCoord = all
+    .filter((r) => r.lat == null || r.lng == null)
+    .map((r) => ({ address: r.road_address, reason: r.geo_reason ?? "unknown" }));
 
   return (
     <div className="pb-24">
@@ -49,7 +51,7 @@ export default async function ZoneRequestsPage() {
         ranking={ranking}
         totalCount={all.length}
         thisMonthCount={thisMonthCount}
-        noCoordCount={noCoordCount}
+        noCoord={noCoord}
       />
     </div>
   );

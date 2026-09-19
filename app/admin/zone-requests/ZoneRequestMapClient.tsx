@@ -11,6 +11,16 @@ declare global {
 
 type Marker = { lat: number; lng: number; address: string; count: number };
 type RankRow = { rank: number; address: string; count: number };
+type NoCoordRow = { address: string; reason: string };
+
+// 관리자가 바로 알아볼 수 있게 실패 사유를 한글로 변환
+const REASON_LABEL: Record<string, string> = {
+  not_found: "카카오 지도에서 이 주소를 찾지 못함(도로명 미등록 등)",
+  http_error: "카카오 API 요청 오류(키 권한/설정 문제일 수 있음)",
+  network_error: "네트워크 오류(타임아웃 등)",
+  no_key: "서버에 KAKAO_REST_API_KEY가 설정되지 않음",
+  unknown: "사유 미상(이전 버전에서 등록된 요청)",
+};
 
 // 서구 가정1·2·3동/석남동/청라동/신현원창동/심곡동/연희동 + 계양구 효성동/부평구 청천동
 // 일대가 기본으로 보이도록 지정한 중심좌표(인천 서구청 인근) - 요청이 이 범위 밖이어도 막지 않고 다 표시함
@@ -30,13 +40,13 @@ export default function ZoneRequestMapClient({
   ranking,
   totalCount,
   thisMonthCount,
-  noCoordCount,
+  noCoord,
 }: {
   markers: Marker[];
   ranking: RankRow[];
   totalCount: number;
   thisMonthCount: number;
-  noCoordCount: number;
+  noCoord: NoCoordRow[];
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   // 지도(Maps) 무료 쿼터는 계정당 처음 활성화한 앱 1개에만 주어져서, 과금을 피하려고
@@ -128,10 +138,19 @@ export default function ZoneRequestMapClient({
         <span className="h-3 w-3 rounded-full bg-primary" /> 원 크기·숫자 = 해당 단지 요청 건수
       </div>
 
-      {noCoordCount > 0 && (
-        <p className="mb-4 rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
-          좌표를 찾지 못한 요청 {noCoordCount}건은 지도에 표시되지 않았어요.
-        </p>
+      {noCoord.length > 0 && (
+        <div className="mb-4 rounded-md bg-neutral-50 px-3 py-2.5 text-xs text-neutral-500">
+          <p className="mb-1.5 font-medium text-neutral-600">
+            좌표를 찾지 못한 요청 {noCoord.length}건은 지도에 표시되지 않았어요
+          </p>
+          <ul className="space-y-1">
+            {noCoord.map((r, i) => (
+              <li key={i} className="leading-relaxed">
+                · {r.address} — {REASON_LABEL[r.reason] ?? r.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="rounded-2xl border border-neutral-200 bg-white p-4">
