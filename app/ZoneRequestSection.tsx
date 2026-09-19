@@ -1,10 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, X, Plus } from "lucide-react";
+import { MapPin, X, Share2 } from "lucide-react";
 import { submitZoneRequest } from "./zoneRequestActions";
 import KakaoShareButton from "@/components/KakaoShareButton";
 import Spinner from "@/components/Spinner";
+
+declare global {
+  interface Window {
+    Kakao?: {
+      isInitialized: () => boolean;
+      init: (key: string) => void;
+      Share: {
+        sendDefault: (options: {
+          objectType: string;
+          content: {
+            title: string;
+            description?: string;
+            imageUrl: string;
+            link: { mobileWebUrl: string; webUrl: string };
+          };
+          buttons?: { title: string; link: { mobileWebUrl: string; webUrl: string } }[];
+        }) => void;
+      };
+    };
+  }
+}
+
+// 우측 하단 플로팅 버튼 전용 공유 함수 - "단지 추가 요청" 폼이 아니라 바로 카카오톡 공유가 되게 함
+// (요청 폼을 열게 하면 카톡 버튼처럼 보이는데 실제로는 폼이 떠서 오류로 오해받았던 문제 수정)
+function shareFloating() {
+  const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+  if (!window.Kakao || !jsKey) {
+    alert("카카오 공유를 사용할 수 없어요. 잠시 후 다시 시도해주세요");
+    return;
+  }
+  if (!window.Kakao.isInitialized()) {
+    window.Kakao.init(jsKey);
+  }
+  const url = `${window.location.origin}/`;
+  window.Kakao.Share.sendDefault({
+    objectType: "feed",
+    content: {
+      title: "우리 동네에도 에그팜이 왔으면 좋겠어요",
+      description: "같이 단지 추가 요청 넣어주세요!",
+      imageUrl: `${window.location.origin}/logo-mark.png`,
+      link: { mobileWebUrl: url, webUrl: url },
+    },
+    buttons: [{ title: "에그팜에서 보기", link: { mobileWebUrl: url, webUrl: url } }],
+  });
+}
 
 declare global {
   interface Window {
@@ -168,12 +213,12 @@ export default function ZoneRequestSection({ totalCount }: { totalCount: number 
 
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-label="우리 단지 추가 요청하기"
-        className="fixed bottom-44 right-5 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-white shadow-lg"
+        onClick={shareFloating}
+        aria-label="카카오톡으로 공유하기"
+        className="fixed bottom-44 right-5 z-40 flex h-12 items-center gap-1.5 rounded-full bg-[#FEE500] px-4 text-sm font-medium text-[#191600] shadow-lg"
       >
-        <Plus size={16} />
-        단지 요청
+        <Share2 size={16} />
+        카톡 공유
       </button>
 
       {open && <RequestModal onClose={() => setOpen(false)} />}
