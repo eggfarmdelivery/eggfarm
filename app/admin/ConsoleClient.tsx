@@ -9,6 +9,7 @@ import {
   startB2CDelivery,
   bulkStartB2CDelivery,
   markB2CDelivered,
+  confirmB2BOrder,
   startB2BDelivery,
   markB2BDelivered,
   confirmB2BPayment,
@@ -633,6 +634,24 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
             </button>
             <button
               disabled={busy}
+              onClick={() => run(() => confirmB2BOrder(order.id))}
+              className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
+            >
+              주문확정
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => setCancelReasonModal("cancel")}
+              className="text-xs rounded-md border border-red-300 text-red-500 px-3 py-1.5"
+            >
+              발주취소
+            </button>
+          </>
+        )}
+        {order.status === "주문확정" && (
+          <>
+            <button
+              disabled={busy}
               onClick={() => run(() => startB2BDelivery(order.id))}
               className="text-xs rounded-md bg-primary text-white px-3 py-1.5"
             >
@@ -672,7 +691,7 @@ function B2BOrderCard({ order }: { order: B2BOrder }) {
             </button>
           </>
         )}
-        {["배송중", "입금대기", "입금확인완료"].includes(order.status) && (
+        {["주문확정", "배송중", "입금대기", "입금확인완료"].includes(order.status) && (
           <button
             disabled={busy}
             onClick={() => {
@@ -742,7 +761,7 @@ const B2C_STATUS_TABS = [
   "환불완료",
   "취소",
 ];
-const B2B_PROGRESS = ["승인대기", "발주요청", "배송중", "입금대기"];
+const B2B_PROGRESS = ["승인대기", "발주요청", "주문확정", "배송중", "입금대기"];
 const B2B_DONE = ["입금확인완료", "배송완료", "취소"];
 
 // 완료/취소 탭 (날짜 필터, 기본 오늘)

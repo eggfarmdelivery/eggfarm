@@ -29,7 +29,7 @@ export default async function B2BDeliveryPage({
       "id, status, total_amount, desired_delivery_date, account_id, account(business_name, phone, address, entrance_password, latitude, longitude), b2b_order_item(quantity, product(name))"
     )
     .eq("desired_delivery_date", targetDate)
-    .in("status", ["발주요청", "배송중", "입금대기", "입금확인완료"]);
+    .in("status", ["발주요청", "주문확정", "배송중", "입금대기", "입금확인완료"]);
 
   const orders = (rawOrders ?? []).map((o: any) => ({
     ...o,

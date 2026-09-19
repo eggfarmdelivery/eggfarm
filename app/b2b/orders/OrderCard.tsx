@@ -229,6 +229,11 @@ export default function OrderCard({
           마감 이후 접수돼 사장님 승인을 기다리고 있어요. 배송일은 다음 영업일로 자동 배정됐어요.
         </p>
       )}
+      {o.status === "주문확정" && (
+        <p className="mb-1 text-xs text-indigo-600">
+          사장님이 발주를 확인했어요. 곧 배송이 시작돼요.
+        </p>
+      )}
       {o.status === "취소" && o.cancel_reason && (
         <p className="mb-1 rounded-md bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-500">
           취소 사유: {o.cancel_reason}
