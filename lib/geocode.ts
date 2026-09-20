@@ -8,7 +8,10 @@ export type GeocodeResult =
 // 관리자 화면에서 "왜 안 되는지" 알 수 있게 함(그냥 null만 던지면 원인 파악이 안 됨)
 export async function geocodeAddressDetailed(address: string): Promise<GeocodeResult> {
   if (!address?.trim()) return { ok: false, reason: "not_found" };
-  const key = process.env.KAKAO_REST_API_KEY;
+  // 에그팜 전용 카카오 앱은 "카카오맵"(지도+로컬 API) 서비스를 껐기 때문에(켜면 지도 SDK 때와 동일하게
+  // 지갑연결/과금이 요구됨) 이미 무료로 카카오맵이 켜져있는 "오더모아" 앱의 REST API 키를 대신 씀.
+  // REST 키는 JS 키와 달리 도메인 제한이 없어서 별도 플랫폼 등록 없이 바로 사용 가능.
+  const key = process.env.KAKAO_LOCAL_REST_API_KEY || process.env.KAKAO_REST_API_KEY;
   if (!key) return { ok: false, reason: "no_key" };
 
   try {
