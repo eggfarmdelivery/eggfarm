@@ -62,6 +62,7 @@ export async function submitZoneRequest(rawAddress: string): Promise<Result> {
       lat: geo.ok ? geo.lat : null,
       lng: geo.ok ? geo.lng : null,
       geo_reason: geo.ok ? null : geo.reason,
+      geo_detail: geo.ok ? null : geo.detail ?? null,
       ip_hash: ipHash,
     });
     if (error) throw new Error(error.message);

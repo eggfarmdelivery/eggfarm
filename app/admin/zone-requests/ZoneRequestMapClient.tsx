@@ -11,7 +11,7 @@ declare global {
 
 type Marker = { lat: number; lng: number; address: string; count: number };
 type RankRow = { rank: number; address: string; count: number };
-type NoCoordRow = { address: string; reason: string };
+type NoCoordRow = { address: string; reason: string; detail: string | null };
 
 // 관리자가 바로 알아볼 수 있게 실패 사유를 한글로 변환
 const REASON_LABEL: Record<string, string> = {
@@ -147,6 +147,7 @@ export default function ZoneRequestMapClient({
             {noCoord.map((r, i) => (
               <li key={i} className="leading-relaxed">
                 · {r.address} — {REASON_LABEL[r.reason] ?? r.reason}
+                {r.detail && <span className="block text-[10px] text-neutral-400">↳ {r.detail}</span>}
               </li>
             ))}
           </ul>
