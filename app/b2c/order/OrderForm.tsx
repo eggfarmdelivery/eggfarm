@@ -137,7 +137,7 @@ export default function OrderForm({
                 soldOut ? "opacity-60" : ""
               }`}
             >
-              <div className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+              <div className="relative h-[72px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
                 {p.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />

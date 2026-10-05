@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ClipboardList, Archive, Truck, Building2, Package, ChevronRight, Store, Users, MapPin, Settings2, History } from "lucide-react";
+import { ClipboardList, Archive, Truck, Building2, ChevronRight, Store, Users, MapPin, Settings2, History } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
 
 const b2cItems = [
   { href: "/admin/orders", label: "주문관리", icon: ClipboardList },
-  { href: "/admin/stock", label: "재고 관리", icon: Archive },
+  { href: "/admin/stock", label: "상품·재고 관리", icon: Archive },
   { href: "/admin/schedule", label: "배송 설정", icon: Settings2 },
   { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
   { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
@@ -20,7 +20,6 @@ const b2bItems = [
 ];
 
 const commonItems = [
-  { href: "/admin/products", label: "상품관리", icon: Package },
   { href: "/admin/members", label: "회원 조회", icon: Users },
   { href: "/admin/zone-requests", label: "단지 추가 요청", icon: MapPin },
 ];

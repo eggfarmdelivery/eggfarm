@@ -97,7 +97,7 @@ export default async function B2CHome() {
                 href="/b2c/order"
                 className="relative block overflow-hidden rounded-xl border border-neutral-200 bg-white"
               >
-                <div className="relative h-[118px] w-full bg-neutral-100">
+                <div className="relative aspect-[4/3] w-full bg-neutral-100">
                   {p.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />

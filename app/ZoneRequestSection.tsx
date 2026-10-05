@@ -5,6 +5,7 @@ import { MapPin, X, Share2 } from "lucide-react";
 import { submitZoneRequest } from "./zoneRequestActions";
 import KakaoShareButton from "@/components/KakaoShareButton";
 import Spinner from "@/components/Spinner";
+import PublicRequestMap, { type PublicMarker } from "./PublicRequestMap";
 
 declare global {
   interface Window {
@@ -190,13 +191,20 @@ function RequestModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function ZoneRequestSection({ totalCount }: { totalCount: number }) {
+export default function ZoneRequestSection({
+  totalCount,
+  markers = [],
+}: {
+  totalCount: number;
+  markers?: PublicMarker[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <div className="w-full rounded-2xl border border-neutral-200 bg-white p-3.5">
         <p className="mb-2 text-xs text-neutral-500">우리 동네 요청 현황</p>
+        <PublicRequestMap markers={markers} />
         <p className="mb-3 text-xs leading-relaxed text-neutral-600">
           지금까지 총 <b className="text-primary">{totalCount}건</b>의 단지 추가 요청이 들어왔어요. 요청이 많은
           지역은 오픈을 우선 검토하고 있어요.

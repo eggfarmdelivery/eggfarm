@@ -2,10 +2,251 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addStock, setStock } from "./actions";
+import { addStock, setStock, saveStockLimits } from "./actions";
+import { createProduct, updateProduct } from "../products/actions";
+import Spinner from "@/components/Spinner";
+import { Plus, Check } from "lucide-react";
 
-type P = { id: string; name: string; photo_url: string | null; stock: number };
+type P = {
+  id: string;
+  name: string;
+  base_price: number;
+  photo_url: string | null;
+  stock: number;
+  is_active: boolean;
+};
 type Log = { id: string; name: string; delta: number; qtyAfter: number; reason: string; createdAt: string };
+
+
+function formatNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString();
+}
+
+function PriceInput({ name, defaultValue }: { name: string; defaultValue?: number }) {
+  const [display, setDisplay] = useState(defaultValue !== undefined ? defaultValue.toLocaleString() : "");
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={(e) => setDisplay(formatNumber(e.target.value))}
+        placeholder="0"
+        className="w-full rounded-md border border-neutral-200 px-3 py-2 pr-8 text-sm"
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">원</span>
+      <input type="hidden" name={name} value={display.replace(/,/g, "")} />
+    </div>
+  );
+}
+
+function LimitsCard({ threshold, perPersonLimit }: { threshold: number; perPersonLimit: number }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    setError(null);
+    try {
+      const r = await saveStockLimits(formData);
+      if (!r.success) {
+        setError(r.error);
+        return;
+      }
+      setSaved(true);
+      router.refresh();
+      setTimeout(() => setSaved(false), 1500);
+    } catch {
+      setError("저장 중 오류가 발생했어요");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form action={handleSubmit} className="mt-3 rounded-xl border border-neutral-200 bg-white p-3.5">
+      <p className="mb-2 text-xs font-bold text-neutral-700">주문·알림 기준</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">인당 한도 (같은 배송일 합산, 판)</label>
+          <input
+            name="limit"
+            defaultValue={perPersonLimit}
+            inputMode="numeric"
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">재고 알림 기준 (판 이하)</label>
+          <input
+            name="threshold"
+            defaultValue={threshold}
+            inputMode="numeric"
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+      <p className="mt-1.5 text-[10px] text-neutral-400">인당 한도 0 = 제한 없음</p>
+      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
+      <button
+        type="submit"
+        disabled={pending}
+        className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-60 ${
+          saved ? "bg-green-600" : "bg-primary"
+        }`}
+      >
+        {pending && <Spinner />}
+        {pending ? "저장 중..." : saved ? "저장됨" : "저장"}
+      </button>
+    </form>
+  );
+}
+
+function CreateProductForm() {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [justDone, setJustDone] = useState(false);
+  const router = useRouter();
+
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    setError(null);
+    try {
+      const result = await createProduct(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setJustDone(true);
+      router.refresh();
+      setTimeout(() => {
+        setJustDone(false);
+        setOpen(false);
+      }, 1200);
+    } catch {
+      setError("등록 중 알 수 없는 오류가 발생했어요");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary py-3 text-sm font-medium text-primary"
+      >
+        <Plus size={16} /> 신규 상품 등록
+      </button>
+    );
+  }
+
+  return (
+    <form action={handleSubmit} className="relative mt-3 space-y-3 rounded-xl border border-neutral-200 bg-white p-4">
+      {justDone && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/90">
+          <p className="flex items-center gap-1.5 rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+            <Check size={15} /> 등록 완료됐어요
+          </p>
+        </div>
+      )}
+      <p className="mb-1 text-sm font-medium">신규 상품 등록</p>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">사진 (선택)</label>
+        <input type="file" name="photo" accept="image/*" className="text-sm" />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">상품명</label>
+        <input name="name" required className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">가격(원/판)</label>
+        <PriceInput name="base_price" />
+      </div>
+      <p className="text-[11px] text-neutral-400">등록 후 아래 카드에서 입고하면 주문을 받을 수 있어요</p>
+      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          disabled={pending}
+          className="flex-1 rounded-lg border border-neutral-300 py-2.5 text-sm"
+        >
+          취소
+        </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {pending && <Spinner />}
+          {pending ? "등록 중..." : "등록"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function InfoForm({ p }: { p: P }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(formData: FormData) {
+    formData.set("product_id", p.id);
+    setPending(true);
+    setError(null);
+    try {
+      const r = await updateProduct(formData);
+      if (!r.success) {
+        setError(r.error);
+        return;
+      }
+      setSaved(true);
+      router.refresh();
+      setTimeout(() => setSaved(false), 1500);
+    } catch {
+      setError("저장 중 알 수 없는 오류가 발생했어요");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <details className="mt-3 border-t border-neutral-100 pt-2.5">
+      <summary className="cursor-pointer text-xs font-medium text-neutral-500">상품 정보 수정 (이름·가격·사진·판매)</summary>
+      <form action={handleSubmit} className="mt-2.5 space-y-2.5">
+        <input name="name" defaultValue={p.name} className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium" />
+        <PriceInput name="base_price" defaultValue={p.base_price} />
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">사진 교체(선택)</label>
+          <input type="file" name="photo" accept="image/*" className="text-sm" />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="is_active" defaultChecked={p.is_active} />
+          판매중 (끄면 주문화면에서 안 보임)
+        </label>
+        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
+        <button
+          type="submit"
+          disabled={pending}
+          className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-60 ${
+            saved ? "bg-green-600" : "bg-primary"
+          }`}
+        >
+          {pending && <Spinner />}
+          {pending ? "저장 중..." : saved ? "저장됨" : "저장"}
+        </button>
+      </form>
+    </details>
+  );
+}
 
 function Card({ p, threshold }: { p: P; threshold: number }) {
   const router = useRouter();
@@ -37,23 +278,26 @@ function Card({ p, threshold }: { p: P; threshold: number }) {
   return (
     <div className="mt-2.5 rounded-xl border border-neutral-200 bg-white p-3.5">
       <div className="flex items-center gap-2.5">
-        <div className="h-[46px] w-[46px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+        <div className="h-[42px] w-[56px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
           {p.photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
           ) : null}
         </div>
-        <span className="flex-1 text-sm font-bold">{p.name}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold">{p.name}</p>
+          <p className="text-[11px] text-neutral-400">{p.base_price.toLocaleString()}원</p>
+        </div>
         <span
           className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-            out
+            !p.is_active || out
               ? "bg-neutral-200 text-neutral-600"
               : low
                 ? "bg-red-50 text-red-500"
                 : "bg-primary-bg text-primary-dark"
           }`}
         >
-          {out ? "품절" : low ? "부족" : "충분"}
+          {!p.is_active ? "판매중지" : out ? "품절" : low ? "부족" : "충분"}
         </span>
       </div>
 
@@ -148,6 +392,8 @@ function Card({ p, threshold }: { p: P; threshold: number }) {
           </button>
         )}
       </div>
+
+      <InfoForm p={p} />
     </div>
   );
 }
@@ -155,20 +401,23 @@ function Card({ p, threshold }: { p: P; threshold: number }) {
 export default function StockClient({
   products,
   threshold,
+  perPersonLimit,
   logs,
 }: {
   products: P[];
   threshold: number;
+  perPersonLimit: number;
   logs: Log[];
 }) {
-  const low = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
-  const out = products.filter((p) => p.stock <= 0).length;
+  const active = products.filter((p) => p.is_active);
+  const low = active.filter((p) => p.stock > 0 && p.stock <= threshold).length;
+  const out = active.filter((p) => p.stock <= 0).length;
 
   return (
     <div className="px-5">
       <div className="mt-3 grid grid-cols-3 divide-x divide-neutral-100 rounded-xl border border-neutral-200 bg-white text-center text-[11px] text-neutral-400">
         <div className="py-3">
-          전체<b className="block text-xl text-neutral-900">{products.length}</b>
+          전체<b className="block text-xl text-neutral-900">{active.length}</b>
         </div>
         <div className="py-3">
           부족<b className={`block text-xl ${low ? "text-red-500" : "text-neutral-900"}`}>{low}</b>
@@ -178,8 +427,12 @@ export default function StockClient({
         </div>
       </div>
 
+      <LimitsCard key={`${threshold}-${perPersonLimit}`} threshold={threshold} perPersonLimit={perPersonLimit} />
+
+      <CreateProductForm />
+
       {products.map((p) => (
-        <Card key={`${p.id}-${p.stock}`} p={p} threshold={threshold} />
+        <Card key={`${p.id}-${p.stock}-${p.name}-${p.base_price}-${p.is_active}`} p={p} threshold={threshold} />
       ))}
 
       <h2 className="mb-2 mt-6 text-sm font-bold">최근 재고 기록</h2>

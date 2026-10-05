@@ -83,3 +83,22 @@ export async function getZoneRequestTotalCount(): Promise<number> {
   const { count } = await supabase.from("zone_request").select("id", { count: "exact", head: true });
   return count ?? 0;
 }
+
+// 로그인전 화면 지도용 - 같은 단지(좌표 약 110m 단위)끼리 묶어 건수만 공개(개인정보 없음)
+export async function getPublicRequestMarkers(): Promise<
+  { lat: number; lng: number; address: string; count: number }[]
+> {
+  const { data } = await supabase
+    .from("zone_request")
+    .select("road_address, lat, lng")
+    .not("lat", "is", null)
+    .not("lng", "is", null);
+  const groups = new Map<string, { lat: number; lng: number; address: string; count: number }>();
+  for (const r of data ?? []) {
+    const key = `${r.lat.toFixed(3)},${r.lng.toFixed(3)}`;
+    const g = groups.get(key);
+    if (g) g.count += 1;
+    else groups.set(key, { lat: r.lat, lng: r.lng, address: r.road_address, count: 1 });
+  }
+  return Array.from(groups.values());
+}

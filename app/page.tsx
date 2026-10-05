@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import HomeLoginButton from "@/components/HomeLoginButton";
 import ZoneRequestSection from "./ZoneRequestSection";
-import { getZoneRequestTotalCount } from "./zoneRequestActions";
+import { getZoneRequestTotalCount, getPublicRequestMarkers } from "./zoneRequestActions";
 import { supabase } from "@/lib/supabase";
 
 export default async function Home({
@@ -12,13 +12,14 @@ export default async function Home({
 }) {
   const { error, detail } = await searchParams;
 
-  const [{ data: zones }, totalCount] = await Promise.all([
+  const [{ data: zones }, totalCount, markers] = await Promise.all([
     supabase
       .from("delivery_zone")
       .select("name")
       .eq("is_active", true)
       .order("name", { ascending: true }),
     getZoneRequestTotalCount(),
+    getPublicRequestMarkers(),
   ]);
   const zoneNames = (zones ?? []).map((z) => z.name);
 
@@ -44,7 +45,7 @@ export default async function Home({
         </div>
       )}
 
-      <ZoneRequestSection totalCount={totalCount} />
+      <ZoneRequestSection totalCount={totalCount} markers={markers} />
 
       <div className="flex-1" />
 

@@ -12,8 +12,7 @@ export default async function StockPage() {
 
   const { data: products } = await supabase
     .from("product")
-    .select("id, name, photo_url, stock_qty")
-    .eq("is_active", true)
+    .select("id, name, base_price, photo_url, stock_qty, is_active")
     .order("created_at", { ascending: true });
 
   const { data: logs } = await supabase
@@ -29,16 +28,19 @@ export default async function StockPage() {
         <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
           ←
         </Link>
-        <h1 className="text-base font-bold">재고 관리</h1>
+        <h1 className="text-base font-bold">상품·재고 관리</h1>
       </header>
       <StockClient
         products={(products ?? []).map((p) => ({
           id: p.id,
           name: p.name,
+          base_price: p.base_price,
           photo_url: p.photo_url,
           stock: p.stock_qty ?? 0,
+          is_active: p.is_active !== false,
         }))}
         threshold={schedule.lowThreshold}
+        perPersonLimit={schedule.perPersonLimit}
         logs={(logs ?? []).map((l) => ({
           id: l.id,
           name: nameMap.get(l.product_id) ?? "상품",

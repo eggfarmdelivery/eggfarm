@@ -44,3 +44,32 @@ export async function setStock(productId: string, newQty: number): Promise<Resul
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };
   }
 }
+
+// 인당 한도 / 재고 알림 기준 저장
+export async function saveStockLimits(formData: FormData): Promise<Result> {
+  try {
+    await requireOwner();
+    const read = (name: string, label: string) => {
+      const raw = String(formData.get(name) ?? "").trim();
+      const n = Number(raw);
+      if (raw === "" || !Number.isInteger(n) || n < 0) throw new Error(`${label}은(는) 0 이상의 숫자로 입력해주세요`);
+      return n;
+    };
+    const limit = read("limit", "인당 한도");
+    const threshold = read("threshold", "재고 알림 기준");
+    for (const [key, value] of [
+      ["per_person_limit", String(limit)],
+      ["low_stock_alert_threshold", String(threshold)],
+    ]) {
+      const { error } = await supabase.from("system_config").upsert({ key, value });
+      if (error) throw new Error(error.message);
+    }
+    revalidatePath("/admin/stock");
+    revalidatePath("/admin/schedule");
+    revalidatePath("/b2c");
+    revalidatePath("/b2c/order");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "저장 중 오류가 발생했어요" };
+  }
+}
