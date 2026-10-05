@@ -37,7 +37,7 @@ export default async function CampaignPage() {
         <Link href="/admin/operations" aria-label="뒤로가기" className="text-lg">
           ←
         </Link>
-        <h1 className="text-base font-medium">캠페인 관리</h1>
+        <h1 className="text-base font-medium">이전 캠페인 기록</h1>
       </header>
       <CampaignClient
         campaigns={campaignsWithInfo}

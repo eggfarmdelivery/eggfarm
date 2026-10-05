@@ -24,7 +24,7 @@ const STATUS_TO_STEP_INDEX: Record<string, number> = {
 
 function StepIcon({ icon, tone }: { icon: Step["icon"]; tone: "done" | "current" | "todo" }) {
   const color =
-    tone === "done" ? "#fff" : tone === "current" ? "#E8940C" : "#B5B5B5";
+    tone === "done" ? "#fff" : tone === "current" ? "#0f6b4a" : "#B5B5B5";
   const common = { width: 14, height: 14, fill: "none", stroke: color, strokeWidth: 2 };
 
   if (icon === "cash") {

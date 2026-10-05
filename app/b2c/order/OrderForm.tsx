@@ -13,13 +13,10 @@ type Product = {
   name: string;
   base_price: number;
   photo_url: string | null;
-  soldOut: boolean;
-  perPersonLimit: number | null;
-  remainingStock: number | null;
+  stock: number;
 };
 
 export default function OrderForm({
-  campaignId,
   products,
   address,
   bankInfo,
@@ -27,8 +24,13 @@ export default function OrderForm({
   depositorPhoneSuffix,
   deliveryFee,
   freeShippingMinQty,
+  perPersonLimit,
+  alreadyQty,
+  deliveryDateLabel,
+  cutoffLabel,
+  startLabel,
+  nextDateLabel,
 }: {
-  campaignId: string;
   products: Product[];
   address: string | null;
   bankInfo: Record<string, string>;
@@ -36,6 +38,12 @@ export default function OrderForm({
   depositorPhoneSuffix: string | null;
   deliveryFee: number;
   freeShippingMinQty: number;
+  perPersonLimit: number;
+  alreadyQty: number;
+  deliveryDateLabel: string;
+  cutoffLabel: string;
+  startLabel: string;
+  nextDateLabel: string;
 }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +59,8 @@ export default function OrderForm({
     (sum, p) => sum + (qty[p.id] ?? 0) * p.base_price,
     0
   );
-  const appliedDeliveryFee = totalQty >= freeShippingMinQty ? 0 : deliveryFee;
+  const appliedDeliveryFee = freeShippingMinQty > 0 && totalQty >= freeShippingMinQty ? 0 : deliveryFee;
+  const limitLeft = perPersonLimit > 0 ? Math.max(0, perPersonLimit - alreadyQty) : Infinity;
   const total = productTotal + appliedDeliveryFee;
 
   async function handleSubmit(formData: FormData) {
@@ -68,7 +77,6 @@ export default function OrderForm({
     });
     const startedAt = Date.now();
     try {
-      formData.set("campaign_id", campaignId);
       formData.set("delivery_fee_charged", String(appliedDeliveryFee));
       const result = await createGeneralOrder(formData);
 
@@ -102,96 +110,93 @@ export default function OrderForm({
         e.preventDefault();
         handleSubmit(new FormData(e.currentTarget));
       }}
-      className="px-5"
     >
-      <p className="text-xs text-neutral-500 mb-1">배송 주소</p>
-      <div className="mb-4 rounded-md border border-neutral-200 px-3 py-2 text-sm text-neutral-600">
-        {address ?? "등록된 주소가 없어요 (마이페이지에서 입력해주세요)"}
+      <div className="bg-primary-bg px-5 py-3 text-xs text-primary-dark">
+        배송 예정 <b>{deliveryDateLabel} {startLabel} 이후</b> · 주문마감 {cutoffLabel}
       </div>
 
-      <p className="text-xs text-neutral-500 mb-1">상품 선택</p>
-      <div className="border-t border-neutral-200 mb-4">
-        {products.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center justify-between border-b border-neutral-200 py-3 gap-3"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {p.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.photo_url}
-                  alt={p.name}
-                  className="h-12 w-12 shrink-0 rounded-md object-cover bg-neutral-100"
-                />
-              ) : (
-                <div className="h-12 w-12 shrink-0 rounded-md bg-neutral-100" />
-              )}
-              <div className="min-w-0">
-                <p className="text-sm truncate">
-                  {p.name}
-                  {p.soldOut && (
-                    <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500">
-                      품절
-                    </span>
+      <div className="px-5 pb-4">
+        <div className="mt-3 rounded-xl border border-neutral-200 bg-white px-4 py-3">
+          <p className="text-[11px] text-neutral-400">배송지</p>
+          <p className="text-sm">{address ?? "등록된 주소가 없어요 (마이페이지에서 입력해주세요)"}</p>
+        </div>
+
+        {products.map((p) => {
+          const soldOut = p.stock <= 0;
+          const othersQty = totalQty - (qty[p.id] ?? 0);
+          const maxByLimit = limitLeft === Infinity ? Infinity : Math.max(0, limitLeft - othersQty);
+          const effectiveMax = Math.min(p.stock, maxByLimit);
+          const limitMessage =
+            effectiveMax === p.stock
+              ? `재고가 ${p.stock}판 남았어요`
+              : `${deliveryDateLabel} 배송분은 ${perPersonLimit}판까지 주문할 수 있어요`;
+          return (
+            <div
+              key={p.id}
+              className={`mt-2.5 flex gap-3 rounded-xl border border-neutral-200 bg-white p-3 ${
+                soldOut ? "opacity-60" : ""
+              }`}
+            >
+              <div className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+                {p.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                ) : null}
+                {soldOut && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-bold text-white">
+                    품절
+                  </div>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="truncate text-sm font-medium">{p.name}</p>
+                <p className="text-sm font-bold">{p.base_price.toLocaleString()}원</p>
+                <div className="mt-auto flex items-end justify-between">
+                  <span className={`text-[11px] ${!soldOut && p.stock <= 5 ? "text-red-500" : "text-neutral-400"}`}>
+                    {soldOut ? "품절" : p.stock <= 5 ? `${p.stock}판 남음` : "재고 있음"}
+                  </span>
+                  {!soldOut && (
+                    <QuantityStepper
+                      name={`qty_${p.id}`}
+                      value={qty[p.id] ?? 0}
+                      onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
+                      max={effectiveMax === Infinity ? undefined : effectiveMax}
+                      limitMessage={limitMessage}
+                    />
                   )}
-                </p>
-                <p className="text-xs text-neutral-400">
-                  {p.base_price.toLocaleString()}원/판
-                  {!p.soldOut && p.remainingStock !== null && (
-                    <span className="ml-1.5 text-neutral-400">
-                      · 잔여 {p.remainingStock.toLocaleString()}판
-                    </span>
-                  )}
-                </p>
+                </div>
               </div>
             </div>
-            {p.soldOut ? (
-              <span className="shrink-0 text-xs text-neutral-400">주문 불가</span>
-            ) : (
-              (() => {
-                const caps = [p.perPersonLimit, p.remainingStock].filter(
-                  (v): v is number => v !== null
-                );
-                const effectiveMax = caps.length ? Math.min(...caps) : undefined;
-                const limitMessage =
-                  effectiveMax !== undefined &&
-                  p.remainingStock !== null &&
-                  effectiveMax === p.remainingStock
-                    ? `재고가 ${p.remainingStock}판 남았어요`
-                    : p.perPersonLimit
-                      ? `1인당 최대 ${p.perPersonLimit}판까지예요`
-                      : undefined;
-                return (
-                  <QuantityStepper
-                    name={`qty_${p.id}`}
-                    value={qty[p.id] ?? 0}
-                    onChange={(v) => setQty((prev) => ({ ...prev, [p.id]: v }))}
-                    max={effectiveMax}
-                    limitMessage={limitMessage}
-                  />
-                );
-              })()
-            )}
+          );
+        })}
+
+        <div className="mt-3 rounded-xl border border-neutral-200 bg-white">
+          <div className="flex items-baseline justify-between px-4 py-2.5 text-sm text-neutral-500">
+            <span>상품 금액</span>
+            <span>{productTotal.toLocaleString()}원</span>
           </div>
-        ))}
+          <div className="flex items-baseline justify-between border-t border-neutral-100 px-4 py-2.5 text-sm text-neutral-500">
+            <span>배송비{appliedDeliveryFee === 0 && totalQty > 0 ? ` (${freeShippingMinQty}판 이상 무료)` : ""}</span>
+            <span className={appliedDeliveryFee === 0 && totalQty > 0 ? "text-primary" : ""}>
+              {appliedDeliveryFee === 0 ? "무료" : `${appliedDeliveryFee.toLocaleString()}원`}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between border-t border-neutral-100 px-4 py-3">
+            <span className="text-sm font-bold">입금할 금액</span>
+            <span className="text-xl font-bold text-primary">{total.toLocaleString()}원</span>
+          </div>
+        </div>
+
+        <p className="mt-3 px-1 text-[11px] leading-relaxed text-neutral-400">
+          {perPersonLimit > 0 &&
+            `${deliveryDateLabel} 배송분은 1인 최대 ${perPersonLimit}판까지 주문할 수 있어요${
+              alreadyQty > 0 ? ` (이미 ${alreadyQty}판 주문하셨어요)` : ""
+            }. `}
+          {cutoffLabel} 이후 주문은 {nextDateLabel}에 배송돼요.
+        </p>
       </div>
 
-      <div className="mb-4 space-y-1 rounded-lg bg-neutral-50 p-3">
-        <div className="flex items-baseline justify-between text-sm text-neutral-500">
-          <span>상품 금액</span>
-          <span>{productTotal.toLocaleString()}원</span>
-        </div>
-        <div className="flex items-baseline justify-between text-sm text-neutral-500">
-          <span>배송비{appliedDeliveryFee === 0 && totalQty > 0 ? ` (${freeShippingMinQty}판 이상 무료)` : ""}</span>
-          <span>{appliedDeliveryFee === 0 ? "무료" : `${appliedDeliveryFee.toLocaleString()}원`}</span>
-        </div>
-        <div className="flex items-baseline justify-between border-t border-neutral-200 pt-1.5">
-          <span className="text-sm font-medium text-neutral-700">입금할 금액</span>
-          <span className="text-xl font-semibold text-red-500">{total.toLocaleString()}원</span>
-        </div>
-      </div>
-
+      <div className="px-5">
       {error && (
         <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
           {error}
@@ -223,6 +228,8 @@ export default function OrderForm({
           </div>
         </div>
       )}
+
+      </div>
 
       {paidTotal !== null && (
         <PaymentInfoModal

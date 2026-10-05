@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getOpenCampaigns, getCampaignSold } from "@/lib/campaign";
+import { getSchedule } from "@/lib/schedule";
 import { isAdminKakaoConnected } from "@/lib/kakao";
 import AdminDashboardCards, { type DashboardCard } from "./AdminDashboardCards";
 
@@ -42,7 +42,7 @@ export default async function AdminHome() {
     statusDoneRes,
     deliveredThisMonthRes,
     deliveredLastMonthRes,
-    openCampaigns,
+    stockProductsRes,
     refundOrdersRes,
     weekOrderZonesRes,
     zonesRes,
@@ -95,7 +95,7 @@ export default async function AdminHome() {
       .eq("status", "배송완료")
       .gte("created_at", lastMonthStart.toISOString())
       .lt("created_at", monthStart.toISOString()),
-    getOpenCampaigns(),
+    admin.from("product").select("name, stock_qty").eq("is_active", true).order("created_at", { ascending: true }),
     admin
       .from("b2c_order")
       .select("id, total_amount, created_at, account(nickname)")
@@ -142,36 +142,17 @@ export default async function AdminHome() {
       ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
       : null;
 
-  // ---------- 진행중 판매기간(캠페인) - 상품별 판매량 조회도 병렬로 ----------
-  const campaignDetail: { label: string; value: string }[] = [];
-  let totalStock = 0;
-  let totalSold = 0;
-  for (const { campaign, productLimits } of openCampaigns) {
-    const soldByProduct = await Promise.all(
-      productLimits.map((limit) => getCampaignSold(campaign.id, limit.product_id))
-    );
-    let campaignStock = 0;
-    let campaignSold = 0;
-    productLimits.forEach((limit, i) => {
-      campaignStock += limit.stock_limit;
-      campaignSold += soldByProduct[i];
-    });
-    totalStock += campaignStock;
-    totalSold += campaignSold;
-    const pct = campaignStock > 0 ? Math.round((campaignSold / campaignStock) * 100) : 0;
-    campaignDetail.push({
-      label: campaign.title ?? "제목없음",
-      value: `재고 ${pct}% 소진 · 마감 ${new Date(campaign.closes_at).toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul",
-        month: "numeric",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })}`,
-    });
-  }
-  const overallStockPct = totalStock > 0 ? Math.round((totalSold / totalStock) * 100) : 0;
+  // ---------- 재고 현황 (상시운영: 상품별 현재 재고) ----------
+  const schedule = await getSchedule();
+  const stockProducts = (stockProductsRes.data ?? []) as { name: string; stock_qty: number | null }[];
+  const outCount = stockProducts.filter((p) => (p.stock_qty ?? 0) <= 0).length;
+  const lowCount = stockProducts.filter(
+    (p) => (p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= schedule.lowThreshold
+  ).length;
+  const campaignDetail: { label: string; value: string }[] = stockProducts.map((p) => ({
+    label: p.name,
+    value: (p.stock_qty ?? 0) <= 0 ? "품절" : `${p.stock_qty}판`,
+  }));
 
   // ---------- 환불대기 ----------
   const refundOrders = refundOrdersRes.data;
@@ -251,11 +232,11 @@ export default async function AdminHome() {
     },
     {
       key: "campaign",
-      label: "진행중 캠페인",
+      label: "재고 현황",
       icon: "campaign",
-      value: `${openCampaigns.length}개`,
-      sub: openCampaigns.length > 0 ? `재고 ${overallStockPct}% 소진` : "진행중인 캠페인 없음",
-      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "진행중인 캠페인이 없어요" }],
+      value: `${stockProducts.length}종`,
+      sub: `부족 ${lowCount} · 품절 ${outCount}`,
+      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "등록된 상품이 없어요" }],
     },
     {
       key: "refund",

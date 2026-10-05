@@ -1,14 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ClipboardList, Megaphone, Truck, Building2, Package, ChevronRight, Store, Users, MapPin } from "lucide-react";
+import { ClipboardList, Archive, Truck, Building2, Package, ChevronRight, Store, Users, MapPin, Settings2, History } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
 
 const b2cItems = [
   { href: "/admin/orders", label: "주문관리", icon: ClipboardList },
-  { href: "/admin/campaign", label: "캠페인 관리", icon: Megaphone },
+  { href: "/admin/stock", label: "재고 관리", icon: Archive },
+  { href: "/admin/schedule", label: "배송 설정", icon: Settings2 },
   { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
   { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
+  { href: "/admin/campaign", label: "이전 캠페인 기록", icon: History },
 ];
 
 const b2bItems = [
@@ -27,18 +29,20 @@ function ItemGroup({ title, items }: { title?: string; items: typeof commonItems
   return (
     <div className="mb-4">
       {title && <p className="mb-1.5 px-1 text-xs font-medium text-neutral-400">{title}</p>}
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
+      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
         {items.map((item, idx) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
+              className={`flex items-center gap-3 px-3.5 py-3 text-sm ${
                 idx > 0 ? "border-t border-neutral-200" : ""
               }`}
             >
-              <Icon size={18} className="text-neutral-500" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-bg text-primary">
+                <Icon size={16} />
+              </span>
               <span className="flex-1">{item.label}</span>
               <ChevronRight size={16} className="text-neutral-300" />
             </Link>

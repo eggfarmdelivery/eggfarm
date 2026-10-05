@@ -32,7 +32,7 @@ export default async function B2BHome() {
       <div className="w-full max-w-xs space-y-2">
         <Link
           href="/b2b/order"
-          className="block w-full rounded-lg bg-[#3D2E1A] py-3 text-sm font-medium text-white"
+          className="block w-full rounded-lg bg-primary-dark py-3 text-sm font-medium text-white"
         >
           발주하기
         </Link>

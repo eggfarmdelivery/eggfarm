@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, getAdminActorLabel } from "@/lib/adminAuth";
 import { logStatusChange } from "@/lib/statusLog";
+import { restoreOrderStock } from "@/lib/stock";
 
 type Result = { success: true } | { success: false; error: string };
 
@@ -24,6 +25,10 @@ async function updateB2CStatus(orderId: string, from: string | null, to: string,
   const { error } = await supabase.from("b2c_order").update({ status: to, ...extra }).eq("id", orderId);
   if (error) throw new Error(error.message);
   await logStatusChange("b2c_order", orderId, from, to, await getAdminActorLabel());
+  // 취소/환불로 끝나는 주문은 차감했던 재고를 돌려줌 (이미 돌려줬으면 아무 일도 안 함)
+  if (["취소", "환불대기", "환불완료", "승인거절"].includes(to)) {
+    await restoreOrderStock(orderId);
+  }
 }
 
 async function updateB2BStatus(orderId: string, from: string | null, to: string, extra: Record<string, unknown> = {}) {
@@ -108,6 +113,20 @@ export async function markB2CDelivered(formData: FormData): Promise<Result> {
       delivery_photo_url: photoUrl,
       delivery_completed_at: new Date().toISOString(),
     });
+
+    // 같은 집(같은 배송일)의 다른 주문들은 한 번에 배송되므로 같은 사진으로 함께 배송완료 처리
+    const alsoIds = String(formData.get("also_order_ids") ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    for (const otherId of alsoIds) {
+      const { data: other } = await supabase.from("b2c_order").select("status").eq("id", otherId).single();
+      if (!other || other.status === "배송완료") continue;
+      await updateB2CStatus(otherId, other.status, "배송완료", {
+        delivery_photo_url: photoUrl,
+        delivery_completed_at: new Date().toISOString(),
+      });
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "처리 중 오류가 발생했어요" };

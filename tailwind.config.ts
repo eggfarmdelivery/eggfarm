@@ -5,9 +5,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#E8940C",      // A1 진한 앰버
-        "primary-bg": "#FFEBC2",
-        "primary-dark": "#3D2E1A",
+        primary: "#0f6b4a",      // 상시운영 개편: 브랜드 초록
+        "primary-bg": "#e7f2ed",
+        "primary-dark": "#0a5238",
       },
     },
   },

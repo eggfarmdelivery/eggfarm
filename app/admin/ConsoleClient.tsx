@@ -38,6 +38,7 @@ type B2COrder = {
   refund_holder_name: string | null;
   created_at: string;
   campaign_id: string | null;
+  delivery_date?: string | null;
   campaign: { title: string | null } | null;
   account: {
     name: string | null;
@@ -263,9 +264,11 @@ function B2COrderCard({
         </span>
         <span className="text-xs text-neutral-500">{order.status}</span>
       </div>
-      {order.campaign?.title && (
+      {order.campaign?.title ? (
         <p className="mb-1 text-xs text-primary">{order.campaign.title}</p>
-      )}
+      ) : order.delivery_date ? (
+        <p className="mb-1 text-xs text-primary">배송 {orderDateLabel(order.delivery_date)}</p>
+      ) : null}
       <p className="text-xs text-neutral-500 mb-1">
         {order.order_type}배송 · {order.total_amount.toLocaleString()}원
       </p>
@@ -752,6 +755,18 @@ function CollapsibleSection({
   );
 }
 
+function orderDateLabel(d: string) {
+  if (!d) return "";
+  const [y, m, day] = d.split("-").map(Number);
+  const wd = ["일", "월", "화", "수", "목", "금", "토"][new Date(Date.UTC(y, m - 1, day)).getUTCDay()];
+  return `${m}/${day}(${wd})`;
+}
+
+function orderGroupKey(o: { campaign_id: string | null; delivery_date?: string | null }): string | null {
+  if (o.campaign_id) return o.campaign_id;
+  return o.delivery_date ? `d:${o.delivery_date}` : null;
+}
+
 const B2C_STATUS_TABS = [
   "입금대기",
   "입금확인완료",
@@ -968,24 +983,30 @@ export default function ConsoleClient({
     return () => clearInterval(interval);
   }, [router]);
 
+  // 상시운영 주문은 배송일, 이전 캠페인 주문은 캠페인 단위로 묶어서 필터
   const campaignOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const o of b2cOrders) {
-      if (o.campaign_id) map.set(o.campaign_id, o.campaign?.title ?? "제목없음");
+      const key = orderGroupKey(o);
+      if (!key) continue;
+      map.set(key, o.campaign?.title ?? `배송 ${orderDateLabel(o.delivery_date ?? "")}`);
     }
-    return Array.from(map.entries());
+    const all = Array.from(map.entries());
+    const dated = all.filter(([k]) => k.startsWith("d:")).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    const legacy = all.filter(([k]) => !k.startsWith("d:"));
+    return [...dated, ...legacy];
   }, [b2cOrders]);
 
   const visibleB2cOrders = useMemo(() => {
     if (campaignFilter === "all") return b2cOrders;
-    return b2cOrders.filter((o) => o.campaign_id === campaignFilter);
+    return b2cOrders.filter((o) => orderGroupKey(o) === campaignFilter);
   }, [b2cOrders, campaignFilter]);
 
   // 캠페인별 "아직 배송 안 된" 상품별 수량 합계 - 배송완료 처리될수록 자동으로 줄어듦
   const deliverySummary = useMemo(() => {
     if (campaignFilter === "all") return [];
     const pending = b2cOrders.filter(
-      (o) => o.campaign_id === campaignFilter && ["입금확인완료", "배송중", "배송위임"].includes(o.status)
+      (o) => orderGroupKey(o) === campaignFilter && ["입금확인완료", "배송중", "배송위임"].includes(o.status)
     );
     const map = new Map<string, number>();
     for (const o of pending) {
@@ -1056,7 +1077,7 @@ export default function ConsoleClient({
               onChange={(e) => setCampaignFilter(e.target.value)}
               className="mb-2 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
             >
-              <option value="all">전체 캠페인</option>
+              <option value="all">전체 배송일</option>
               {campaignOptions.map(([id, title]) => (
                 <option key={id} value={id}>
                   {title}

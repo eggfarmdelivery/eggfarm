@@ -19,6 +19,8 @@ const TABS = [
       "/admin/orders",
       "/admin/b2b-orders",
       "/admin/campaign",
+      "/admin/stock",
+      "/admin/schedule",
       "/admin/delivery",
       "/admin/zones",
       "/admin/products",

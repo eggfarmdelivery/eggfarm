@@ -34,6 +34,7 @@ type Order = {
   created_at: string;
   cancel_reason: string | null;
   refund_bank_name: string | null;
+  delivery_date?: string | null;
   campaign: { delivery_date: string | null } | null;
   b2c_order_item: OrderItem[];
   addableProducts?: AddableProduct[];
@@ -647,9 +648,9 @@ export default function OrdersClient({
                       결제일 {new Date(o.payment_confirmed_at).toLocaleDateString("ko-KR")}
                     </p>
                   )}
-                  {o.campaign?.delivery_date && (
+                  {(o.delivery_date ?? o.campaign?.delivery_date) && (
                     <p className="mt-0.5 text-[11px] text-neutral-400">
-                      도착예정 {new Date(o.campaign.delivery_date).toLocaleDateString("ko-KR")}
+                      배송 예정일 {new Date((o.delivery_date ?? o.campaign?.delivery_date) as string).toLocaleDateString("ko-KR")}
                     </p>
                   )}
                 </div>

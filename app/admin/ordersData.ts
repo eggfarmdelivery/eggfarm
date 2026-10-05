@@ -8,7 +8,7 @@ export async function getB2COrdersData() {
   const { data: b2cOrdersRaw } = await admin
     .from("b2c_order")
     .select(
-      "id, order_type, status, is_overflow, total_amount, created_at, campaign_id, campaign(title), account(name, phone, nickname, address, entrance_password, is_test), b2c_order_item(quantity, product(name)), refund_bank_name, refund_account_number, refund_holder_name"
+      "id, order_type, status, is_overflow, total_amount, created_at, campaign_id, delivery_date, campaign(title), account(name, phone, nickname, address, entrance_password, is_test), b2c_order_item(quantity, product(name)), refund_bank_name, refund_account_number, refund_holder_name"
     )
     .order("created_at", { ascending: false });
 

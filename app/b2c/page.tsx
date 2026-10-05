@@ -2,41 +2,42 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { getConfigs } from "@/lib/settings";
-import { getRecentCampaigns, isOpenStatus, statusLabel } from "@/lib/campaign";
 import { supabase } from "@/lib/supabase";
-import { getAccountId } from "@/lib/getAccount";
+import { getSchedule } from "@/lib/schedule";
+import {
+  computeDeliverySlot,
+  computeNextSlot,
+  formatKoDate,
+  formatTimeLeft,
+  WEEKDAY_LABELS,
+} from "@/lib/scheduleShared";
 import BottomNav from "@/components/BottomNav";
 import KakaoShareButton from "@/components/KakaoShareButton";
-import CampaignShareOverlay from "@/components/CampaignShareOverlay";
-
-function formatTimeLeft(closesAt: string): string {
-  const diffMs = new Date(closesAt).getTime() - Date.now();
-  if (diffMs <= 0) return "곧 마감";
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24);
-    return `마감 ${days}일 ${hours % 24}시간 남음`;
-  }
-  return `마감 ${hours}시간 ${minutes}분 남음`;
-}
 
 export default async function B2CHome() {
-  const accountId = await getAccountId("b2c");
-  const { data: account } = await supabase
-    .from("account")
-    .select("delivery_zone_id")
-    .eq("id", accountId)
-    .single();
-
   const notice = await getConfigs(["notice_enabled", "notice_text"]);
   const showNotice = notice.notice_enabled === "true" && notice.notice_text;
 
-  const recentCampaigns = await getRecentCampaigns(7, account?.delivery_zone_id ?? null);
+  const schedule = await getSchedule();
+  const now = new Date();
+  const slot = computeDeliverySlot(now, schedule);
+  const nextSlot = computeNextSlot(slot, schedule);
+
+  const { data: products } = await supabase
+    .from("product")
+    .select("id, name, base_price, photo_url, stock_qty")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  const weekdayText = schedule.weekdays.map((d) => WEEKDAY_LABELS[d]).join(" · ");
+  const feeText =
+    schedule.freeMinQty > 0
+      ? `${schedule.fee.toLocaleString()}원 (${schedule.freeMinQty}판 이상 무료)`
+      : `${schedule.fee.toLocaleString()}원`;
 
   return (
     <div className="pb-32">
-      <header className="flex items-center justify-between px-5 py-4">
+      <header className="flex items-center justify-between bg-white px-5 py-4">
         <img src="/logo.png" alt="에그팜" className="h-7 w-auto" />
         <div className="flex items-center gap-3">
           <KakaoShareButton
@@ -52,82 +53,93 @@ export default async function B2CHome() {
       </header>
 
       {showNotice && (
-        <div className="mx-5 mb-4 rounded-lg bg-primary-bg px-3 py-2.5 text-sm text-primary-dark">
+        <div className="mx-5 mt-3 rounded-lg bg-primary-bg px-3 py-2.5 text-sm text-primary-dark">
           📢 {notice.notice_text}
         </div>
       )}
 
+      <section className="mt-1 bg-primary px-5 py-5 text-white">
+        <p className="text-[11px] tracking-wide opacity-80">배송 예정일</p>
+        <p className="mt-0.5 text-2xl font-bold tracking-tight">
+          {formatKoDate(slot.date)} {schedule.start.split(":")[0].replace(/^0/, "")}시 이후
+        </p>
+        <p className="mt-0.5 text-xs opacity-90">
+          주문마감 {formatKoDate(slot.date)} {schedule.cutoff} · {formatTimeLeft(slot.cutoffAt, now)}
+        </p>
+        <div className="mt-3 border-t border-white/20 pt-2.5 text-xs">
+          <div className="flex justify-between py-1">
+            <span className="opacity-80">배송 요일</span>
+            <b>{weekdayText}</b>
+          </div>
+          <div className="flex justify-between py-1">
+            <span className="opacity-80">마감 이후 주문</span>
+            <b>{formatKoDate(nextSlot.date)} 배송</b>
+          </div>
+        </div>
+        <Link
+          href="/b2c/order"
+          className="mt-3 block rounded-lg bg-white py-3 text-center text-sm font-bold text-primary-dark"
+        >
+          주문하기
+        </Link>
+      </section>
+
       <main className="px-5">
-        <section className="mb-6 grid grid-cols-2 gap-3">
-          {recentCampaigns.length > 0 ? (
-            recentCampaigns.map(({ campaign, status }) => (
+        <h2 className="mb-2 mt-5 text-sm font-bold">지금 주문할 수 있는 상품</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          {(products ?? []).map((p) => {
+            const stock = Math.max(0, p.stock_qty ?? 0);
+            const soldOut = stock <= 0;
+            const low = !soldOut && stock <= 5;
+            return (
               <Link
-                key={campaign.id}
-                href={`/b2c/order?campaign=${campaign.id}`}
-                className="block overflow-hidden rounded-xl border border-neutral-200"
+                key={p.id}
+                href="/b2c/order"
+                className="relative block overflow-hidden rounded-xl border border-neutral-200 bg-white"
               >
-                <div className="relative h-32 w-full bg-neutral-100">
-                  <CampaignShareOverlay
-                    title={campaign.title ?? "일반배송 판매기간"}
-                    imageUrl={campaign.photo_url ?? "https://eggfarm.vercel.app/icon.png"}
-                    path={`/b2c/order?campaign=${campaign.id}`}
-                  />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={campaign.photo_url ?? "/icon.png"}
-                    alt={campaign.title ?? "판매기간"}
-                    className={`h-full w-full ${
-                      campaign.photo_url ? "object-cover" : "object-contain p-4 opacity-70"
-                    } ${!isOpenStatus(status) ? "blur-sm" : ""}`}
-                  />
-                  {!isOpenStatus(status) && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-                        {statusLabel(status)}
-                      </span>
+                <div className="relative h-[118px] w-full bg-neutral-100">
+                  {p.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                  ) : null}
+                  {low && (
+                    <span className="absolute left-2 top-2 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {stock}판 남음
+                    </span>
+                  )}
+                  {soldOut && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold text-white">
+                      품절
                     </div>
                   )}
                 </div>
-                <div className="p-2.5">
-                  <p className="truncate text-xs font-medium">
-                    {campaign.title ?? "일반배송 판매기간"}
+                <div className="px-3 pb-3 pt-2.5">
+                  <p className="truncate text-sm font-medium">{p.name}</p>
+                  <p className="text-sm font-bold">{p.base_price.toLocaleString()}원</p>
+                  <p className={`text-[10px] ${low ? "text-red-500" : "text-neutral-400"}`}>
+                    {soldOut ? "입고되면 다시 열려요" : low ? "서두르세요" : "재고 있음"}
                   </p>
-                  {campaign.delivery_date && (
-                    <p className="mt-0.5 text-[10px] text-neutral-400">
-                      배송{" "}
-                      {new Date(campaign.delivery_date).toLocaleDateString("ko-KR", {
-                        timeZone: "Asia/Seoul",
-                        month: "numeric",
-                        day: "numeric",
-                        weekday: "short",
-                      })}
-                    </p>
-                  )}
-                  {isOpenStatus(status) ? (
-                    <>
-                      <p className="mt-0.5 text-[10px] text-red-500">
-                        {formatTimeLeft(campaign.closes_at)}
-                      </p>
-                      <div className="mt-1.5 rounded-md bg-primary py-1.5 text-center text-[11px] font-medium text-white">
-                        주문하기
-                      </div>
-                    </>
-                  ) : (
-                    <p className="mt-0.5 text-[10px] text-neutral-400">다시 열리면 알려드릴게요</p>
-                  )}
                 </div>
               </Link>
-            ))
-          ) : (
-            <Link
-              href="/b2c/order"
-              className="col-span-2 flex flex-col items-center gap-1.5 rounded-xl border border-neutral-200 py-4"
-            >
-              <span className="text-2xl">🛒</span>
-              <span className="text-sm">일반배송 주문</span>
-            </Link>
-          )}
-        </section>
+            );
+          })}
+        </div>
+
+        <h2 className="mb-2 mt-5 text-sm font-bold">배송 안내</h2>
+        <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white text-xs">
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-neutral-400">주문 접수</span>
+            <b className="font-medium">매일 00:00 ~ {schedule.cutoff}</b>
+          </div>
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-neutral-400">배송 시작</span>
+            <b className="font-medium">배송일 {schedule.start}부터 순차</b>
+          </div>
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-neutral-400">배송비</span>
+            <b className="font-medium">{feeText}</b>
+          </div>
+        </div>
       </main>
 
       <BottomNav active="/b2c" />

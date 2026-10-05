@@ -439,16 +439,13 @@ export default function CampaignClient({
           />
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="mb-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-medium text-white"
-        >
-          <Plus size={16} /> 새 캠페인 만들기
-        </button>
+        <div className="mb-5 rounded-lg bg-primary-bg px-3.5 py-3 text-xs text-primary-dark">
+          상시운영으로 바뀌어서 새 캠페인은 만들지 않아요. 이 화면은 이전 캠페인 기록(읽기 전용)이에요.
+          재고는 <b>재고 관리</b>, 배송 요일과 배송비는 <b>배송 설정</b>에서 바꿔요.
+        </div>
       )}
 
-      <p className="mb-2 text-xs text-neutral-500">캠페인 목록 (여러 개 동시 운영 가능)</p>
+      <p className="mb-2 text-xs text-neutral-500">이전 캠페인 목록</p>
       <div className="space-y-2">
         {campaigns.length === 0 && (
           <p className="py-6 text-center text-sm text-neutral-400">
@@ -473,34 +470,6 @@ export default function CampaignClient({
               <Clock size={13} className="shrink-0" />
               마감 {new Date(campaign.closes_at).toLocaleString("ko-KR", { hour12: false })}
             </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(campaign.id);
-                  setCreating(false);
-                }}
-                className="flex-1 rounded-md border border-neutral-300 py-1.5 text-xs"
-              >
-                수정
-              </button>
-              {status === "open" && (
-                <button
-                  type="button"
-                  onClick={() => handleCloseEarly(campaign.id)}
-                  className="flex-1 rounded-md border border-red-300 py-1.5 text-xs text-red-500"
-                >
-                  조기마감
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => handleDelete(campaign.id)}
-                className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-500"
-              >
-                삭제
-              </button>
-            </div>
           </div>
         ))}
       </div>

@@ -4,29 +4,35 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import { addTimestampWatermark } from "@/lib/watermark";
+import CameraCaptureModal from "@/components/CameraCaptureModal";
 
 export default function PhotoUploadButton({
   orderId,
   label,
   confirmAddress,
   confirmItemsSummary,
+  watermarkLines,
+  alsoOrderIds,
   onSubmit,
 }: {
   orderId: string;
   label: string;
   confirmAddress?: string | null;
   confirmItemsSummary?: string;
+  /** 촬영 화면과 사진 가운데에 함께 표시할 배송정보(예: ["101동 203호", "특란 2판"]) */
+  watermarkLines?: string[];
+  /** 같은 집의 다른 주문 번호들 - 한 번 촬영으로 함께 배송완료 처리 */
+  alsoOrderIds?: string[];
   onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [pending, setPending] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function processFile(file: File) {
     setPending(true);
     try {
       const watermarked = await addTimestampWatermark(file);
@@ -36,8 +42,30 @@ export default function PhotoUploadButton({
       alert("사진 처리 중 오류가 발생했어요");
     } finally {
       setPending(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  function openCamera() {
+    const supported =
+      typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+    if (supported) {
+      setShowCamera(true);
+    } else {
+      // 카메라를 직접 열 수 없는 구형 브라우저는 기본 카메라 앱으로 대체
+      fileRef.current?.click();
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function handleCameraCapture(file: File) {
+    setShowCamera(false);
+    await processFile(file);
   }
 
   async function handleConfirm() {
@@ -46,6 +74,7 @@ export default function PhotoUploadButton({
     try {
       const formData = new FormData();
       formData.set("order_id", orderId);
+      if (alsoOrderIds && alsoOrderIds.length > 0) formData.set("also_order_ids", alsoOrderIds.join(","));
       formData.set("photo", pendingFile);
       const result = await onSubmit(formData);
       if (!result.success) {
@@ -67,12 +96,13 @@ export default function PhotoUploadButton({
       <button
         type="button"
         disabled={pending}
-        onClick={() => fileRef.current?.click()}
+        onClick={openCamera}
         className="flex items-center gap-1.5 text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
       >
         {pending && <Spinner className="h-3 w-3" />}
         {pending ? "처리 중..." : label}
       </button>
+      {/* 카메라를 직접 열 수 없는 환경을 위한 대체 수단 (평소엔 사용되지 않음) */}
       <input
         ref={fileRef}
         type="file"
@@ -81,6 +111,14 @@ export default function PhotoUploadButton({
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {showCamera && (
+        <CameraCaptureModal
+          overlayLines={watermarkLines}
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
 
       {previewUrl && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">

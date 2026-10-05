@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown, Search, X } from "lucide-react";
 
 const FAQS: [string, string][] = [
   ["회원가입은 어떻게 하나요?", "카카오 계정으로 로그인 후, 거주하는 아파트를 선택하면 가입이 완료됩니다."],
@@ -26,34 +26,75 @@ const FAQS: [string, string][] = [
   ["문의는 어떻게 하나요?", "하단 \"문의하기\" 버튼을 눌러 오픈채팅으로 연락주시면 됩니다."],
 ];
 
+// 검색어와 무관하게 원래 순서를 유지하되, 질문/답변 어디에 있어도 매칭되게 함
+// (오탈자 교정 등 복잡한 검색은 하지 않고 단순 포함 여부만 확인 - API 비용 없는 키워드 검색)
+function normalize(s: string) {
+  return s.toLowerCase().replace(/\s+/g, "");
+}
+
 export default function FaqAccordion() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = normalize(query.trim());
+    if (!q) return FAQS.map((faq, idx) => ({ faq, idx }));
+    return FAQS.map((faq, idx) => ({ faq, idx })).filter(
+      ({ faq }) => normalize(faq[0]).includes(q) || normalize(faq[1]).includes(q)
+    );
+  }, [query]);
 
   return (
-    <div className="space-y-2">
-      {FAQS.map(([q, a], idx) => {
-        const open = openIdx === idx;
-        return (
-          <div key={q} className="overflow-hidden rounded-xl border border-neutral-200">
-            <button
-              type="button"
-              onClick={() => setOpenIdx(open ? null : idx)}
-              className="flex w-full items-center justify-between px-3.5 py-3 text-left text-sm"
-            >
-              <span>{q}</span>
-              <ChevronDown
-                size={16}
-                className={`shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
-              />
-            </button>
-            {open && (
-              <div className="border-t border-neutral-100 px-3.5 py-3 text-xs leading-relaxed text-neutral-500">
-                {a}
-              </div>
-            )}
+    <div>
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2.5">
+        <Search size={16} className="shrink-0 text-neutral-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="궁금한 내용을 검색해보세요 (예: 배송비, 환불)"
+          className="w-full text-sm outline-none placeholder:text-neutral-400"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기">
+            <X size={15} className="text-neutral-400" />
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {filtered.length === 0 ? (
+          <div className="rounded-xl border border-neutral-200 px-3.5 py-6 text-center">
+            <p className="text-sm text-neutral-500">검색 결과가 없어요</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              아래 &quot;문의하기&quot;로 직접 물어봐주세요
+            </p>
           </div>
-        );
-      })}
+        ) : (
+          filtered.map(({ faq: [q, a], idx }) => {
+            const open = openIdx === idx;
+            return (
+              <div key={q} className="overflow-hidden rounded-xl border border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setOpenIdx(open ? null : idx)}
+                  className="flex w-full items-center justify-between px-3.5 py-3 text-left text-sm"
+                >
+                  <span>{q}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {open && (
+                  <div className="border-t border-neutral-100 px-3.5 py-3 text-xs leading-relaxed text-neutral-500">
+                    {a}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

@@ -6,8 +6,15 @@ import PhotoUploadButton from "@/components/PhotoUploadButton";
 import { markB2CDelivered } from "@/app/admin/actions";
 
 type Campaign = { id: string; title: string | null };
+
+function koDate(d: string) {
+  const [y, m, day] = d.split("-").map(Number);
+  const wd = ["일", "월", "화", "수", "목", "금", "토"][new Date(Date.UTC(y, m - 1, day)).getUTCDay()];
+  return `${m}/${day}(${wd})`;
+}
 type Order = {
   id: string;
+  account_id?: string;
   status: string;
   total_amount: number;
   created_at: string;
@@ -24,10 +31,16 @@ type Order = {
 };
 
 export default function DeliveryClient({
+  dates,
+  todayDate,
+  selectedDate,
   campaigns,
   selectedCampaignId,
   orders,
 }: {
+  dates: string[];
+  todayDate: string;
+  selectedDate: string | null;
   campaigns: Campaign[];
   selectedCampaignId: string | null;
   orders: Order[];
@@ -48,29 +61,79 @@ export default function DeliveryClient({
     return Array.from(map.entries());
   }, [orders]);
 
-  const remainingCount = orders.filter((o) => o.status !== "배송완료").length;
-  const doneCount = orders.length - remainingCount;
+  // 같은 집(같은 계정)의 주문은 한 번에 배송하므로 한 카드로 묶음
+  const groups = useMemo(() => {
+    const map = new Map<string, Order[]>();
+    for (const o of orders) {
+      const key = o.account_id ?? o.id;
+      map.set(key, [...(map.get(key) ?? []), o]);
+    }
+    return Array.from(map.values()).map((list) => {
+      const pendingOrders = list.filter((o) => o.status !== "배송완료");
+      const primary = pendingOrders[0] ?? list[0];
+      const mergedItems = new Map<string, number>();
+      for (const o of list) {
+        for (const i of o.b2c_order_item ?? []) {
+          const n = i.product?.name ?? "상품";
+          mergedItems.set(n, (mergedItems.get(n) ?? 0) + i.quantity);
+        }
+      }
+      return {
+        primary,
+        list,
+        isDone: pendingOrders.length === 0,
+        alsoIds: pendingOrders.slice(1).map((o) => o.id),
+        itemsSummary: Array.from(mergedItems.entries())
+          .map(([n, q]) => `${n} ${q}판`)
+          .join(", "),
+      };
+    });
+  }, [orders]);
+
+  const remainingCount = groups.filter((g) => !g.isDone).length;
+  const doneCount = groups.length - remainingCount;
 
   return (
     <div className="px-5">
-      <select
-        value={selectedCampaignId ?? ""}
-        onChange={(e) => router.push(`/admin/delivery?campaign=${e.target.value}`)}
-        className="mb-4 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
-      >
-        <option value="" disabled>
-          캠페인을 선택해주세요
-        </option>
-        {campaigns.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.title ?? "제목없음"}
-          </option>
+      <div className="-mx-5 mb-3 flex gap-2 overflow-x-auto px-5 pb-1">
+        {dates.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => router.push(`/admin/delivery?date=${d}`)}
+            className={`shrink-0 rounded-lg border px-3.5 py-2 text-xs ${
+              selectedDate === d
+                ? "border-primary bg-primary font-bold text-white"
+                : "border-neutral-200 bg-white text-neutral-500"
+            }`}
+          >
+            {koDate(d)}
+            {d === todayDate && <span className="ml-1 opacity-70">오늘</span>}
+          </button>
         ))}
-      </select>
+      </div>
 
-      {!selectedCampaignId ? (
+      <details className="mb-4 text-xs text-neutral-500">
+        <summary className="cursor-pointer">이전 캠페인 배송 보기</summary>
+        <select
+          value={selectedCampaignId ?? ""}
+          onChange={(e) => router.push(`/admin/delivery?campaign=${e.target.value}`)}
+          className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm"
+        >
+          <option value="" disabled>
+            캠페인을 선택해주세요
+          </option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title ?? "제목없음"}
+            </option>
+          ))}
+        </select>
+      </details>
+
+      {!selectedDate && !selectedCampaignId ? (
         <p className="py-10 text-center text-sm text-neutral-400">
-          위에서 캠페인을 선택하면 배송 대상 목록이 보여요
+          위에서 배송일을 선택하면 배송 대상 목록이 보여요
         </p>
       ) : (
         <>
@@ -97,21 +160,25 @@ export default function DeliveryClient({
           </p>
 
           <div className="space-y-2">
-            {orders.length === 0 && (
+            {groups.length === 0 && (
               <p className="py-10 text-center text-sm text-neutral-400">
                 배송 대상 주문이 없어요
               </p>
             )}
-            {orders.map((o) => {
-              const itemsSummary = (o.b2c_order_item ?? [])
-                .map((i) => `${i.product?.name ?? "상품"} ${i.quantity}판`)
-                .join(", ");
-              const isDone = o.status === "배송완료";
+            {groups.map((g) => {
+              const o = g.primary;
+              const itemsSummary = g.itemsSummary;
+              const dongHo =
+                o.account?.address_dong || o.account?.address_ho
+                  ? `${o.account?.address_dong ?? ""}동 ${o.account?.address_ho ?? ""}호`
+                  : null;
+              const watermarkLines = [dongHo, itemsSummary].filter(Boolean) as string[];
+              const isDone = g.isDone;
               return (
                 <div
                   key={o.id}
-                  className={`rounded-lg border p-3 ${
-                    isDone ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                  className={`rounded-xl border bg-white p-3.5 ${
+                    isDone ? "border-neutral-100 opacity-55" : "border-neutral-200"
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between">
@@ -140,6 +207,8 @@ export default function DeliveryClient({
                         label="배송완료 사진"
                         confirmAddress={o.account?.address}
                         confirmItemsSummary={itemsSummary}
+                        watermarkLines={watermarkLines}
+                        alsoOrderIds={g.alsoIds}
                         onSubmit={markB2CDelivered}
                       />
                     </div>

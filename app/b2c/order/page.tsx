@@ -5,29 +5,13 @@ import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountId } from "@/lib/getAccount";
 import { getConfigs } from "@/lib/settings";
-import {
-  getCampaignById,
-  getOpenCampaigns,
-  getCampaignStatus,
-  getCampaignProductLimits,
-  getCampaignZoneIds,
-  getCampaignRemainingStock,
-  isCampaignProductSoldOut,
-  isOpenStatus,
-  type Campaign,
-  type CampaignProductLimit,
-  type CampaignStatus,
-} from "@/lib/campaign";
+import { getSchedule } from "@/lib/schedule";
+import { computeDeliverySlot, computeNextSlot, formatKoDate } from "@/lib/scheduleShared";
+import { getPersonQtyForDate } from "@/lib/stock";
 import BottomNav from "@/components/BottomNav";
 import OrderForm from "./OrderForm";
-import CampaignClosedView from "./CampaignClosedView";
 
-export default async function GeneralOrderPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ campaign?: string }>;
-}) {
-  const { campaign: campaignIdParam } = await searchParams;
+export default async function GeneralOrderPage() {
   const accountId = await getAccountId("b2c");
   const sessionSupabase = await createClient();
 
@@ -36,128 +20,73 @@ export default async function GeneralOrderPage({
     .select("address, nickname, phone, delivery_zone_id")
     .eq("id", accountId)
     .single();
-  const myZoneId = account?.delivery_zone_id ?? null;
 
-  // 특정 캠페인이 지정됐으면 그걸, 아니면 지금 오픈중인 캠페인 중 첫 번째를 사용
-  // (여러 캠페인이 동시에 열려있을 수 있음 - 홈화면 카드에서 캠페인별로 링크를 눌러 들어옴)
-  let campaign: Campaign | null = null;
-  let productLimits: CampaignProductLimit[] = [];
-  let campaignStatus: CampaignStatus | "none" = "none";
-  let zoneMismatch = false;
-
-  if (campaignIdParam) {
-    campaign = await getCampaignById(campaignIdParam);
-    if (campaign) {
-      const zoneIds = await getCampaignZoneIds(campaign.id);
-      if (!myZoneId || !zoneIds.includes(myZoneId)) {
-        zoneMismatch = true;
-        campaign = null;
-      } else {
-        productLimits = await getCampaignProductLimits(campaign.id);
-        campaignStatus = await getCampaignStatus(campaign, productLimits);
-      }
-    }
-  } else {
-    const open = await getOpenCampaigns(myZoneId);
-    if (open.length > 0) {
-      campaign = open[0].campaign;
-      productLimits = open[0].productLimits;
-      campaignStatus = "open";
-    }
+  let zoneOk = false;
+  if (account?.delivery_zone_id) {
+    const { data: zone } = await supabase
+      .from("delivery_zone")
+      .select("is_active")
+      .eq("id", account.delivery_zone_id)
+      .maybeSingle();
+    zoneOk = !!zone && zone.is_active !== false;
   }
 
-  const productIds = productLimits.map((l) => l.product_id);
-  const { data: allProducts } = await supabase
-    .from("product")
-    .select("id, name, base_price, photo_url")
-    .in("id", productIds.length > 0 ? productIds : ["00000000-0000-0000-0000-000000000000"]);
+  const schedule = await getSchedule();
+  const slot = computeDeliverySlot(new Date(), schedule);
+  const nextSlot = computeNextSlot(slot, schedule);
 
-  const productsWithStock = await Promise.all(
-    (allProducts ?? []).map(async (p) => {
-      const limit = productLimits.find((l) => l.product_id === p.id)!;
-      return {
-        ...p,
-        soldOut: campaign
-          ? await isCampaignProductSoldOut(campaign.id, p.id, limit.stock_limit)
-          : false,
-        perPersonLimit: limit.per_person_limit,
-        remainingStock: campaign
-          ? await getCampaignRemainingStock(campaign.id, p.id, limit.stock_limit)
-          : 0,
-      };
-    })
-  );
+  const { data: products } = await supabase
+    .from("product")
+    .select("id, name, base_price, photo_url, stock_qty")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  const alreadyQty = await getPersonQtyForDate(accountId, slot.date);
 
   const depositorNickname = account?.nickname && account?.phone ? account.nickname : null;
   const depositorPhoneSuffix =
     account?.nickname && account?.phone ? account.phone.replace(/\D/g, "").slice(-4) : null;
-
   const bankInfo = await getConfigs(["bank_name", "bank_account", "bank_holder"]);
-
-  // 같은 판매기간에 이미 주문(취소 제외)이 있으면 중복 주문을 막고 주문내역에서 수정하도록 안내.
-  // 조회 자체가 실패했을 때 "주문 없음"으로 잘못 판단해서 막아야 할 걸 못 막으면 안 되니,
-  // 에러가 나면 안전하게 "이미 주문 있음"으로 처리함(막는 쪽으로 fail-safe)
-  let existingOrder: { id: string; status: string } | null = null;
-  if (campaign) {
-    const { data, error: existingOrderError } = await supabase
-      .from("b2c_order")
-      .select("id, status")
-      .eq("account_id", accountId)
-      .eq("campaign_id", campaign.id)
-      .neq("status", "취소")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    existingOrder = existingOrderError ? { id: "unknown", status: "unknown" } : data;
-  }
 
   return (
     <div className="pb-32">
-      <header className="flex items-center gap-2 px-5 py-4">
+      <header className="flex items-center gap-2 bg-white px-5 py-4">
         <Link href="/b2c" aria-label="뒤로가기">
           ←
         </Link>
-        <h1 className="text-base font-medium">일반배송 주문</h1>
+        <h1 className="text-base font-bold">주문하기</h1>
       </header>
 
-      {zoneMismatch ? (
-        <div className="px-5">
-          <div className="rounded-xl bg-neutral-50 px-4 py-8 text-center">
+      {!zoneOk ? (
+        <div className="px-5 pt-4">
+          <div className="rounded-xl border border-neutral-200 bg-white px-4 py-8 text-center">
             <p className="text-sm text-neutral-600">
-              이 판매기간은 회원님의 단지에서는 이용할 수 없어요
+              회원님의 단지는 현재 배송이 어려워요. 마이페이지에서 단지를 확인해주세요
             </p>
           </div>
         </div>
-      ) : existingOrder ? (
-        <div className="px-5">
-          <div className="rounded-xl bg-neutral-50 px-4 py-8 text-center">
-            <p className="mb-3 text-sm text-neutral-600">
-              이 판매기간엔 이미 주문하신 내역이 있어요
-            </p>
-            <p className="mb-4 text-xs text-neutral-400">
-              주문내역에서 해당 주문 카드를 눌러 펼치면, 수량을 바꾸거나 상품을 추가할 수 있어요
-            </p>
-            <Link
-              href="/b2c/orders"
-              className="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white"
-            >
-              주문내역 보기
-            </Link>
-          </div>
-        </div>
-      ) : isOpenStatus(campaignStatus as CampaignStatus) && campaign ? (
+      ) : (
         <OrderForm
-          campaignId={campaign.id}
-          products={productsWithStock}
+          products={(products ?? []).map((p) => ({
+            id: p.id,
+            name: p.name,
+            base_price: p.base_price,
+            photo_url: p.photo_url,
+            stock: Math.max(0, p.stock_qty ?? 0),
+          }))}
           address={account?.address ?? null}
           bankInfo={bankInfo}
           depositorNickname={depositorNickname}
           depositorPhoneSuffix={depositorPhoneSuffix}
-          deliveryFee={campaign.delivery_fee}
-          freeShippingMinQty={campaign.free_shipping_min_qty}
+          deliveryFee={schedule.fee}
+          freeShippingMinQty={schedule.freeMinQty}
+          perPersonLimit={schedule.perPersonLimit}
+          alreadyQty={alreadyQty}
+          deliveryDateLabel={formatKoDate(slot.date)}
+          cutoffLabel={`${formatKoDate(slot.date)} ${schedule.cutoff}`}
+          startLabel={schedule.start}
+          nextDateLabel={formatKoDate(nextSlot.date)}
         />
-      ) : (
-        <CampaignClosedView products={productsWithStock} status={campaignStatus} campaign={campaign} />
       )}
       <BottomNav active="/b2c" />
     </div>
