@@ -13,6 +13,7 @@ export default async function StockPage() {
   const { data: products } = await supabase
     .from("product")
     .select("id, name, base_price, photo_url, stock_qty, is_active")
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
   const { data: logs } = await supabase

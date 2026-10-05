@@ -95,7 +95,7 @@ export default async function AdminHome() {
       .eq("status", "배송완료")
       .gte("created_at", lastMonthStart.toISOString())
       .lt("created_at", monthStart.toISOString()),
-    admin.from("product").select("name, stock_qty").eq("is_active", true).order("created_at", { ascending: true }),
+    admin.from("product").select("name, stock_qty").eq("is_active", true).order("sort_order", { ascending: true }),
     admin
       .from("b2c_order")
       .select("id, total_amount, created_at, account(nickname)")

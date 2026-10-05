@@ -27,6 +27,7 @@ export default async function B2CHome() {
     .from("product")
     .select("id, name, base_price, photo_url, stock_qty")
     .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
   const weekdayText = schedule.weekdays.map((d) => WEEKDAY_LABELS[d]).join(" · ");

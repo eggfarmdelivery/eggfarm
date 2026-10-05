@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addStock, setStock, saveStockLimits } from "./actions";
+import { addStock, setStock, saveStockLimits, moveProduct } from "./actions";
 import { createProduct, updateProduct } from "../products/actions";
 import Spinner from "@/components/Spinner";
 import { Plus, Check } from "lucide-react";
@@ -248,7 +248,7 @@ function InfoForm({ p }: { p: P }) {
   );
 }
 
-function Card({ p, threshold }: { p: P; threshold: number }) {
+function Card({ p, threshold, first, last }: { p: P; threshold: number; first: boolean; last: boolean }) {
   const router = useRouter();
   const [custom, setCustom] = useState("");
   const [editing, setEditing] = useState(false);
@@ -278,6 +278,26 @@ function Card({ p, threshold }: { p: P; threshold: number }) {
   return (
     <div className="mt-2.5 rounded-xl border border-neutral-200 bg-white p-3.5">
       <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 flex-col gap-0.5">
+          <button
+            type="button"
+            disabled={busy || first}
+            onClick={() => run(() => moveProduct(p.id, -1))}
+            aria-label="위로"
+            className="h-5 w-6 rounded border border-neutral-200 text-[10px] leading-none text-neutral-500 disabled:opacity-30"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            disabled={busy || last}
+            onClick={() => run(() => moveProduct(p.id, 1))}
+            aria-label="아래로"
+            className="h-5 w-6 rounded border border-neutral-200 text-[10px] leading-none text-neutral-500 disabled:opacity-30"
+          >
+            ▼
+          </button>
+        </div>
         <div className="h-[42px] w-[56px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
           {p.photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -431,8 +451,15 @@ export default function StockClient({
 
       <CreateProductForm />
 
-      {products.map((p) => (
-        <Card key={`${p.id}-${p.stock}-${p.name}-${p.base_price}-${p.is_active}`} p={p} threshold={threshold} />
+      <p className="mt-3 text-[11px] text-neutral-400">▲▼ 로 손님 화면에 보이는 상품 순서를 바꿀 수 있어요</p>
+      {products.map((p, i) => (
+        <Card
+          key={`${p.id}-${p.stock}-${p.name}-${p.base_price}-${p.is_active}`}
+          p={p}
+          threshold={threshold}
+          first={i === 0}
+          last={i === products.length - 1}
+        />
       ))}
 
       <h2 className="mb-2 mt-6 text-sm font-bold">최근 재고 기록</h2>

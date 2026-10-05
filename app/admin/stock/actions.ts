@@ -73,3 +73,30 @@ export async function saveStockLimits(formData: FormData): Promise<Result> {
     return { success: false, error: e instanceof Error ? e.message : "저장 중 오류가 발생했어요" };
   }
 }
+
+// 노출 순서 한 칸 이동 (dir: -1 = 위로, +1 = 아래로). 전체를 1..N으로 다시 번호 매겨서 중복/빈틈 방지
+export async function moveProduct(productId: string, dir: -1 | 1): Promise<Result> {
+  try {
+    await requireOwner();
+    const { data } = await supabase
+      .from("product")
+      .select("id")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    const ids = (data ?? []).map((r) => r.id);
+    const i = ids.indexOf(productId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return { success: true };
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    for (let k = 0; k < ids.length; k++) {
+      const { error } = await supabase.from("product").update({ sort_order: k + 1 }).eq("id", ids[k]);
+      if (error) throw new Error(error.message);
+    }
+    revalidatePath("/admin/stock");
+    revalidatePath("/b2c");
+    revalidatePath("/b2c/order");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "순서 변경 중 오류가 발생했어요" };
+  }
+}

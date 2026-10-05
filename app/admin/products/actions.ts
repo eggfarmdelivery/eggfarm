@@ -32,9 +32,17 @@ export async function createProduct(formData: FormData): Promise<Result> {
 
     const photoUrl = photo && photo.size > 0 ? await uploadProductPhoto(photo) : null;
 
+    const { data: last } = await supabase
+      .from("product")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextOrder = (last?.sort_order ?? 0) + 1;
+
     const { data: product, error } = await supabase
       .from("product")
-      .insert({ name, base_price: basePrice, photo_url: photoUrl })
+      .insert({ name, base_price: basePrice, photo_url: photoUrl, sort_order: nextOrder })
       .select("id")
       .single();
     if (error || !product) throw new Error(error?.message ?? "상품 등록 실패");

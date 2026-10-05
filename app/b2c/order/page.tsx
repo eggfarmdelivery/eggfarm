@@ -39,6 +39,7 @@ export default async function GeneralOrderPage() {
     .from("product")
     .select("id, name, base_price, photo_url, stock_qty")
     .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
   const alreadyQty = await getPersonQtyForDate(accountId, slot.date);
