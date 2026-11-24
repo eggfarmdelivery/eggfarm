@@ -29,13 +29,18 @@ export default function PhotoUploadButton({
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [showChooser, setShowChooser] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const albumRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  async function processFile(file: File) {
+  async function processFile(file: File, fromAlbum = false) {
     setPending(true);
     try {
-      const watermarked = await addTimestampWatermark(file);
+      const watermarked = await addTimestampWatermark(
+        file,
+        fromAlbum ? { fromAlbum: true, centerLines: watermarkLines } : {}
+      );
       setPendingFile(watermarked);
       setPreviewUrl(URL.createObjectURL(watermarked));
     } catch {
@@ -46,6 +51,7 @@ export default function PhotoUploadButton({
   }
 
   function openCamera() {
+    setShowChooser(false);
     const supported =
       typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
     if (supported) {
@@ -61,6 +67,18 @@ export default function PhotoUploadButton({
     if (!file) return;
     await processFile(file);
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function openAlbum() {
+    setShowChooser(false);
+    albumRef.current?.click();
+  }
+
+  async function handleAlbumChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file, true);
+    if (albumRef.current) albumRef.current.value = "";
   }
 
   async function handleCameraCapture(file: File) {
@@ -96,7 +114,7 @@ export default function PhotoUploadButton({
       <button
         type="button"
         disabled={pending}
-        onClick={openCamera}
+        onClick={() => setShowChooser(true)}
         className="flex items-center gap-1.5 text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
       >
         {pending && <Spinner className="h-3 w-3" />}
@@ -111,6 +129,51 @@ export default function PhotoUploadButton({
         className="hidden"
         onChange={handleFileChange}
       />
+      {/* 찍어둔 사진(앨범) 선택용 - capture 속성이 없어야 앨범이 열림 */}
+      <input
+        ref={albumRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAlbumChange}
+      />
+
+      {showChooser && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+          onClick={() => setShowChooser(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="mb-3 text-sm font-medium">배송완료 사진</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={openCamera}
+                className="rounded-lg bg-primary py-3 text-sm font-medium text-white"
+              >
+                지금 촬영
+              </button>
+              <button
+                type="button"
+                onClick={openAlbum}
+                className="rounded-lg border border-neutral-300 py-3 text-sm font-medium"
+              >
+                찍어둔 사진 선택
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChooser(false)}
+                className="py-2 text-sm text-neutral-500"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCamera && (
         <CameraCaptureModal
