@@ -51,7 +51,6 @@ export default function StaffManagement() {
 
   return (
     <section>
-      <p className="mb-1 text-sm font-medium">관리자 계정 관리</p>
       <p className="mb-3 text-xs text-neutral-400">
         입금확인/배송 담당자에게 제한된 권한만 줄 수 있어요. 담당자가 카카오로 로그인 시도하면
         나오는 본인 카카오 ID를 여기에 등록해주세요

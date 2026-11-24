@@ -2,383 +2,125 @@ export const dynamic = "force-dynamic";
 
 import { requireOwner } from "@/lib/adminAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSchedule } from "@/lib/schedule";
-import { isAdminKakaoConnected } from "@/lib/kakao";
-import AdminDashboardCards, { type DashboardCard } from "./AdminDashboardCards";
+import DashboardClient, { type DashOrder, type WaitingOrder } from "./DashboardClient";
 
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-function daysAgo(n: number) {
-  const d = startOfDay(new Date());
-  d.setDate(d.getDate() - n);
-  return d;
+// v41 현황 개편: 카드 대신 "주문 들어옴 / 입금확인 처리 / 배송해야 할 것" 3가지만 보여줌.
+// 기간(오늘/3일/1주/1달) 계산은 관리자 폰의 현지 시각 기준으로 하려고 화면(클라이언트)에서 처리함.
+// 그래서 여기서는 최근 31일치 주문의 시각/금액/상태만 넉넉히 가져와서 넘겨줌.
+
+const CANCELLED = ["취소", "환불대기", "환불완료", "승인거절"];
+
+function itemsSummary(items: any[] | null | undefined): string {
+  return (items ?? [])
+    .map((it) => `${it.product?.name ?? "상품"} ${it.quantity}판`)
+    .join(" · ");
 }
 
 export default async function AdminHome() {
   await requireOwner();
   const admin = createAdminClient();
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const weekStart = daysAgo(now.getDay() === 0 ? 6 : now.getDay() - 1); // 이번주 월요일 0시
+  const since = new Date(Date.now() - 31 * 86400000).toISOString();
+  const recent = `created_at.gte.${since},payment_confirmed_at.gte.${since}`;
 
-  // 대시보드가 예전엔 20개 넘는 쿼리를 하나씩 순서대로 기다려서 느렸음(누적 대기시간 때문에 로딩이 오래 걸림).
-  // 서로 관련 없는 조회들은 Promise.all로 한꺼번에 보내서 "가장 느린 쿼리 1개" 시간만 기다리면 되게 바꿈
   const [
-    totalAccountsRes,
-    todayAccountsRes,
-    weekAccountsRes,
-    monthAccountsRes,
-    noZoneAccountsRes,
-    weekOrdersRes,
-    pendingPaymentOrdersRes,
-    statusPendingRes,
-    statusPaidRes,
-    statusShippingRes,
-    statusDoneRes,
-    deliveredThisMonthRes,
-    deliveredLastMonthRes,
-    stockProductsRes,
-    refundOrdersRes,
-    weekOrderZonesRes,
-    zonesRes,
-    kakaoConnected,
-    b2bApprovedCountRes,
-    b2bPendingCountRes,
-    b2bWeekOrdersRawRes,
-    b2bConfirmedThisMonthRes,
-    b2bPendingPaymentRes,
+    b2cRecentRes,
+    b2bRecentRes,
+    b2cWaitingRes,
+    b2bWaitingRes,
+    b2cToShipRes,
+    b2cShippingRes,
+    b2bToShipRes,
+    b2bShippingRes,
+    refundRes,
+    b2bRequestRes,
+    b2bApprovalRes,
   ] = await Promise.all([
-    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2c").eq("is_test", false),
-    admin
-      .from("account")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "b2c")
-      .eq("is_test", false)
-      .gte("created_at", startOfDay(now).toISOString()),
-    admin
-      .from("account")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "b2c")
-      .eq("is_test", false)
-      .gte("created_at", weekStart.toISOString()),
-    admin
-      .from("account")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "b2c")
-      .eq("is_test", false)
-      .gte("created_at", monthStart.toISOString()),
-    admin
-      .from("account")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "b2c")
-      .eq("is_test", false)
-      .is("delivery_zone_id", null),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).gte("created_at", weekStart.toISOString()),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금대기"),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금대기"),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "입금확인완료"),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "배송중"),
-    admin.from("b2c_order").select("id", { count: "exact", head: true }).eq("status", "배송완료"),
     admin
       .from("b2c_order")
-      .select("total_amount")
-      .eq("status", "배송완료")
-      .gte("created_at", monthStart.toISOString()),
-    admin
-      .from("b2c_order")
-      .select("total_amount")
-      .eq("status", "배송완료")
-      .gte("created_at", lastMonthStart.toISOString())
-      .lt("created_at", monthStart.toISOString()),
-    admin.from("product").select("name, stock_qty").eq("is_active", true).order("sort_order", { ascending: true }),
-    admin
-      .from("b2c_order")
-      .select("id, total_amount, created_at, account(nickname)")
-      .eq("status", "환불대기")
-      .order("created_at", { ascending: true }),
-    admin.from("b2c_order").select("account(delivery_zone_id)").gte("created_at", weekStart.toISOString()),
-    admin.from("delivery_zone").select("id, name"),
-    isAdminKakaoConnected(),
-    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "approved").eq("is_test", false),
-    admin.from("account").select("id", { count: "exact", head: true }).eq("role", "b2b").eq("approval_status", "pending").eq("is_test", false),
-    admin.from("b2b_order").select("account(is_test)").gte("created_at", weekStart.toISOString()),
+      .select("status, total_amount, created_at, payment_confirmed_at, account(is_test)")
+      .or(recent),
     admin
       .from("b2b_order")
-      .select("total_amount, account(is_test)")
-      .eq("status", "입금확인완료")
-      .gte("payment_confirmed_at", monthStart.toISOString()),
-    admin.from("b2b_order").select("total_amount, account(is_test)").eq("status", "입금대기"),
+      .select("status, total_amount, created_at, payment_confirmed_at, account(is_test)")
+      .or(recent),
+    admin
+      .from("b2c_order")
+      .select("id, total_amount, created_at, account(nickname, name, address_dong, address_ho, is_test), b2c_order_item(quantity, product(name))")
+      .eq("status", "입금대기")
+      .order("created_at", { ascending: true }),
+    admin
+      .from("b2b_order")
+      .select("id, total_amount, created_at, delivery_completed_at, account(business_name, is_test), b2b_order_item(quantity, product(name))")
+      .eq("status", "입금대기")
+      .order("created_at", { ascending: true }),
+    admin.from("b2c_order").select("id, account(is_test)").eq("status", "입금확인완료"),
+    admin.from("b2c_order").select("id, account(is_test)").eq("status", "배송중"),
+    admin.from("b2b_order").select("id, account(is_test)").eq("status", "주문확정"),
+    admin.from("b2b_order").select("id, account(is_test)").eq("status", "배송중"),
+    admin.from("b2c_order").select("id, account(is_test)").eq("status", "환불대기"),
+    admin.from("b2b_order").select("id, account(is_test)").in("status", ["발주요청", "승인대기"]),
+    admin
+      .from("account")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "b2b")
+      .eq("approval_status", "pending")
+      .eq("is_test", false),
   ]);
 
-  const totalAccounts = totalAccountsRes.count;
-  const todayAccounts = todayAccountsRes.count;
-  const weekAccounts = weekAccountsRes.count;
-  const monthAccounts = monthAccountsRes.count;
-  const noZoneAccounts = noZoneAccountsRes.count;
-  const weekOrders = weekOrdersRes.count;
-  const pendingPaymentOrders = pendingPaymentOrdersRes.count;
-  const orderStatusCounts: Record<string, number> = {
-    입금대기: statusPendingRes.count ?? 0,
-    입금확인완료: statusPaidRes.count ?? 0,
-    배송중: statusShippingRes.count ?? 0,
-    배송완료: statusDoneRes.count ?? 0,
-  };
+  // 테스트 계정 주문은 현황에서 제외
+  const real = (rows: any[] | null | undefined) => (rows ?? []).filter((r) => !r.account?.is_test);
 
-  const deliveredThisMonth = deliveredThisMonthRes.data;
-  const deliveredLastMonth = deliveredLastMonthRes.data;
-  const revenueThisMonth = (deliveredThisMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
-  const revenueLastMonth = (deliveredLastMonth ?? []).reduce((s, o) => s + o.total_amount, 0);
-  const avgOrderValue =
-    (deliveredThisMonth?.length ?? 0) > 0
-      ? Math.round(revenueThisMonth / (deliveredThisMonth?.length ?? 1))
-      : 0;
-  const revenueChangePct =
-    revenueLastMonth > 0
-      ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
-      : null;
+  const toDash = (rows: any[] | null | undefined): DashOrder[] =>
+    real(rows).map((o) => ({
+      createdAt: o.created_at,
+      paidAt: o.payment_confirmed_at,
+      amount: o.total_amount ?? 0,
+      cancelled: CANCELLED.includes(o.status),
+      stillWaiting: o.status === "입금대기" || o.status === "발주요청" || o.status === "승인대기",
+    }));
 
-  // ---------- 재고 현황 (상시운영: 상품별 현재 재고) ----------
-  const schedule = await getSchedule();
-  const stockProducts = (stockProductsRes.data ?? []) as { name: string; stock_qty: number | null }[];
-  const outCount = stockProducts.filter((p) => (p.stock_qty ?? 0) <= 0).length;
-  const lowCount = stockProducts.filter(
-    (p) => (p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= schedule.lowThreshold
-  ).length;
-  const campaignDetail: { label: string; value: string }[] = stockProducts.map((p) => ({
-    label: p.name,
-    value: (p.stock_qty ?? 0) <= 0 ? "품절" : `${p.stock_qty}판`,
+  const b2cWaiting: WaitingOrder[] = real(b2cWaitingRes.data).map((o) => {
+    const a = o.account ?? {};
+    const dongHo = a.address_dong || a.address_ho ? `${a.address_dong ?? ""}동 ${a.address_ho ?? ""}호` : "";
+    return {
+      id: o.id,
+      name: a.name || a.nickname || "이름없음",
+      sub: [dongHo, itemsSummary(o.b2c_order_item)].filter(Boolean).join(" · "),
+      amount: o.total_amount ?? 0,
+      at: o.created_at,
+      atLabel: "주문",
+    };
+  });
+
+  const b2bWaiting: WaitingOrder[] = real(b2bWaitingRes.data).map((o) => ({
+    id: o.id,
+    name: o.account?.business_name ?? "거래처",
+    sub: itemsSummary(o.b2b_order_item),
+    amount: o.total_amount ?? 0,
+    at: o.delivery_completed_at ?? o.created_at,
+    atLabel: o.delivery_completed_at ? "배송완료" : "주문",
   }));
 
-  // ---------- 환불대기 ----------
-  const refundOrders = refundOrdersRes.data;
-  const refundCount = refundOrders?.length ?? 0;
-  const maxRefundDays =
-    refundCount > 0
-      ? Math.floor((now.getTime() - new Date(refundOrders![0].created_at).getTime()) / 86400000)
-      : 0;
-
-  // ---------- 단지별 분포(이번주) ----------
-  const weekOrderZones = weekOrderZonesRes.data;
-  const zones = zonesRes.data;
-  const zoneNameMap = new Map((zones ?? []).map((z) => [z.id, z.name]));
-  const zoneCounts = new Map<string, number>();
-  for (const row of weekOrderZones ?? []) {
-    const zoneId = (row.account as any)?.delivery_zone_id;
-    if (!zoneId) continue;
-    const name = zoneNameMap.get(zoneId) ?? "미지정";
-    zoneCounts.set(name, (zoneCounts.get(name) ?? 0) + 1);
-  }
-  const zoneRows = Array.from(zoneCounts.entries()).sort((a, b) => b[1] - a[1]);
-  const topZone = zoneRows[0];
-
-  // ---------- B2B ----------
-  const b2bApprovedCount = b2bApprovedCountRes.count;
-  const b2bPendingCount = b2bPendingCountRes.count;
-  const b2bWeekOrders = (b2bWeekOrdersRawRes.data ?? []).filter((o: any) => !o.account?.is_test).length;
-  const b2bConfirmedThisMonth = (b2bConfirmedThisMonthRes.data ?? []).filter((o: any) => !o.account?.is_test);
-  const b2bRevenueThisMonth = b2bConfirmedThisMonth.reduce((s, o) => s + o.total_amount, 0);
-  const b2bPendingPayment = (b2bPendingPaymentRes.data ?? []).filter((o: any) => !o.account?.is_test);
-  const b2bPendingPaymentAmount = b2bPendingPayment.reduce((s, o) => s + o.total_amount, 0);
-
-  const b2cCards: DashboardCard[] = [
-    {
-      key: "members",
-      label: "가입자",
-      icon: "users",
-      value: `${(totalAccounts ?? 0).toLocaleString()}명`,
-      sub: `+${weekAccounts ?? 0} 이번주`,
-      moreLink: { label: "전체 명단 보기", href: "/admin/signups" },
-      detail: [
-        { label: "오늘 가입", value: `${todayAccounts ?? 0}명` },
-        { label: "이번주 가입", value: `${weekAccounts ?? 0}명` },
-        { label: "이번달 가입", value: `${monthAccounts ?? 0}명` },
-        { label: "배송단지 미지정", value: `${noZoneAccounts ?? 0}명` },
-      ],
-    },
-    {
-      key: "orders",
-      label: "이번주 주문",
-      icon: "orders",
-      value: `${weekOrders ?? 0}건`,
-      sub: `입금대기 ${pendingPaymentOrders ?? 0}건`,
-      danger: (pendingPaymentOrders ?? 0) > 0,
-      detail: [
-        { label: "입금대기", value: `${orderStatusCounts["입금대기"]}건` },
-        { label: "입금확인완료", value: `${orderStatusCounts["입금확인완료"]}건` },
-        { label: "배송중", value: `${orderStatusCounts["배송중"]}건` },
-        { label: "배송완료", value: `${orderStatusCounts["배송완료"]}건` },
-      ],
-    },
-    {
-      key: "revenue",
-      label: "이번달 매출",
-      icon: "revenue",
-      value: `${revenueThisMonth.toLocaleString()}원`,
-      sub: revenueChangePct !== null ? `전월대비 ${revenueChangePct >= 0 ? "+" : ""}${revenueChangePct}%` : "배송완료 기준",
-      detail: [
-        { label: "이번달 매출", value: `${revenueThisMonth.toLocaleString()}원` },
-        { label: "평균 객단가", value: `${avgOrderValue.toLocaleString()}원` },
-        { label: "전월 매출", value: `${revenueLastMonth.toLocaleString()}원` },
-        {
-          label: "전월대비",
-          value: revenueChangePct !== null ? `${revenueChangePct >= 0 ? "+" : ""}${revenueChangePct}%` : "-",
-        },
-      ],
-    },
-    {
-      key: "campaign",
-      label: "재고 현황",
-      icon: "campaign",
-      value: `${stockProducts.length}종`,
-      sub: `부족 ${lowCount} · 품절 ${outCount}`,
-      detail: campaignDetail.length > 0 ? campaignDetail : [{ label: "안내", value: "등록된 상품이 없어요" }],
-    },
-    {
-      key: "refund",
-      label: "환불대기",
-      icon: "refund",
-      value: `${refundCount}건`,
-      sub: refundCount > 0 ? `최대 ${maxRefundDays}일 경과` : "없음",
-      danger: refundCount > 0,
-      detail:
-        (refundOrders ?? []).length > 0
-          ? refundOrders!.slice(0, 5).map((o) => ({
-              label: (o.account as any)?.nickname ?? "이름없음",
-              value: `${o.total_amount.toLocaleString()}원 · ${Math.floor(
-                (now.getTime() - new Date(o.created_at).getTime()) / 86400000
-              )}일 경과`,
-            }))
-          : [{ label: "안내", value: "환불대기 건이 없어요" }],
-    },
-    {
-      key: "zones",
-      label: "단지별 분포",
-      icon: "zones",
-      value: topZone ? `${topZone[0]} 1위` : "데이터 없음",
-      sub: topZone ? `이번주 ${topZone[1]}건` : "이번주 주문 없음",
-      detail:
-        zoneRows.length > 0
-          ? zoneRows.slice(0, 5).map(([name, count]) => ({ label: name, value: `${count}건` }))
-          : [{ label: "안내", value: "이번주 주문이 없어요" }],
-    },
-  ];
-
-  const b2bCards: DashboardCard[] = [
-    {
-      key: "b2bAccounts",
-      label: "거래처",
-      icon: "users",
-      value: `${b2bApprovedCount ?? 0}곳`,
-      sub: (b2bPendingCount ?? 0) > 0 ? `승인대기 ${b2bPendingCount}곳` : "승인대기 없음",
-      danger: (b2bPendingCount ?? 0) > 0,
-      detail: [
-        { label: "승인된 거래처", value: `${b2bApprovedCount ?? 0}곳` },
-        { label: "승인대기", value: `${b2bPendingCount ?? 0}곳` },
-      ],
-      moreLink: { label: "거래처 관리로 이동", href: "/admin/b2b-accounts" },
-    },
-    {
-      key: "b2bOrders",
-      label: "이번주 발주",
-      icon: "orders",
-      value: `${b2bWeekOrders}건`,
-      detail: [{ label: "이번주 발주", value: `${b2bWeekOrders}건` }],
-    },
-    {
-      key: "b2bRevenue",
-      label: "이번달 B2B매출",
-      icon: "revenue",
-      value: `${b2bRevenueThisMonth.toLocaleString()}원`,
-      sub: "입금확인완료 기준",
-      detail: [{ label: "이번달 확정매출", value: `${b2bRevenueThisMonth.toLocaleString()}원` }],
-      moreLink: { label: "정산 상세보기", href: "/admin/settlement" },
-    },
-    {
-      key: "b2bPending",
-      label: "결제대기",
-      icon: "refund",
-      value: `${b2bPendingPayment.length}건`,
-      sub: b2bPendingPayment.length > 0 ? `${b2bPendingPaymentAmount.toLocaleString()}원` : "없음",
-      danger: b2bPendingPayment.length > 0,
-      detail: [
-        { label: "결제대기 건수", value: `${b2bPendingPayment.length}건` },
-        { label: "결제대기 금액", value: `${b2bPendingPaymentAmount.toLocaleString()}원` },
-      ],
-    },
-  ];
-
-  const commonCards: DashboardCard[] = [
-    {
-      key: "kakao",
-      label: "카카오 알림",
-      icon: "kakao",
-      value: kakaoConnected ? "연동됨" : "연동 안 됨",
-      sub: kakaoConnected ? "새 주문 알림 발송중" : "환경설정에서 연동해주세요",
-      danger: !kakaoConnected,
-      detail: [
-        { label: "연동 상태", value: kakaoConnected ? "정상" : "미연동" },
-        { label: "ADMIN_KAKAO_ID", value: process.env.ADMIN_KAKAO_ID ? "등록됨" : "미등록" },
-      ],
-    },
-    {
-      key: "delivery",
-      label: "배송원 위임현황",
-      icon: "delivery",
-      value: "추후연동",
-      muted: true,
-      detail: [{ label: "안내", value: "위임배송 시스템 구현 후 연동 예정이에요" }],
-    },
-  ];
-
-  const hasUrgent = (pendingPaymentOrders ?? 0) > 0 || refundCount > 0 || (b2bPendingCount ?? 0) > 0;
-
   return (
-    <div className="pb-24">
-      <header className="px-5 py-4">
-        <h1 className="text-base font-medium">현황</h1>
-      </header>
-
-      <div className="px-5">
-        {hasUrgent && (
-          <div className="mb-5 rounded-xl bg-red-50 px-4 py-3.5">
-            <p className="mb-2 text-sm font-medium text-red-600">지금 처리할 게 있어요</p>
-            <div className="space-y-1.5">
-              {(pendingPaymentOrders ?? 0) > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">입금대기 주문</span>
-                  <span className="font-medium text-red-600">{pendingPaymentOrders}건</span>
-                </div>
-              )}
-              {refundCount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">환불대기</span>
-                  <span className="font-medium text-red-600">{refundCount}건</span>
-                </div>
-              )}
-              {(b2bPendingCount ?? 0) > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">거래처 승인대기</span>
-                  <span className="font-medium text-red-600">{b2bPendingCount}곳</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <p className="mb-1.5 text-xs font-medium text-neutral-400">B2C</p>
-        <AdminDashboardCards cards={b2cCards} />
-
-        <p className="mb-1.5 mt-5 text-xs font-medium text-neutral-400">B2B</p>
-        <AdminDashboardCards cards={b2bCards} />
-
-        <p className="mb-1.5 mt-5 text-xs font-medium text-neutral-400">공통</p>
-        <AdminDashboardCards cards={commonCards} />
-      </div>
-    </div>
+    <DashboardClient
+      b2c={{
+        orders: toDash(b2cRecentRes.data),
+        waiting: b2cWaiting,
+        toShip: real(b2cToShipRes.data).length,
+        shipping: real(b2cShippingRes.data).length,
+        extra: [{ label: "환불 대기", count: real(refundRes.data).length, href: "/admin/orders?status=환불대기" }],
+      }}
+      b2b={{
+        orders: toDash(b2bRecentRes.data),
+        waiting: b2bWaiting,
+        toShip: real(b2bToShipRes.data).length,
+        shipping: real(b2bShippingRes.data).length,
+        extra: [
+          { label: "새 발주 확인", count: real(b2bRequestRes.data).length, href: "/admin/b2b-orders" },
+          { label: "거래처 승인 대기", count: b2bApprovalRes.count ?? 0, href: "/admin/b2b-accounts" },
+        ],
+      }}
+    />
   );
 }

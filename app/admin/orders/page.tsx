@@ -6,7 +6,12 @@ import { requirePermission } from "@/lib/adminAuth";
 import { getB2COrdersData } from "../ordersData";
 import ConsoleClient from "../ConsoleClient";
 
-export default async function AdminOrdersPage() {
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
   const role = await requirePermission(["payment"]);
   const b2cOrders = await getB2COrdersData();
 
@@ -37,6 +42,7 @@ export default async function AdminOrdersPage() {
       </header>
 
       <ConsoleClient
+        initialB2cStatus={status}
         b2cOrders={(b2cOrders as any) ?? []}
         b2bOrders={[]}
         b2bAccountsWithPrices={[]}

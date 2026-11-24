@@ -1,55 +1,45 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { Wallet, FileText, History, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
+import SettlementClient from "../settlement/SettlementClient";
+import { getSettlementData } from "../settlement/data";
 
-const b2bItems = [
-  { href: "/admin/settlement", label: "정산", icon: Wallet },
-  { href: "/admin/quotes", label: "견적", icon: FileText },
-];
-
-const commonItems = [{ href: "/admin/logs", label: "상태변경 이력 (B2C+B2B)", icon: History }];
-
-function ItemGroup({ title, items }: { title?: string; items: typeof b2bItems }) {
-  return (
-    <div className="mb-4">
-      {title && <p className="mb-1.5 px-1 text-xs font-medium text-neutral-400">{title}</p>}
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
-        {items.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2.5 px-3.5 py-3 text-sm ${
-                idx > 0 ? "border-t border-neutral-200" : ""
-              }`}
-            >
-              <Icon size={18} className="text-neutral-500" />
-              <span className="flex-1">{item.label}</span>
-              <ChevronRight size={16} className="text-neutral-300" />
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export default async function RecordsPage() {
+// v41 정산·기록 개편: B2B 월 정산을 이 화면에서 바로 보여주고, 견적/이력은 아래 목록으로
+export default async function RecordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   await requireOwner();
+  const { month } = await searchParams;
+  const data = await getSettlementData(month);
+
+  const links = [
+    { href: "/admin/quotes", label: "견적 문의" },
+    { href: "/admin/logs", label: "상태변경 이력", sub: "B2C·B2B" },
+  ];
 
   return (
-    <div className="pb-24">
-      <header className="px-5 py-4">
-        <h1 className="text-base font-medium">정산 · 기록</h1>
+    <div className="min-h-screen bg-white pb-28 text-neutral-900">
+      <header className="px-5 pb-5 pt-5">
+        <h1 className="text-[22px] font-bold tracking-tight">정산·기록</h1>
       </header>
 
-      <div className="px-5">
-        <ItemGroup title="B2B" items={b2bItems} />
-        <ItemGroup title="공통" items={commonItems} />
-      </div>
+      <SettlementClient {...data} basePath="/admin/records" />
+
+      <section className="mt-7 flex flex-col px-5">
+        <h2 className="mb-1.5 text-[13px] font-bold text-neutral-500">기록</h2>
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="flex min-h-[52px] items-center gap-2.5 border-b border-neutral-100">
+            <span className="flex-1 text-[15px]">
+              {l.label} {l.sub && <span className="text-[13px] text-neutral-500">{l.sub}</span>}
+            </span>
+            <ChevronRight size={16} className="text-neutral-400" />
+          </Link>
+        ))}
+      </section>
     </div>
   );
 }

@@ -56,8 +56,7 @@ export default function TestAccountReset() {
   }
 
   return (
-    <section className="mt-8 border-t border-neutral-200 pt-6">
-      <p className="mb-1 text-sm font-medium">테스트 계정 관리</p>
+    <section>
       <p className="mb-3 text-xs text-neutral-400">
         닉네임/이름/전화번호로 검색 후, 반복 테스트용으로 쓸 계정을 지정하거나(캠페인 재고·대시보드
         통계에서 제외됨) 계정과 관련 데이터를 완전히 삭제할 수 있어요

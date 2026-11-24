@@ -776,6 +776,10 @@ const B2C_STATUS_TABS = [
   "환불완료",
   "취소",
 ];
+const B2C_MAIN_TABS = ["입금대기", "입금확인완료", "배송중", "배송완료"];
+const B2C_SUB_TABS = ["환불대기", "환불완료", "취소"];
+// 화면 표시용 이름 (데이터의 상태값은 그대로)
+const B2C_TAB_LABEL: Record<string, string> = { 입금확인완료: "배송 전" };
 const B2B_PROGRESS = ["승인대기", "발주요청", "주문확정", "배송중", "입금대기"];
 const B2B_DONE = ["입금확인완료", "배송완료", "취소"];
 
@@ -959,6 +963,7 @@ export default function ConsoleClient({
   b2bAccountsWithPrices,
   initialTab = "b2c",
   hideTabs = false,
+  initialB2cStatus,
 }: {
   b2cOrders: B2COrder[];
   b2bOrders: B2BOrder[];
@@ -969,9 +974,13 @@ export default function ConsoleClient({
   }[];
   initialTab?: "b2c" | "b2b";
   hideTabs?: boolean;
+  /** 현황 화면에서 넘어올 때 바로 열 상태 탭 (예: 환불대기) */
+  initialB2cStatus?: string;
 }) {
   const [topTab, setTopTab] = useState<"b2c" | "b2b">(initialTab);
-  const [activeB2cStatus, setActiveB2cStatus] = useState<string>(B2C_STATUS_TABS[0]);
+  const [activeB2cStatus, setActiveB2cStatus] = useState<string>(
+    initialB2cStatus && B2C_STATUS_TABS.includes(initialB2cStatus) ? initialB2cStatus : B2C_STATUS_TABS[0]
+  );
   const [b2bSubTab, setB2bSubTab] = useState<"progress" | "done">("progress");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
@@ -1104,20 +1113,51 @@ export default function ConsoleClient({
             </div>
           )}
 
-          <div className="mb-4 flex flex-wrap gap-2">
-            {B2C_STATUS_TABS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setActiveB2cStatus(status)}
-                className={`rounded-full border px-3.5 py-2 text-sm whitespace-nowrap ${
-                  activeB2cStatus === status
-                    ? "border-primary bg-primary-bg text-primary font-medium"
-                    : "border-neutral-200 text-neutral-500"
-                }`}
-              >
-                {status} {b2cByStatus[status]?.length ?? 0}
-              </button>
-            ))}
+          {/* v41: 주요 상태 4개는 한 줄에 딱 맞게, 환불·취소는 아래 작은 줄로 (가로로 길어지던 문제 해결) */}
+          <div role="tablist" aria-label="주문 상태" className="mb-2 grid grid-cols-4 gap-1.5">
+            {B2C_MAIN_TABS.map((status) => {
+              const on = activeB2cStatus === status;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setActiveB2cStatus(status)}
+                  className={`flex h-[60px] flex-col items-center justify-center gap-0.5 rounded-xl border ${
+                    on ? "border-primary bg-primary text-white" : "border-neutral-200 bg-white"
+                  }`}
+                >
+                  <span className="text-lg font-bold leading-tight">{b2cByStatus[status]?.length ?? 0}</span>
+                  <span className={`text-xs ${on ? "" : "text-neutral-500"}`}>{B2C_TAB_LABEL[status] ?? status}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div role="tablist" aria-label="환불·취소" className="mb-4 flex items-center gap-1">
+            {B2C_SUB_TABS.map((status) => {
+              const on = activeB2cStatus === status;
+              const n = b2cByStatus[status]?.length ?? 0;
+              const alert = status === "환불대기" && n > 0;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setActiveB2cStatus(status)}
+                  className={`h-8 rounded-lg px-2.5 text-[13px] ${
+                    on
+                      ? "bg-primary-bg font-bold text-primary"
+                      : alert
+                        ? "font-bold text-orange-700"
+                        : "text-neutral-500"
+                  }`}
+                >
+                  {status} {n}
+                </button>
+              );
+            })}
           </div>
 
           {(() => {

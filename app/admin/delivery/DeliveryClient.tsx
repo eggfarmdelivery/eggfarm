@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
 import PhotoUploadButton from "@/components/PhotoUploadButton";
 import { markB2CDelivered } from "@/app/admin/actions";
 
@@ -92,6 +93,9 @@ export default function DeliveryClient({
 
   const remainingCount = groups.filter((g) => !g.isDone).length;
   const doneCount = groups.length - remainingCount;
+  const pct = groups.length > 0 ? Math.round((doneCount / groups.length) * 100) : 0;
+  // v41: 남은 배송을 위로, 끝난 배송은 아래로 (각각은 동/호수 순 유지)
+  const sortedGroups = [...groups.filter((g) => !g.isDone), ...groups.filter((g) => g.isDone)];
 
   return (
     <div className="px-5">
@@ -100,15 +104,16 @@ export default function DeliveryClient({
           <button
             key={d}
             type="button"
+            aria-pressed={selectedDate === d}
             onClick={() => router.push(`/admin/delivery?date=${d}`)}
-            className={`shrink-0 rounded-lg border px-3.5 py-2 text-xs ${
+            className={`h-10 shrink-0 rounded-xl border px-3.5 text-sm ${
               selectedDate === d
                 ? "border-primary bg-primary font-bold text-white"
-                : "border-neutral-200 bg-white text-neutral-500"
+                : "border-neutral-200 bg-white text-neutral-600"
             }`}
           >
+            {d === todayDate ? "오늘 " : ""}
             {koDate(d)}
-            {d === todayDate && <span className="ml-1 opacity-70">오늘</span>}
           </button>
         ))}
       </div>
@@ -132,40 +137,33 @@ export default function DeliveryClient({
       </details>
 
       {!selectedDate && !selectedCampaignId ? (
-        <p className="py-10 text-center text-sm text-neutral-400">
+        <p className="py-10 text-center text-sm text-neutral-500">
           위에서 배송일을 선택하면 배송 대상 목록이 보여요
         </p>
       ) : (
         <>
-          {deliverySummary.length > 0 && (
-            <div className="mb-4 rounded-lg bg-primary-bg p-3">
-              <p className="mb-1.5 text-xs font-medium text-primary-dark">
-                배송해야 할 수량 (배송완료 처리마다 자동으로 줄어들어요)
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {deliverySummary.map(([name, qty]) => (
-                  <span
-                    key={name}
-                    className="rounded-full bg-white px-3 py-1 text-xs text-primary-dark"
-                  >
-                    {name} {qty}판
-                  </span>
-                ))}
+          {groups.length > 0 && (
+            <div className="mb-3 flex flex-col gap-2.5 rounded-2xl bg-neutral-50 px-4 py-3.5">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[15px] font-bold">남은 배송 {remainingCount}건</span>
+                <span className="text-[13px] text-neutral-500">
+                  완료 {doneCount} / 전체 {groups.length}
+                </span>
               </div>
+              <div aria-hidden className="h-2 overflow-hidden rounded-full bg-neutral-200">
+                <div className="h-2 rounded-full bg-primary" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-[13px] text-neutral-700">
+                남은 수량 · {deliverySummary.length > 0 ? deliverySummary.map(([n, q]) => `${n} ${q}판`).join(" · ") : "없음"}
+              </span>
             </div>
           )}
 
-          <p className="mb-2 text-xs text-neutral-500">
-            동/호수 순 · 남은 배송 {remainingCount}건{doneCount > 0 && ` · 완료 ${doneCount}건`}
-          </p>
-
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2.5">
             {groups.length === 0 && (
-              <p className="py-10 text-center text-sm text-neutral-400">
-                배송 대상 주문이 없어요
-              </p>
+              <p className="py-10 text-center text-sm text-neutral-500">배송 대상 주문이 없어요</p>
             )}
-            {groups.map((g) => {
+            {sortedGroups.map((g) => {
               const o = g.primary;
               const itemsSummary = g.itemsSummary;
               const dongHo =
@@ -173,66 +171,61 @@ export default function DeliveryClient({
                   ? `${o.account?.address_dong ?? ""}동 ${o.account?.address_ho ?? ""}호`
                   : null;
               const watermarkLines = [dongHo, itemsSummary].filter(Boolean) as string[];
-              const isDone = g.isDone;
-              return (
-                <div
-                  key={o.id}
-                  className={`rounded-xl border bg-white p-3.5 ${
-                    isDone ? "border-neutral-100 opacity-55" : "border-neutral-200"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {o.account?.address_dong}동 {o.account?.address_ho}호
-                    </span>
-                    <span className={`text-xs ${isDone ? "font-medium text-green-600" : "text-neutral-500"}`}>
-                      {isDone ? "배송완료 ✓" : o.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-neutral-500">
-                    {o.account?.nickname ?? "이름없음"}
-                    {o.account?.phone ? ` · ${o.account.phone}` : ""}
-                  </p>
-                  {o.account?.address && (
-                    <p className="mt-1 text-xs text-blue-700">📍 {o.account.address}</p>
-                  )}
-                  {o.account?.entrance_password && (
-                    <p className="text-xs text-blue-700">🔑 공동현관 비밀번호 {o.account.entrance_password}</p>
-                  )}
-                  <p className="mt-0.5 text-xs text-neutral-400">{itemsSummary}</p>
-                  {!isDone && (
-                    <div className="mt-2">
-                      <PhotoUploadButton
-                        orderId={o.id}
-                        label="배송완료 사진"
-                        confirmAddress={o.account?.address}
-                        confirmItemsSummary={itemsSummary}
-                        watermarkLines={watermarkLines}
-                        alsoOrderIds={g.alsoIds}
-                        onSubmit={markB2CDelivered}
-                      />
-                    </div>
-                  )}
-                  {isDone && o.delivery_photo_url && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedPhotos((prev) => ({ ...prev, [o.id]: !prev[o.id] }))
-                        }
-                        className="mt-2 text-xs text-primary underline"
-                      >
-                        {expandedPhotos[o.id] ? "사진 접기" : "배송완료 사진 보기"}
-                      </button>
-                      {expandedPhotos[o.id] && (
-                        <img
-                          src={o.delivery_photo_url}
-                          alt="배송완료 사진"
-                          className="mt-2 w-full rounded-lg object-cover"
-                        />
+
+              if (g.isDone) {
+                return (
+                  <div key={o.id} className="rounded-2xl bg-neutral-50 px-4 text-neutral-500">
+                    <div className="flex min-h-[48px] items-center gap-2.5">
+                      <Check size={18} className="flex-none text-primary" />
+                      <span className="flex-1 text-sm">
+                        {dongHo ?? o.account?.nickname ?? "주소없음"} · {itemsSummary}
+                      </span>
+                      {o.delivery_photo_url && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPhotos((prev) => ({ ...prev, [o.id]: !prev[o.id] }))}
+                          className="h-9 text-[13px] text-primary underline"
+                        >
+                          {expandedPhotos[o.id] ? "사진 접기" : "사진"}
+                        </button>
                       )}
-                    </>
-                  )}
+                    </div>
+                    {expandedPhotos[o.id] && o.delivery_photo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={o.delivery_photo_url} alt="배송완료 사진" className="mb-3 w-full rounded-lg object-cover" />
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div key={o.id} className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xl font-bold tracking-tight">{dongHo ?? "동/호수 없음"}</span>
+                    <span className="text-right text-sm font-medium">{itemsSummary}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-neutral-700">
+                    <span>{o.account?.nickname ?? "이름없음"}</span>
+                    {o.account?.phone && (
+                      <a href={`tel:${o.account.phone}`} className="text-primary underline">
+                        {o.account.phone}
+                      </a>
+                    )}
+                    <span>공동현관 {o.account?.entrance_password ?? "없음"}</span>
+                  </div>
+                  {o.account?.address && <p className="text-[13px] text-neutral-500">{o.account.address}</p>}
+                  <div className="mt-1">
+                    <PhotoUploadButton
+                      orderId={o.id}
+                      label="배송완료 사진"
+                      confirmAddress={o.account?.address}
+                      confirmItemsSummary={itemsSummary}
+                      watermarkLines={watermarkLines}
+                      alsoOrderIds={g.alsoIds}
+                      onSubmit={markB2CDelivered}
+                      size="large"
+                    />
+                  </div>
                 </div>
               );
             })}

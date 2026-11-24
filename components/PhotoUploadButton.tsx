@@ -14,6 +14,7 @@ export default function PhotoUploadButton({
   watermarkLines,
   alsoOrderIds,
   onSubmit,
+  size = "small",
 }: {
   orderId: string;
   label: string;
@@ -24,6 +25,8 @@ export default function PhotoUploadButton({
   /** 같은 집의 다른 주문 번호들 - 한 번 촬영으로 함께 배송완료 처리 */
   alsoOrderIds?: string[];
   onSubmit: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
+  /** large: 배송 리스트용 가로 꽉 찬 큰 버튼 */
+  size?: "small" | "large";
 }) {
   const [pending, setPending] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -110,12 +113,16 @@ export default function PhotoUploadButton({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={size === "large" ? "flex w-full" : "flex items-center gap-2"}>
       <button
         type="button"
         disabled={pending}
         onClick={() => setShowChooser(true)}
-        className="flex items-center gap-1.5 text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
+        className={
+          size === "large"
+            ? "flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-bold text-white disabled:opacity-50"
+            : "flex items-center gap-1.5 text-xs rounded-md bg-primary text-white px-3 py-1.5 disabled:opacity-50"
+        }
       >
         {pending && <Spinner className="h-3 w-3" />}
         {pending ? "처리 중..." : label}

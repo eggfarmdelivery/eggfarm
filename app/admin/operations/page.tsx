@@ -1,71 +1,50 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import { ClipboardList, Archive, Truck, Building2, ChevronRight, Store, Users, MapPin, Settings2, History } from "lucide-react";
 import { requireOwner } from "@/lib/adminAuth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getSchedule } from "@/lib/schedule";
+import OperationsClient from "./OperationsClient";
 
-const b2cItems = [
-  { href: "/admin/orders", label: "주문관리", icon: ClipboardList },
-  { href: "/admin/stock", label: "상품·재고 관리", icon: Archive },
-  { href: "/admin/schedule", label: "배송 설정", icon: Settings2 },
-  { href: "/admin/delivery", label: "배송 리스트", icon: Truck },
-  { href: "/admin/zones", label: "배송가능 단지", icon: Building2 },
-  { href: "/admin/campaign", label: "이전 캠페인 기록", icon: History },
-];
-
-const b2bItems = [
-  { href: "/admin/b2b-orders", label: "주문관리", icon: ClipboardList },
-  { href: "/admin/b2b-accounts", label: "거래처 관리", icon: Store },
-  { href: "/admin/b2b-delivery", label: "B2B 배송리스트", icon: Truck },
-];
-
-const commonItems = [
-  { href: "/admin/members", label: "회원 조회", icon: Users },
-  { href: "/admin/zone-requests", label: "단지 추가 요청", icon: MapPin },
-];
-
-function ItemGroup({ title, items }: { title?: string; items: typeof commonItems }) {
-  return (
-    <div className="mb-4">
-      {title && <p className="mb-1.5 px-1 text-xs font-medium text-neutral-400">{title}</p>}
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        {items.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3.5 py-3 text-sm ${
-                idx > 0 ? "border-t border-neutral-200" : ""
-              }`}
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-bg text-primary">
-                <Icon size={16} />
-              </span>
-              <span className="flex-1">{item.label}</span>
-              <ChevronRight size={16} className="text-neutral-300" />
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
+// v41 운영 개편: B2C/B2B 탭 + 매일 쓰는 메뉴(주문관리·배송 리스트)는 크게, 나머지는 목록으로.
+// 큰 버튼에는 지금 처리할 건수를 같이 보여줌.
 export default async function OperationsPage() {
   await requireOwner();
+  const admin = createAdminClient();
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  const [b2cRes, b2bRes, stockRes, zoneReqRes, schedule] = await Promise.all([
+    admin
+      .from("b2c_order")
+      .select("status, account(is_test)")
+      .in("status", ["입금대기", "입금확인완료", "배송중"]),
+    admin
+      .from("b2b_order")
+      .select("status, account(is_test)")
+      .in("status", ["승인대기", "발주요청", "주문확정", "배송중", "입금대기"]),
+    admin.from("product").select("stock_qty").eq("is_active", true),
+    admin.from("zone_request").select("id", { count: "exact", head: true }).gte("created_at", weekAgo),
+    getSchedule(),
+  ]);
+
+  const count = (rows: any[] | null | undefined, statuses: string[]) =>
+    (rows ?? []).filter((r) => !r.account?.is_test && statuses.includes(r.status)).length;
+
+  const lowStock = (stockRes.data ?? []).filter((p) => (p.stock_qty ?? 0) <= schedule.lowThreshold).length;
 
   return (
-    <div className="pb-24">
-      <header className="px-5 py-4">
-        <h1 className="text-base font-medium">운영</h1>
-      </header>
-
-      <div className="px-5">
-        <ItemGroup title="B2C" items={b2cItems} />
-        <ItemGroup title="B2B" items={b2bItems} />
-        <ItemGroup title="공통" items={commonItems} />
-      </div>
-    </div>
+    <OperationsClient
+      b2c={{
+        waiting: count(b2cRes.data, ["입금대기"]),
+        beforeShip: count(b2cRes.data, ["입금확인완료"]),
+        toDeliver: count(b2cRes.data, ["입금확인완료", "배송중"]),
+        lowStock,
+        zoneRequests: zoneReqRes.count ?? 0,
+      }}
+      b2b={{
+        newOrders: count(b2bRes.data, ["승인대기", "발주요청"]),
+        waiting: count(b2bRes.data, ["입금대기"]),
+        toDeliver: count(b2bRes.data, ["주문확정", "배송중"]),
+      }}
+    />
   );
 }

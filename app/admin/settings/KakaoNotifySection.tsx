@@ -33,8 +33,7 @@ export default function KakaoNotifySection({
   }
 
   return (
-    <section className="mt-8 border-t border-neutral-200 pt-6">
-      <p className="mb-1 text-sm font-medium">새 주문 카카오 알림 (나에게 보내기)</p>
+    <section>
       <p className="mb-3 text-xs text-neutral-400">
         연동해두면 새 주문이 들어올 때마다 관리자 본인 카톡으로 알림이 와요
       </p>

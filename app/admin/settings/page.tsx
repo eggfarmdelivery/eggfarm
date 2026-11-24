@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { requireOwner } from "@/lib/adminAuth";
 import { getConfigs } from "@/lib/settings";
 import { isAdminKakaoConnected } from "@/lib/kakao";
@@ -9,6 +8,7 @@ import TestAccountReset from "./TestAccountReset";
 import KakaoNotifySection from "./KakaoNotifySection";
 import AdminLogoutButton from "./AdminLogoutButton";
 import StaffManagement from "./StaffManagement";
+import { SettingGroup, SettingRow } from "./SettingRow";
 
 export default async function SettingsPage({
   searchParams,
@@ -33,27 +33,33 @@ export default async function SettingsPage({
   const connected = await isAdminKakaoConnected();
 
   return (
-    <div className="pb-24">
-      <header className="flex items-center gap-2 px-5 py-4">
-        <Link href="/admin" aria-label="뒤로가기" className="text-lg">
-          ←
-        </Link>
-        <h1 className="text-base font-medium">운영 설정</h1>
+    <div className="min-h-screen bg-white pb-28 text-neutral-900">
+      <header className="px-5 pb-3 pt-5">
+        <h1 className="text-[22px] font-bold tracking-tight">환경설정</h1>
       </header>
-      <SettingsClient config={config} />
-      <div className="px-5">
-        <p className="mb-2 mt-2 text-xs font-medium text-neutral-400">공통</p>
-        <KakaoNotifySection
-          connected={connected}
-          justConnected={kakao_connected === "1"}
-          error={kakao_error}
-        />
-        <TestAccountReset />
-        <div className="mt-8">
-          <p className="mb-2 text-xs font-medium text-neutral-400">기타</p>
-          <StaffManagement />
-        </div>
-        <div className="mt-6">
+      <div className="flex flex-col gap-5 px-5">
+        <SettingsClient config={config} />
+
+        <SettingGroup title="알림">
+          <SettingRow
+            label="카카오 알림"
+            defaultOpen={kakao_connected === "1" || !!kakao_error}
+            badge={connected ? { text: "연동됨", tone: "green" } : { text: "연동 안 됨", tone: "orange" }}
+          >
+            <KakaoNotifySection connected={connected} justConnected={kakao_connected === "1"} error={kakao_error} />
+          </SettingRow>
+        </SettingGroup>
+
+        <SettingGroup title="관리">
+          <SettingRow label="직원 관리" value="입금확인·배송 담당자 권한">
+            <StaffManagement />
+          </SettingRow>
+          <SettingRow label="테스트 계정 관리">
+            <TestAccountReset />
+          </SettingRow>
+        </SettingGroup>
+
+        <div className="mt-2">
           <AdminLogoutButton />
         </div>
       </div>
